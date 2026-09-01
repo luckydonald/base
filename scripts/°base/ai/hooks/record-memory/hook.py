@@ -55,10 +55,25 @@ memory_lib = importlib.import_module("°memory_lib")
 commit_message = importlib.import_module("°commit_style_lib").commit_message
 
 
-def _memory_dirs(subproject: Path) -> tuple[Path, Path, Path]:
-    src = _encoded_project_dir(subproject) / "memory"
-    dst, secondary = memory_lib.memory_dirs(subproject)
-    return src, dst, secondary
+def _memory_src_dirs(subproject: Path, git_root: Path) -> list[Path]:
+    """Directories Claude Code's own auto-memory might have written into for
+    this session. Its `~/.claude.json` "projects" registry has no separate
+    entry for a subdirectory of an already-registered repo (confirmed: no
+    `~/.claude/projects/...-sticker-tag-bot/memory/` ever existed for the
+    `sticker_tag_bot` subproject inside `DockerTgBot`, only the git-root-
+    encoded one did -- see `ai/°base/errors/25.*`), so a session launched
+    inside a monorepo subproject reads/writes memory under the *repo
+    root*'s encoded project dir. List the repo-root encoding first (the
+    confirmed case) and the launch-dir encoding second, so either being
+    populated still works, and the two collapse to one entry when
+    ``subproject == git_root`` (the common, non-monorepo case)."""
+    dirs: list[Path] = []
+    for root in (git_root, subproject):
+        d = _encoded_project_dir(root) / "memory"
+        if d not in dirs:
+            dirs.append(d)
+    return dirs
+
 
 
 _SHELL_OPERATORS = {"&&", "||", ";"}
@@ -139,7 +154,14 @@ def _unlink_file(path: Path) -> bool:
     return False
 
 
-def _sync_all(src_dir: Path, dst_dir: Path, secondary_dir: Path, dst_dir_rel: str) -> list[str]:
+def _sync_all(
+    src_dir: Path,
+    dst_dir: Path,
+    secondary_dir: Path,
+    dst_dir_rel: str,
+    *,
+    recreate_missing_src: bool = True,
+) -> list[str]:
     """Sync memory files without treating a missing source as a delete.
 
     Repo memory is the durable copy, and it wins on content conflicts too: a
@@ -158,6 +180,12 @@ def _sync_all(src_dir: Path, dst_dir: Path, secondary_dir: Path, dst_dir_rel: st
     missing but the file already lives in `secondary_dir`, that's the
     authoritative copy: re-point the Claude-side hardlink there instead of
     resurrecting a duplicate in `dst_dir`.
+
+    ``recreate_missing_src`` gates only the dst -> src recreation direction:
+    when multiple candidate source dirs are synced in one run (a monorepo
+    subproject session -- see `_memory_src_dirs`), a file missing from every
+    candidate should only be recreated into the one Claude Code actually
+    reads, not into every candidate; pass ``False`` for the others.
     """
     changed: list[str] = []
     src_names: set[str] = set()
@@ -180,7 +208,7 @@ def _sync_all(src_dir: Path, dst_dir: Path, secondary_dir: Path, dst_dir_rel: st
             if not memory_lib.same_inode(dst, src):
                 memory_lib.link_file(dst, src)
 
-    if dst_dir.is_dir():
+    if recreate_missing_src and dst_dir.is_dir():
         for dst in sorted(dst_dir.glob("*.md")):
             if dst.name in src_names:
                 continue
@@ -389,10 +417,12 @@ def main() -> int:
     # duplicated) work that can never find a source directory.
     if running_copilot():
         return 0
-    if _git_root() is None:
+    git_root = _git_root()
+    if git_root is None:
         return 0
     subproject = _subproject_root()
-    src_dir, dst_dir, secondary_dir = _memory_dirs(subproject)
+    src_dirs = _memory_src_dirs(subproject, git_root)
+    dst_dir, secondary_dir = memory_lib.memory_dirs(subproject)
     _chdir_to_git_root()
     dst_dir_rel = str(dst_dir.relative_to(Path.cwd()))
 
@@ -405,14 +435,16 @@ def main() -> int:
         tool_input = payload.get("tool_input") or {}
         command = tool_input.get("command") or ""
         if command:
-            resolved_src_dir = src_dir.resolve()
             for target in _rm_targets(command):
-                if target.parent != resolved_src_dir:
+                matched_src_dir = next(
+                    (d for d in src_dirs if target.parent == d.resolve()), None
+                )
+                if matched_src_dir is None:
                     continue
                 if target.exists():
                     continue  # rm didn't actually remove it -- nothing to do
                 memory_lib.delete_memory(
-                    target.name, src_dir=src_dir, dst_dir=dst_dir, dst_dir_rel=dst_dir_rel
+                    target.name, src_dir=matched_src_dir, dst_dir=dst_dir, dst_dir_rel=dst_dir_rel
                 )
             _check_memory_index_consistency(dst_dir)
             return 0
@@ -421,9 +453,14 @@ def main() -> int:
         if not raw:
             return 0
         src_file = Path(raw).resolve()
-        try:
-            rel = src_file.relative_to(src_dir.resolve())
-        except (OSError, ValueError):
+        rel = None
+        for src_dir in src_dirs:
+            try:
+                rel = src_file.relative_to(src_dir.resolve())
+                break
+            except (OSError, ValueError):
+                continue
+        if rel is None:
             return 0
         # If this memory was already promoted/demoted to the other valid
         # dir, keep updating it there instead of creating a second copy.
@@ -433,11 +470,17 @@ def main() -> int:
         _check_memory_index_consistency(target_dir)
         return 0
 
-    # SessionStart (and any other event) — full catch-up sync.
-    # Clean up any legacy whole-folder link planted by `hardlink_memories.sh`
-    # so the new per-file hardlinks don't duplicate memory state in the repo.
-    _uninstall_legacy_all(subproject, src_dir)
-    changed = _sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel)
+    # SessionStart (and any other event) — full catch-up sync. Clean up any
+    # legacy whole-folder link planted by `hardlink_memories.sh` so the new
+    # per-file hardlinks don't duplicate memory state in the repo. Only the
+    # first (git-root) candidate gets a missing file recreated into it --
+    # see `_sync_all`'s `recreate_missing_src`.
+    changed: list[str] = []
+    for i, src_dir in enumerate(src_dirs):
+        _uninstall_legacy_all(subproject, src_dir)
+        for name in _sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel, recreate_missing_src=(i == 0)):
+            if name not in changed:
+                changed.append(name)
     _commit(dst_dir_rel, changed)
     _check_memory_index_consistency(dst_dir)
     compact_result.capture_session_start(payload)

@@ -1255,6 +1255,39 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertEqual(dst.read_text(encoding="utf-8"), "useful tip\n")
             self.assertEqual(last_subject(repo), "ai: record memory tip")
 
+    def test_memory_posttooluse_write_from_subproject_syncs_via_git_root_source(self):
+        """A session launched inside a monorepo subdirectory (CLAUDE_PROJECT_DIR
+        != git root) must still find memory written under Claude Code's
+        git-root-encoded source dir -- see ai/°base/errors/25.*."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "DockerTgBot"
+            subproject = repo / "sticker_tag_bot"
+            home = Path(tmp) / "home"
+            init_repo(repo, "https://github.com/luckydonald/docker-tg-bot.git")
+            subproject.mkdir()
+
+            encoded_root = _encode_project_path(repo.resolve())
+            src_dir = home / ".claude" / "projects" / encoded_root / "memory"
+            src_dir.mkdir(parents=True)
+            src_file = src_dir / "tip.md"
+            src_file.write_text("useful tip\n", encoding="utf-8")
+
+            run_hook(
+                repo,
+                MEMORY_HOOK,
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Write",
+                    "tool_input": {"file_path": str(src_file)},
+                },
+                extra_env={"HOME": str(home), "CLAUDE_PROJECT_DIR": str(subproject)},
+            )
+
+            dst = subproject / "ai" / "memory" / "tip.md"
+            self.assertTrue(dst.exists(), "memory file was not synced to repo")
+            self.assertEqual(dst.read_text(encoding="utf-8"), "useful tip\n")
+            self.assertEqual(last_subject(repo), "ai: record memory tip")
+
     def test_memory_posttooluse_write_honors_project_dir_name_override(self):
         """When CLAUDE_CODE_PROJECT_DIR_NAME (+ CLAUDE_CONFIG_DIR) is set —
         e.g. via a linked subproject's `.claude-project.env` — the hook must
