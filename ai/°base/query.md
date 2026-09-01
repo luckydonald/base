@@ -7290,5 +7290,16 @@ I've enabled plan mode, so have a markdown `shell` code block with the needed co
 ❯ You don't have to write the (second) plan and analysis into any `ai/errors` dir, the current plan is fine (it's auto-commited once you change something via hooks, too).
 You missunderstood, you should copy and force add the relevant `ai/output/debug/*.json` files so they are staying in this git. The `25.claudeX.txt` are already commited, which is intended.
 
+❯ You still got a few things wrong:
+1. copy files: 
+  - > Copy the eight JSON files from `sticker_tag_bot/ai/output/debug/` into `ai/°base/errors/`
+  - No, copy it to `ai/°base/ai/output/debug/` keeping the names.
+2. memory copy fix
+  - > No code fix to `record-memory/hook.py` is included in this plan — only preserving the bug evidence and the housekeeping memory-index update.
+  - You should document your analysis and how to fix it, because that's part of the implementation run once the plan is approved.
+3. enable lplp commit style when implementing, including cleaning up auto-commits.
+
+❯ I guess it wouldn't hurt to just support both cwd _and_ git root for the hooks triggering there.
+
 ❯ resolve `git pull` by rebasing.
 
