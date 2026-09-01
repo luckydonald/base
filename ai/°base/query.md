@@ -7285,5 +7285,7 @@ Commit message first line must adhere to `[base] [sync_todo] …: ….`.
 I have turned on debug now and forced it to do another change, @ai/°base/errors/25.claude2.txt , for which you can look at `sticker_tag_bot/ai/output/debug/20260901-110828_704139-save-prompt.json` up to `20260901-110902_037992-SubagentStop.json`. As always, copy the relevant errors into this project's `ai/°base/errors`, and force add & commit them, and merge them into the LPLP-style squashed message, too. Also follow the @ai/skills/code-style/references/md.md skill for the plan document.
 I've enabled plan mode, so have a markdown `shell` code block with the needed commands to run first, or a checklist of steps to do for the copy & commit instruction above.
 
+❯ Also update your local `MEMORY.md` for the `2026-07-20-history-master-replay-guards.md` from that project one's.
+
 ❯ resolve `git pull` by rebasing.
 
