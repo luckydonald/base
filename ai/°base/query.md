@@ -7287,5 +7287,8 @@ I've enabled plan mode, so have a markdown `shell` code block with the needed co
 
 ❯ Also update your local `MEMORY.md` for the `2026-07-20-history-master-replay-guards.md` from that project one's.
 
+❯ You don't have to write the (second) plan and analysis into any `ai/errors` dir, the current plan is fine (it's auto-commited once you change something via hooks, too).
+You missunderstood, you should copy and force add the relevant `ai/output/debug/*.json` files so they are staying in this git. The `25.claudeX.txt` are already commited, which is intended.
+
 ❯ resolve `git pull` by rebasing.
 
