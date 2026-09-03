@@ -7345,5 +7345,54 @@ Because currently, in every subproject, I get diffs if my local hostname (fedora
 > </details>
 >
 
+❯ I mean I'm open to considerations of how to make it stable?
+And, well, auto-claims sounds like the wrong thing to do, if every project would do that each?
+
+❯ Question canceled (chat about this).
+> <details><summary>
+>
+>> 1. The memory is already fully claimed (committed in c0c2a14a, .codex-sync.json + MEMORY.md index line both present). There's also an unrelated stray change: import-codex.py's file mode was flipped 100644→100755 (uncommitted), apparently from trying to run it directly instead of via `python3 scripts/...`. What should I do?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Scope** (1/1) <kbd>Single Select</kbd><br>
+>> The memory is already fully claimed (committed in c0c2a14a, .codex-sync.json + MEMORY.md index line both present). There's also an unrelated stray change: import-codex.py's file mode was flipped 100644→100755 (uncommitted), apparently from trying to run it directly instead of via `python3 scripts/...`. What should I do?
+> - [ ] 1\. Just report, no changes (Recommended)
+>   - _Nothing to claim — write up the finding for you and leave the working tree as-is, including the mode change._
+> - [ ] 2\. Also revert the stray chmod
+>   - _Include reverting the accidental 100644→100755 mode change on import-codex.py in the plan, since it's unrelated to any real fix._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
 ❯ resolve `git pull` by rebasing.
+
+❯ rewrite that `ai:` commit
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Which `ai:` commit(s) should I rewrite? There are 8 un-folded auto-commits on top of the code commits.
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Which commit** (1/1) <kbd>Single Select</kbd><br>
+>> Which `ai:` commit(s) should I rewrite? There are 8 un-folded auto-commits on top of the code commits.
+> - [ ] 1\. Only tip: da40176f
+>   - _Reword just the latest `[base] ai: updated prompt` commit (needs a new message from you or me)._
+> - [ ] 2\. Plan 060 commits
+>   - _Rename/fold the two `ai: save plan 060_…` commits (2e202e82, bffa18af) into proper `ai: Plan:` / `ai: Plan update:` messages._
+> - [x] 3\. All 8 since f19027d4
+>   - _Run the full lplp cleanup: fold prompts/decisions/agent results into the preceding commits and rename the plan commits._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+❯ 3
 

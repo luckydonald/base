@@ -51,3 +51,18 @@ Already done as part of this investigation (read-only):
 - `git log --oneline -1 -- "ai/°base/memory/.codex-sync.json" "ai/°base/memory/2026-07-20-history-master-replay-guards.md"` → `c0c2a14a`.
 
 No further action required unless you want the stray `import-codex.py` mode bit reverted.
+
+## Follow-up: hostname-instability bug (explained, no fix requested)
+
+You asked about `ai/°base/plans/051_scoped-two-way-codex-memory-sync.md:37` (the "previously unassigned native note noticed at SessionStart/Stop" case) because you're seeing `.codex-sync.json` diffs in every subproject whenever your local hostname (`fedora`) changes.
+
+Root cause, confirmed by reading `scripts/°base/ai/hooks/record-codex-memory/hook.py`:
+
+- `device_id()` (hook.py:79-81) is `$CODEX_MEMORY_DEVICE_ID` or `socket.gethostname()`.
+- `source_id()` (hook.py:84-86) bakes that device id into the `sources`/`ignored` dict **keys** in `.codex-sync.json`: `"<device_id>:extensions/ad_hoc/<name>.md"`.
+- `unassigned_notes()` (hook.py:290-301) only treats a note as already-claimed if the *current* `source_id()` matches an existing key.
+- On `PostToolUse`, the hook auto-claims (hook.py:441-443) every note it currently considers unassigned, in whatever project you're running a tool in.
+
+So: hostname changes → every previously-claimed note's `source_id` changes → `unassigned_notes()` sees them as unassigned again → the next write-like tool call in *any* project silently re-adds them under the new hostname key, while the stale old-hostname key is never removed (nothing prunes it) → `.codex-sync.json` grows/diffs independently in every subproject that ever claimed a note from this machine.
+
+**Decision: explanation only, no fix planned.** You confirmed you just wanted to understand the mechanism — no code change, migration script, or `CODEX_MEMORY_DEVICE_ID` pinning is in scope for this plan. If you want this addressed later (stable persisted device id instead of raw hostname, plus cleanup of already-duplicated stale entries), that would be a separate follow-up plan.
