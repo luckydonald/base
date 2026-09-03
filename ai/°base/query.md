@@ -7303,5 +7303,22 @@ You missunderstood, you should copy and force add the relevant `ai/output/debug/
 
 ❯ Check on the background test suite run (task id b7qb13whj, output at /private/tmp/claude-501/-Users-user-Documents-programming-Python-base/b55cc0a8-f371-47ed-ab47-28e1f48e0ac8/tasks/b7qb13whj.output). If it finished, review results and proceed with the two LPLP commits (hook fix+test, then the debug-evidence copy folded with 557cf20a/a97a50d3) per the approved plan at /Users/user/.claude/plans/jazzy-discovering-quasar.md. If still running, check again.
 
+❯ /plan I want to claim @ai/°base/memory/2026-07-20-history-master-replay-guards.md in @ai/°base/memory/.codex-sync.json to be part of the base repo here.
+I forgot how it's done, there should be a script for it.
+Apparently 
+```shell
+scripts/°base/ai/memory/import-codex.py ai/°base/memory/2026-07-20-history-master-replay-guards.md
+```
+is wrong?
+
+❯ Task Notification:
+> - Task `acb627a37caa7f81f` <kbd>completed</kbd>
+> - Tool `toolu_014TGvhX3t2BkmZ5ofXni4JK`
+> - > Agent "Investigate codex memory import script" finished
+> - [Query (`4130` chars, `4.07 KB`)](output/agents/044.acb627a37caa7f81f/prompt.md)
+> - [Answer (`5724` chars, `5.63 KB`)](output/agents/044.acb627a37caa7f81f/result.md)
+> - [Raw log (`186774` chars, `183 KB`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/700fae7e-e6ee-424d-b96d-46a097506093/tasks/acb627a37caa7f81f.output)
+> - `16` tools, `61306` tokens, `2.91532 s`
+
 ❯ resolve `git pull` by rebasing.
 
