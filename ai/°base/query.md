@@ -7320,5 +7320,30 @@ is wrong?
 > - [Raw log (`186774` chars, `183 KB`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/700fae7e-e6ee-424d-b96d-46a097506093/tasks/acb627a37caa7f81f.output)
 > - `16` tools, `61306` tokens, `2.91532 s`
 
+❯ Check ai/°base/plans/051_scoped-two-way-codex-memory-sync.md:37 and explain me the assigning, what that means, how that works.
+Because currently, in every subproject, I get diffs if my local hostname (fedora) changes.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Do you want me to plan an actual fix for the hostname-instability bug, or was this just to understand the mechanism?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Next step** (1/1) <kbd>Single Select</kbd><br>
+>> Do you want me to plan an actual fix for the hostname-instability bug, or was this just to understand the mechanism?
+> - [ ] 1\. Plan a fix (Recommended)
+>   - _Design a stable device-id scheme (e.g. a persisted id in $CODEX_HOME instead of raw hostname) plus a migration/cleanup pass to collapse the stale duplicate hostname-keyed entries already sitting in every subproject's .codex-sync.json._
+> - [x] 2\. Just wanted the explanation
+>   - _No further changes — close out the plan with the explanation above and the earlier claiming finding, no code changes._
+> - [ ] 3\. Just set CODEX_MEMORY_DEVICE_ID going forward
+>   - _Minimal fix: pin CODEX_MEMORY_DEVICE_ID in your shell profile so future renames don't cause new drift, without touching existing stale entries or the hook's code._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
 ❯ resolve `git pull` by rebasing.
 
