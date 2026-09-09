@@ -5368,3 +5368,61 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > - [Answer (`1229` chars, `1.2 KB`)](output/agents/053.bwlnnwnsf/result.md)
 > - [Raw log (`1229` chars, `1.2 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bwlnnwnsf.output)
 
+❯ /plan The current @ai/memory/.codex-sync.json is brittle, as the hostname changes, it recreates a lot of entries. The idea is to check if it is synced locally, and if not do that, but also track the destination project. Currently it is however spamming entries for all subprojects.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The identity/dedup fix stops new duplicate entries going forward. But right now the same note is already wrongly recorded as a 'source' in 13 unrelated project repos (times-uploader, DockerTgBot, game-collections, etc.) plus duplicated under 4 hostname variants. Should the plan include cleanup for that existing bad data?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Cleanup scope** (1/1) <kbd>Single Select</kbd><br>
+>> The identity/dedup fix stops new duplicate entries going forward. But right now the same note is already wrongly recorded as a 'source' in 13 unrelated project repos (times-uploader, DockerTgBot, game-collections, etc.) plus duplicated under 4 hostname variants. Should the plan include cleanup for that existing bad data?
+> - [ ] 1\. Add a cleanup script (Recommended)
+>   - _Write a small maintenance script (e.g. scripts/°base/ai/memory/codex-sync-audit.py) that scans all ~/.codex resource dirs, reports/removes sources entries and orphaned .md files not owned by the right project, for the user to run manually and review before it touches other repos' git state._
+> - [ ] 2\. Code fix only, no cleanup tooling
+>   - _Just ship the hook.py fix (stable hostname-free identity + cross-project ownership check) and leave the existing stray entries in other repos alone; they're inert since the fixed unassigned_notes() check will stop re-processing them, but they'll linger as clutter._
+> - [ ] 3\. I'll clean it up manually now
+>   - _You tell me which entries/repos to fix and I do it interactively in this session instead of building a reusable script._
+> - [x] 4\. _Type something:_
+>   - > Add a cleanup script. But also I want to rethink the whole system, and the data structure, how it can be reworked to match the need better...
+>
+> </details>
+>
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Right now "is this note assigned" is answered by merging each project's own sources/ignored map, and each project has to scan/replicate that state independently — that's why hostname changes and cross-project drift both cause spam. I'd replace this with one central ownership registry (e.g. $CODEX_HOME/memories/extensions/base_synced/registry.json) that's the single source of truth for which project owns which ad_hoc note, with per-project .codex-sync.json becoming a read-only, derived view (just "notes this project received") instead of a peer that gets merged. Does that match what you had in mind?
+>> 2. For migrating existing data into whatever new structure we land on: should the hook auto-migrate/seed the new state the first time it runs (picking one owner per note automatically, e.g. first-seen or current project), or should migration only happen via the cleanup script you review by hand before anything in other repos changes?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Core redesign** (1/2) <kbd>Single Select</kbd><br>
+>> Right now "is this note assigned" is answered by merging each project's own sources/ignored map, and each project has to scan/replicate that state independently — that's why hostname changes and cross-project drift both cause spam. I'd replace this with one central ownership registry (e.g. $CODEX_HOME/memories/extensions/base_synced/registry.json) that's the single source of truth for which project owns which ad_hoc note, with per-project .codex-sync.json becoming a read-only, derived view (just "notes this project received") instead of a peer that gets merged. Does that match what you had in mind?
+> - [ ] 1\. Yes, central registry (Recommended)
+>   - _One authoritative file tracks note -> owning project. Per-project files become simple derived logs, no more pairwise merging, no more hostname-keyed duplication._
+> - [ ] 2\. No — keep it per-project, just fix the bugs
+>   - _Keep the current per-project sources/ignored architecture, but fix the hostname-in-key bug and add a cross-project scan before auto-importing, without introducing a new central file._
+> - [ ] 3\. Something else — I'll describe it
+>   - _You have a different structure in mind; tell me and I'll fold it into the plan._
+> - [x] 4\. _Type something:_
+>   - > Central registry sounds good, how does that work across devices?
+>
+>> **Migration path** (2/2) <kbd>Single Select</kbd><br>
+>> For migrating existing data into whatever new structure we land on: should the hook auto-migrate/seed the new state the first time it runs (picking one owner per note automatically, e.g. first-seen or current project), or should migration only happen via the cleanup script you review by hand before anything in other repos changes?
+> - [ ] 1\. Manual only, via cleanup script (Recommended)
+>   - _Code changes ship inert until you run the audit/cleanup script yourself; nothing in other repos' git history changes automatically._
+> - [ ] 2\. Auto-migrate on next hook run
+>   - _The hook rewrites old-format entries to the new structure automatically as it encounters them, no separate script needed — but this will touch/commit files in whichever repos the hook fires in next._
+> - [x] 3\. _Type something:_
+>   - > Automigrate, but enable only after it's code tested properly.
+>
+> </details>
+>
+
