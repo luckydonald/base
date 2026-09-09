@@ -5352,3 +5352,19 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > - [Answer (`49` chars, `49 B`)](output/agents/051.bxh6waaru/result.md)
 > - [Raw log (`49` chars, `49 B`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bxh6waaru.output)
 
+❯ Task Notification:
+> - Task `bwlnnwnsf` <kbd></kbd>
+> - Tool ``
+> - > Monitor event: "wait for full test suite completion"
+> - [Query (`0` chars, `0 B`)](output/agents/052.bwlnnwnsf/prompt.md)
+> - [Answer (`0` chars, `0 B`)](output/agents/052.bwlnnwnsf/result.md)
+> - [Raw log (`0` chars, `424 B`)]()
+
+❯ Task Notification:
+> - Task `bwlnnwnsf` <kbd>completed</kbd>
+> - Tool `toolu_01BY5DWggKMabqRSsxgxAfC3`
+> - > Monitor "wait for full test suite completion" stream ended
+> - [Query (`58` chars, `58 B`)](output/agents/053.bwlnnwnsf/prompt.md)
+> - [Answer (`1229` chars, `1.2 KB`)](output/agents/053.bwlnnwnsf/result.md)
+> - [Raw log (`1229` chars, `1.2 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bwlnnwnsf.output)
+
