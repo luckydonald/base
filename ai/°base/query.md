@@ -5239,3 +5239,7 @@ warning: unable to access 'forked/ai/output/explore/.gitignore': Too many levels
 If you can also disable those commit system message via the git tracked per-repo config file, please do so.
 Add/fix the memory(-ies) to disallow both.
 
+❯ Rename settings' `includeCoAuthoredBy` to `allowCoAuthoredEtc`.
+
+❯ do it as separte new (but ai-squashed) commit.
+
