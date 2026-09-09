@@ -1288,19 +1288,15 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
     def test_codex_memory_sync_does_not_resurrect_across_promoted_directory(self):
         """Same guard, exercised through `record-codex-memory/hook.py`'s
-        resource->project reverse sync."""
+        resource->project reverse sync. `$CODEX_HOME/memories` is a plain
+        folder here, not a git repo -- that is not a supported setup."""
         with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
             project = Path(tmp) / "base"
             codex_home = Path(tmp) / "codex"
             memory_repo = codex_home / "memories"
             init_repo(project, "https://luckydonald@github.com/luckydonald/base.git")
             memory_repo.mkdir(parents=True)
-            run_git(memory_repo, "init")
-            run_git(memory_repo, "config", "user.email", "tester@example.com")
-            run_git(memory_repo, "config", "user.name", "Test User")
             (memory_repo / "MEMORY.md").write_text("# Memories\n", encoding="utf-8")
-            run_git(memory_repo, "add", "MEMORY.md")
-            run_git(memory_repo, "commit", "-m", "init memory")
 
             promoted = project / "ai" / "memory" / "shared.md"
             promoted.parent.mkdir(parents=True)
@@ -1327,19 +1323,16 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "the real, promoted copy\n",
             )
 
-    def test_codex_memory_hook_commits_and_is_idempotent(self):
+    def test_codex_memory_hook_syncs_and_is_idempotent(self):
+        """`$CODEX_HOME/memories` is a plain folder -- the hook never runs
+        git there, only inside the project repo (`project`)."""
         with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
             project = Path(tmp) / "project"
             codex_home = Path(tmp) / "codex"
             memory_repo = codex_home / "memories"
             init_repo(project, "https://github.com/user/project.git")
             memory_repo.mkdir(parents=True)
-            run_git(memory_repo, "init")
-            run_git(memory_repo, "config", "user.email", "tester@example.com")
-            run_git(memory_repo, "config", "user.name", "Test User")
             (memory_repo / "MEMORY.md").write_text("# Memories\n", encoding="utf-8")
-            run_git(memory_repo, "add", "MEMORY.md")
-            run_git(memory_repo, "commit", "-m", "init memory")
 
             note = memory_repo / "extensions" / "ad_hoc" / "note.md"
             note.parent.mkdir(parents=True)
@@ -1353,7 +1346,6 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 extra_env={"CODEX_HOME": str(codex_home)},
             )
 
-            self.assertEqual(last_subject(memory_repo), "ai: record codex memory")
             mirror = project / "ai" / "memory" / "note.md"
             self.assertTrue(mirror.exists())
             self.assertEqual(last_subject(project), "ai: sync codex memory")
@@ -1365,11 +1357,23 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 json.loads((resource / "scope.json").read_text(encoding="utf-8")),
                 {"cwd": str(project.resolve())},
             )
-            self.assertTrue((project / "ai" / "memory" / ".codex-sync.json").is_file())
+            key = _encode_project_path(project.resolve())
+            registry = json.loads((memory_repo / "extensions" / "base_synced" / "registry.json").read_text())
             self.assertEqual(
-                run_git(memory_repo, "log", "--oneline").stdout.count("ai: record codex memory"),
-                1,
+                registry["notes"]["extensions/ad_hoc/note.md"],
+                {
+                    "status": "assigned",
+                    "project": key,
+                    "target": "ai/memory/note.md",
+                    "hash": registry["notes"]["extensions/ad_hoc/note.md"]["hash"],
+                    "recorded_by": registry["notes"]["extensions/ad_hoc/note.md"]["recorded_by"],
+                },
             )
+            project_sync = json.loads((project / "ai" / "memory" / ".codex-sync.json").read_text())
+            self.assertEqual(project_sync["notes"]["extensions/ad_hoc/note.md"]["target"], "ai/memory/note.md")
+            self.assertNotIn("project", project_sync["notes"]["extensions/ad_hoc/note.md"])
+
+            project_commit_count = run_git(project, "log", "--oneline").stdout.count("ai: sync codex memory")
             run_hook(
                 project,
                 CODEX_MEMORY_HOOK,
@@ -1377,11 +1381,11 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "codex",
                 extra_env={"CODEX_HOME": str(codex_home)},
             )
-            self.assertEqual(run_git(memory_repo, "log", "-1", "--pretty=%s").stdout.strip(), "ai: record codex memory")
             self.assertTrue(note.exists())
+            # No new note was imported and nothing changed, so no new commit.
             self.assertEqual(
-                run_git(memory_repo, "log", "--oneline").stdout.count("ai: record codex memory"),
-                1,
+                run_git(project, "log", "--oneline").stdout.count("ai: sync codex memory"),
+                project_commit_count,
             )
 
     def test_codex_memory_stop_reports_unassigned_note_as_json(self):
@@ -1391,15 +1395,10 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             memory_repo = codex_home / "memories"
             init_repo(project, "https://github.com/user/project.git")
             memory_repo.mkdir(parents=True)
-            run_git(memory_repo, "init")
-            run_git(memory_repo, "config", "user.email", "tester@example.com")
-            run_git(memory_repo, "config", "user.name", "Test User")
             (memory_repo / "MEMORY.md").write_text("# Memories\n", encoding="utf-8")
             note = memory_repo / "extensions" / "ad_hoc" / "later.md"
             note.parent.mkdir(parents=True)
             note.write_text("# Later\n", encoding="utf-8")
-            run_git(memory_repo, "add", ".")
-            run_git(memory_repo, "commit", "-m", "seed")
 
             result = run_hook(
                 project,
@@ -1421,15 +1420,10 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             memory_repo = codex_home / "memories"
             init_repo(project, "https://github.com/user/project.git")
             memory_repo.mkdir(parents=True)
-            run_git(memory_repo, "init")
-            run_git(memory_repo, "config", "user.email", "tester@example.com")
-            run_git(memory_repo, "config", "user.name", "Test User")
             (memory_repo / "MEMORY.md").write_text("# Memories\n", encoding="utf-8")
             note = memory_repo / "extensions" / "ad_hoc" / "later.md"
             note.parent.mkdir(parents=True)
             note.write_text("# Later\n", encoding="utf-8")
-            run_git(memory_repo, "add", ".")
-            run_git(memory_repo, "commit", "-m", "seed")
 
             result = run_hook(
                 project,

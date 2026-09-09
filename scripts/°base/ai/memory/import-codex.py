@@ -51,15 +51,14 @@ def main(argv: list[str] | None = None) -> int:
     # end if
     try:
         module = load_hook()
-        repository = module.codex_memory_repo()
+        repository = module.codex_memory_dir()
         if repository is None:
-            raise RuntimeError("Codex memory repository is unavailable")
+            raise RuntimeError("Codex memory directory is unavailable")
         # end if
         root = project_root()
         changes = module.import_native_note(
             repository, root, positional[0], ignored=ignored, as_name=as_name
         )
-        module.commit_pending(repository, "ai: record codex memory")
         module.commit_project_memory(root, changes)
     except RuntimeError as exc:
         print(f"import-codex-memory: {exc}", file=sys.stderr)

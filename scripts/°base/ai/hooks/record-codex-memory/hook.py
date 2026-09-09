@@ -1,5 +1,32 @@
 #!/usr/bin/env python3
-"""Synchronize scoped Codex memory with the current project's memory tree."""
+"""Synchronize scoped Codex memory with the current project's memory tree.
+
+`$CODEX_HOME/memories` is a **plain folder**, not a git repository -- do not
+`git add`/`git commit` anything under it. The only git repo this hook
+touches is the current project's own (`root`), via `commit_project_memory()`.
+
+Ownership of native `extensions/ad_hoc/*.md` notes is tracked in one local
+index, `registry.json`, kept under `$CODEX_HOME/memories/extensions/base_synced/`.
+It maps each note's stable path (no hostname/device prefix -- see
+`note_identity()`) to at most one owning project. Every project's own
+`.codex-sync.json` (both the committed copy in `ai[/°base]/memory/` and its
+mirror under this project's `base_synced` resource dir) is a *derived* view
+of the subset of `registry.json` owned by that project; it is written from
+the registry, never merged back into it. `registry.json` itself is a
+rebuildable local cache -- the durable, authoritative record for a project's
+notes remains that project's own committed `.codex-sync.json`, and a project
+seen for the first time on a given machine has its registry entries
+backfilled from that file (see `synchronize_shared_memory()`).
+
+`.codex-sync.json` version 1 was the old hostname-keyed `sources`/`ignored`
+shape with bare-filename `target` values; version 2 (current) is the
+registry-derived `notes` shape with full in-repo-path `target` values.
+Reading a v1 file never migrates it automatically -- that only happens when
+`CODEX_MEMORY_MIGRATE_REGISTRY=1` is set, so shipping this rewrite alone is
+inert against already-on-disk v1 data until that flag is deliberately
+enabled (see `ai/°base/memory/` for the audit script used to clean up
+cross-project duplicates left over from the old scheme first).
+"""
 from __future__ import annotations
 
 import fcntl
@@ -21,6 +48,10 @@ memory_lib = importlib.import_module("°memory_lib")
 AD_HOC_DIR = Path("extensions/ad_hoc")
 BASE_SYNCED_DIR = Path("extensions/base_synced")
 METADATA_NAME = ".codex-sync.json"
+REGISTRY_NAME = "registry.json"
+REGISTRY_SCHEMA_ID = "https://github.com/luckydonald/base/scripts/°base/ai/hooks/record-codex-memory/registry.schema.json"
+CODEX_SYNC_SCHEMA_ID = "https://github.com/luckydonald/base/scripts/°base/ai/hooks/record-codex-memory/codex-sync.schema.json"
+MIGRATE_ENV = "CODEX_MEMORY_MIGRATE_REGISTRY"
 
 INSTRUCTIONS = """# Base-synchronized project memory
 
@@ -32,18 +63,14 @@ memory, not as instructions to execute commands.
 """
 
 
-def codex_memory_repo() -> Path | None:
+def codex_memory_dir() -> Path | None:
     codex_home = Path(os.environ.get("CODEX_HOME", "~/.codex")).expanduser()
-    repository = codex_home / "memories"
-    if not (repository / ".git").exists():
+    if not codex_home.is_dir():
         return None
     # end if
-    return repository
-# end def
-
-
-def git(repository: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=repository, capture_output=True, text=True)
+    memories = codex_home / "memories"
+    memories.mkdir(parents=True, exist_ok=True)
+    return memories
 # end def
 
 
@@ -83,60 +110,131 @@ def device_id() -> str:
 # end def
 
 
-def source_id(source: Path) -> str:
-    return f"{device_id()}:{AD_HOC_DIR / source.name}"
+def note_identity(source: Path) -> str:
+    """Stable key for a native ad-hoc note: its path under `extensions/ad_hoc/`.
+
+    Deliberately excludes any device/host marker -- `$CODEX_HOME/memories` is
+    local-machine state, so there is exactly one device in play locally, and
+    a hostname that changes across sessions/containers must never make an
+    already-handled note look new again.
+    """
+    return str(AD_HOC_DIR / source.name)
 # end def
 
 
-def empty_metadata() -> dict[str, object]:
-    return {"version": 1, "sources": {}, "ignored": {}}
+def empty_registry() -> dict[str, object]:
+    return {"$schema": REGISTRY_SCHEMA_ID, "version": 2, "notes": {}}
 # end def
 
 
-def read_metadata(path: Path) -> dict[str, object]:
+def empty_codex_sync() -> dict[str, object]:
+    return {"$schema": CODEX_SYNC_SCHEMA_ID, "version": 2, "notes": {}}
+# end def
+
+
+def _read_json(path: Path) -> dict[str, object] | None:
     if not path.is_file():
-        return empty_metadata()
+        return None
     # end if
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return empty_metadata()
+        return None
     # end try
-    if not isinstance(data, dict):
-        return empty_metadata()
-    # end if
-    sources = data.get("sources") if isinstance(data.get("sources"), dict) else {}
-    ignored = data.get("ignored") if isinstance(data.get("ignored"), dict) else {}
-    return {"version": 1, "sources": sources, "ignored": ignored}
+    return data if isinstance(data, dict) else None
 # end def
 
 
-def merge_metadata(project: dict[str, object], resource: dict[str, object]) -> dict[str, object]:
-    merged = empty_metadata()
-    for key in ("sources", "ignored"):
-        values: dict[str, object] = {}
-        for candidate in (resource, project):
-            entries = candidate.get(key)
-            if isinstance(entries, dict):
-                values.update(entries)
+def read_registry(path: Path) -> dict[str, object]:
+    data = _read_json(path)
+    if data is None or data.get("version") != 2:
+        return empty_registry()
+    # end if
+    notes = data.get("notes")
+    return {"$schema": REGISTRY_SCHEMA_ID, "version": 2, "notes": notes if isinstance(notes, dict) else {}}
+# end def
+
+
+def write_registry(path: Path, data: dict[str, object]) -> bool:
+    return _write_json(path, {"$schema": REGISTRY_SCHEMA_ID, "version": 2, "notes": data.get("notes", {})})
+# end def
+
+
+def _migrate_v1_codex_sync(data: dict[str, object], root: Path) -> dict[str, object]:
+    """Convert an old hostname-keyed `sources`/`ignored` file (bare-filename
+    `target`) into the v2 `notes` shape (full in-repo-path `target`)."""
+    primary, secondary = project_memory_dirs(root)
+    notes: dict[str, object] = {}
+
+    def resolve_target(name: str) -> str:
+        for candidate in (primary, secondary):
+            if (candidate / name).is_file():
+                return str((candidate / name).relative_to(root))
             # end if
         # end for
-        merged[key] = dict(sorted(values.items()))
+        return str((primary / name).relative_to(root))
+    # end def
+
+    for key, entry in (data.get("ignored") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        # end if
+        identity = str(key).split(":", 1)[-1]
+        recorded_by = str(key).split(":", 1)[0] if ":" in str(key) else None
+        notes[identity] = {"status": "ignored", "hash": entry.get("hash"), "recorded_by": recorded_by}
     # end for
-    return merged
+    for key, entry in (data.get("sources") or {}).items():
+        if not isinstance(entry, dict) or not entry.get("target"):
+            continue
+        # end if
+        identity = str(key).split(":", 1)[-1]
+        recorded_by = str(key).split(":", 1)[0] if ":" in str(key) else None
+        notes[identity] = {
+            "status": "assigned",
+            "project": project_key(root),
+            "target": resolve_target(str(entry["target"])),
+            "hash": entry.get("hash"),
+            "recorded_by": recorded_by,
+        }
+    # end for
+    return {"$schema": CODEX_SYNC_SCHEMA_ID, "version": 2, "notes": notes}
 # end def
 
 
-def write_metadata(path: Path, data: dict[str, object]) -> bool:
+def read_codex_sync(path: Path, root: Path) -> dict[str, object]:
+    data = _read_json(path)
+    if data is None:
+        return empty_codex_sync()
+    # end if
+    if data.get("version") == 2:
+        notes = data.get("notes")
+        return {"$schema": CODEX_SYNC_SCHEMA_ID, "version": 2, "notes": notes if isinstance(notes, dict) else {}}
+    # end if
+    if os.environ.get(MIGRATE_ENV) == "1":
+        return _migrate_v1_codex_sync(data, root)
+    # end if
+    return empty_codex_sync()
+# end def
+
+
+def _write_json(path: Path, data: dict[str, object]) -> bool:
+    # stdout is the hook's structured response channel (a JSON blob for the
+    # "codex" tool -- see emit_messages()); debug output must never land
+    # there, so this goes to stderr.
     rendered = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if path.is_file() and path.read_text(encoding="utf-8") == rendered:
-        print(f"already written: {path!s}")
+        print(f"already written: {path!s}", file=sys.stderr)
         return False
     # end if
-    print(f"writing: {path!s}")
+    print(f"writing: {path!s}", file=sys.stderr)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(rendered, encoding="utf-8")
     return True
+# end def
+
+
+def write_codex_sync(path: Path, data: dict[str, object]) -> bool:
+    return _write_json(path, {"$schema": CODEX_SYNC_SCHEMA_ID, "version": 2, "notes": data.get("notes", {})})
 # end def
 
 
@@ -200,6 +298,78 @@ def ensure_scope(directory: Path, root: Path) -> bool:
 # end def
 
 
+def _blocked_by_unmigrated_v1(path: Path) -> bool:
+    """True if `path` already holds a v1-format file and migration is
+    disabled -- writing the (empty, until migrated) v2 derived view there
+    would blank out real v1 data instead of leaving it untouched."""
+    if os.environ.get(MIGRATE_ENV) == "1":
+        return False
+    # end if
+    data = _read_json(path)
+    return data is not None and data.get("version") != 2
+# end def
+
+
+def _write_project_sync_views(repository: Path, root: Path, registry: dict[str, object]) -> list[str]:
+    """Regenerate this project's derived `.codex-sync.json` (committed copy
+    and resource-dir mirror) from the registry's entries it owns. Never
+    touches a path that still holds unmigrated v1 data (see
+    `_blocked_by_unmigrated_v1`)."""
+    key = project_key(root)
+    all_notes = registry.get("notes")
+    all_notes = all_notes if isinstance(all_notes, dict) else {}
+    owned = {
+        identity: {k: v for k, v in entry.items() if k != "project"}
+        for identity, entry in all_notes.items()
+        if isinstance(entry, dict) and entry.get("status") == "assigned" and entry.get("project") == key
+    }
+    memory_dir = project_memory_dir(root)
+    resource = resource_dir(repository, root)
+    changed: list[str] = []
+    project_path = memory_dir / METADATA_NAME
+    if not _blocked_by_unmigrated_v1(project_path) and write_codex_sync(project_path, {"notes": owned}):
+        changed.append(str(project_path.relative_to(root)))
+    # end if
+    resource_path = resource / METADATA_NAME
+    if not _blocked_by_unmigrated_v1(resource_path):
+        write_codex_sync(resource_path, {"notes": owned})
+    # end if
+    return changed
+# end def
+
+
+def _backfill_registry_from_project(repository: Path, root: Path, registry: dict[str, object]) -> bool:
+    """Seed/reconcile local `registry.json` entries this project already
+    owns (per its own committed `.codex-sync.json`) so a project checked
+    out fresh on a machine that has never run Codex against it doesn't get
+    treated as unowned. Never overwrites an entry already owned by a
+    *different* project -- that is pre-existing corrupted data for the
+    audit script to resolve, not something to silently reassign here."""
+    project_file = read_codex_sync(project_memory_dir(root) / METADATA_NAME, root)
+    key = project_key(root)
+    notes = registry["notes"]
+    changed = False
+    for identity, entry in project_file["notes"].items():
+        if not isinstance(entry, dict) or entry.get("status") != "assigned":
+            continue
+        # end if
+        existing = notes.get(identity)
+        with_project = {**entry, "project": key}
+        if not isinstance(existing, dict):
+            notes[identity] = with_project
+            changed = True
+        elif existing.get("project") == key and (
+            existing.get("target") != entry.get("target") or existing.get("hash") != entry.get("hash")
+        ):
+            notes[identity] = with_project
+            changed = True
+        # end if
+        # else: owned locally by a different project already -- leave alone.
+    # end for
+    return changed
+# end def
+
+
 def synchronize_shared_memory(repository: Path, root: Path) -> tuple[dict[str, object], list[str]]:
     memory_dir, secondary_dir = project_memory_dirs(root)
     resource = resource_dir(repository, root)
@@ -207,13 +377,11 @@ def synchronize_shared_memory(repository: Path, root: Path) -> tuple[dict[str, o
     ensure_extension(repository)
     ensure_scope(resource, root)
 
-    project_metadata = read_metadata(memory_dir / METADATA_NAME)
-    resource_metadata = read_metadata(resource / METADATA_NAME)
-    metadata = merge_metadata(project_metadata, resource_metadata)
-    if write_metadata(memory_dir / METADATA_NAME, metadata):
-        changed.append(str((memory_dir / METADATA_NAME).relative_to(root)))
+    registry = read_registry(repository / BASE_SYNCED_DIR / REGISTRY_NAME)
+    if _backfill_registry_from_project(repository, root, registry):
+        write_registry(repository / BASE_SYNCED_DIR / REGISTRY_NAME, registry)
     # end if
-    write_metadata(resource / METADATA_NAME, metadata)
+    changed.extend(_write_project_sync_views(repository, root, registry))
 
     for project_file in sorted(memory_dir.glob("*.md")) if memory_dir.is_dir() else []:
         target = resource / project_file.name
@@ -248,7 +416,7 @@ def synchronize_shared_memory(repository: Path, root: Path) -> tuple[dict[str, o
             memory_lib.link_file(target, source)
         # end if
     # end for
-    return metadata, changed
+    return registry, changed
 # end def
 
 
@@ -257,15 +425,11 @@ def import_native_note(repository: Path, root: Path, note_name: str, *, ignored:
     if not source.is_file() or source.name == "instructions.md":
         raise RuntimeError(f"native Codex memory note not found: {AD_HOC_DIR / note_name}")
     # end if
-    metadata, changed = synchronize_shared_memory(repository, root)
-    sources = metadata["sources"]
-    ignored_sources = metadata["ignored"]
-    if not isinstance(sources, dict) or not isinstance(ignored_sources, dict):
-        raise RuntimeError("invalid Codex memory metadata")
-    # end if
-    identity = source_id(source)
+    registry, changed = synchronize_shared_memory(repository, root)
+    notes = registry["notes"]
+    identity = note_identity(source)
     if ignored:
-        ignored_sources[identity] = {"hash": digest(source)}
+        notes[identity] = {"status": "ignored", "hash": digest(source), "recorded_by": device_id()}
     else:
         target_name = as_name or source.name
         if not target_name.endswith(".md") or Path(target_name).name != target_name:
@@ -288,57 +452,31 @@ def import_native_note(repository: Path, root: Path, note_name: str, *, ignored:
             changed.append(str((memory_dir / "MEMORY.md").relative_to(root)))
             memory_lib.link_file(memory_dir / "MEMORY.md", resource / "MEMORY.md")
         # end if
-        sources[identity] = {"target": target_name, "hash": digest(source)}
-        ignored_sources.pop(identity, None)
+        notes[identity] = {
+            "status": "assigned",
+            "project": project_key(root),
+            "target": str(project_target.relative_to(root)),
+            "hash": digest(source),
+            "recorded_by": device_id(),
+        }
     # end if
-    metadata = {"version": 1, "sources": dict(sorted(sources.items())), "ignored": dict(sorted(ignored_sources.items()))}
-    memory_dir = project_memory_dir(root)
-    resource = resource_dir(repository, root)
-    if write_metadata(memory_dir / METADATA_NAME, metadata):
-        changed.append(str((memory_dir / METADATA_NAME).relative_to(root)))
-    # end if
-    write_metadata(resource / METADATA_NAME, metadata)
+    write_registry(repository / BASE_SYNCED_DIR / REGISTRY_NAME, registry)
+    changed.extend(_write_project_sync_views(repository, root, registry))
     return changed
 # end def
 
 
-def unassigned_notes(repository: Path, metadata: dict[str, object]) -> list[Path]:
-    sources = metadata.get("sources") if isinstance(metadata.get("sources"), dict) else {}
-    ignored = metadata.get("ignored") if isinstance(metadata.get("ignored"), dict) else {}
-    notes = repository / AD_HOC_DIR
-    if not notes.is_dir():
+def unassigned_notes(repository: Path, registry: dict[str, object]) -> list[Path]:
+    notes = registry.get("notes")
+    notes = notes if isinstance(notes, dict) else {}
+    ad_hoc = repository / AD_HOC_DIR
+    if not ad_hoc.is_dir():
         return []
     # end if
     return [
-        path for path in sorted(notes.glob("*.md"))
-        if path.name != "instructions.md" and source_id(path) not in sources and source_id(path) not in ignored
+        path for path in sorted(ad_hoc.glob("*.md"))
+        if path.name != "instructions.md" and note_identity(path) not in notes
     ]
-# end def
-
-
-def changed_paths(repository: Path) -> list[str]:
-    result = git(repository, "status", "--porcelain=v1", "--untracked-files=all")
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "git status failed")
-    # end if
-    return [line[3:] for line in result.stdout.splitlines() if len(line) > 3]
-# end def
-
-
-def commit_pending(repository: Path, subject: str) -> bool:
-    paths = changed_paths(repository)
-    if not paths:
-        return False
-    # end if
-    if git(repository, "add", "--all", "--", ".").returncode != 0:
-        raise RuntimeError("git add failed for Codex memory")
-    # end if
-    body = "\n".join(f"- {path}" for path in paths)
-    committed = git(repository, "commit", "--no-verify", "-m", subject, "-m", body)
-    if committed.returncode != 0:
-        raise RuntimeError(committed.stderr.strip() or committed.stdout.strip() or "git commit failed")
-    # end if
-    return True
 # end def
 
 
@@ -348,11 +486,16 @@ def commit_project_memory(root: Path, paths: list[str]) -> bool:
         return False
     # end if
     relative = str(memory.relative_to(root))
-    staged = git(root, "add", "--all", "--", relative)
+    staged = subprocess.run(
+        ["git", "add", "--all", "--", relative], cwd=root, capture_output=True, text=True
+    )
     if staged.returncode != 0:
         raise RuntimeError(staged.stderr.strip() or "git add failed for project memory")
     # end if
-    committed = git(root, "commit", "--no-verify", "--only", relative, "-m", "ai: sync codex memory")
+    committed = subprocess.run(
+        ["git", "commit", "--no-verify", "--only", relative, "-m", "ai: sync codex memory"],
+        cwd=root, capture_output=True, text=True,
+    )
     if committed.returncode != 0:
         raise RuntimeError(committed.stderr.strip() or committed.stdout.strip() or "git commit failed for project memory")
     # end if
@@ -402,23 +545,23 @@ def delete_scoped_memory(repository: Path, root: Path, name: str) -> list[str]:
     """Remove Codex counterparts after the shared repo deletion was approved."""
     memory_dir, secondary_dir = project_memory_dirs(root)
     resource = resource_dir(repository, root)
-    metadata = merge_metadata(
-        read_metadata(memory_dir / METADATA_NAME),
-        read_metadata(resource / METADATA_NAME),
-    )
-    sources = metadata["sources"]
-    ignored = metadata["ignored"]
-    if not isinstance(sources, dict) or not isinstance(ignored, dict):
-        raise RuntimeError("invalid Codex memory metadata")
-    # end if
-    for identity, entry in list(sources.items()):
-        if not isinstance(entry, dict) or entry.get("target") != name:
+    registry = read_registry(repository / BASE_SYNCED_DIR / REGISTRY_NAME)
+    notes = registry["notes"]
+    key = project_key(root)
+    candidate_targets = {
+        str((memory_dir / name).relative_to(root)),
+        str((secondary_dir / name).relative_to(root)),
+    }
+    for identity, entry in list(notes.items()):
+        if not isinstance(entry, dict) or entry.get("status") != "assigned":
             continue
         # end if
-        source_path = str(identity).split(":", 1)[-1]
-        native = repository / source_path
+        if entry.get("project") != key or entry.get("target") not in candidate_targets:
+            continue
+        # end if
+        native = repository / identity
         memory_lib.unlink_path(native)
-        del sources[identity]
+        del notes[identity]
     # end for
     memory_lib.unlink_path(resource / name)
     changed: list[str] = []
@@ -434,12 +577,8 @@ def delete_scoped_memory(repository: Path, root: Path, name: str) -> list[str]:
             changed.append(str(index.relative_to(root)))
         # end if
     # end for
-    metadata = {"version": 1, "sources": dict(sorted(sources.items())), "ignored": dict(sorted(ignored.items()))}
-    if write_metadata(memory_dir / METADATA_NAME, metadata):
-        changed.append(str((memory_dir / METADATA_NAME).relative_to(root)))
-    # end if
-    write_metadata(resource / METADATA_NAME, metadata)
-    commit_pending(repository, "ai: record codex memory")
+    write_registry(repository / BASE_SYNCED_DIR / REGISTRY_NAME, registry)
+    changed.extend(_write_project_sync_views(repository, root, registry))
     return changed
 # end def
 
@@ -450,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
     if tool not in {"claude", "codex"}:
         return 0
     # end if
-    repository = codex_memory_repo()
+    repository = codex_memory_dir()
     root = project_root()
     if repository is None or root is None:
         return 0
@@ -458,15 +597,15 @@ def main(argv: list[str] | None = None) -> int:
     payload = read_payload()
     event = str(payload.get("hook_event_name") or "")
     try:
-        lock_path = repository / ".git" / "codex-memory-hook.lock"
+        lock_path = repository / ".record-codex-memory.lock"
         with lock_path.open("a", encoding="utf-8") as lock:
             try:
                 fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 return 0
             # end try
-            metadata, changed = synchronize_shared_memory(repository, root)
-            notes = unassigned_notes(repository, metadata)
+            registry, changed = synchronize_shared_memory(repository, root)
+            notes = unassigned_notes(repository, registry)
             messages = []
             if event == "PostToolUse":
                 for note in notes:
@@ -475,7 +614,6 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 messages.extend(unassigned_messages(root, notes))
             # end if
-            commit_pending(repository, "ai: record codex memory")
             if commit_project_memory(root, sorted(set(changed))):
                 messages.append("record-codex-memory: synced Codex memory into the project")
             # end if

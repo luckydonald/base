@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         hook = memory_lib.load_codex_hook_module()
-        repository = hook.codex_memory_repo()
+        repository = hook.codex_memory_dir()
         if repository is not None:
             changed = hook.delete_scoped_memory(repository, subproject, name)
             hook.commit_project_memory(subproject, changed)

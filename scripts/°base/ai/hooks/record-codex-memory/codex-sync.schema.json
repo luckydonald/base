@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luckydonald/base/scripts/°base/ai/hooks/record-codex-memory/codex-sync.schema.json",
+  "title": "Project Codex ad-hoc memory sync view",
+  "description": "Committed at ai[/°base]/memory/.codex-sync.json (and mirrored under this project's $CODEX_HOME resource dir). A derived, project-scoped view of registry.schema.json's notes: only the entries this project owns, without the project field (implicit). Written from the registry; never edit or merge by hand.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "const": "https://github.com/luckydonald/base/scripts/°base/ai/hooks/record-codex-memory/codex-sync.schema.json"
+    },
+    "version": {
+      "const": 2
+    },
+    "notes": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^extensions/ad_hoc/[^/]+\\.md$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": {"const": "assigned"},
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "description": "This memory file's path relative to this project's repo root, e.g. 'ai/°base/memory/<name>.md' or 'ai/memory/<name>.md'."
+          },
+          "hash": {"type": ["string", "null"]},
+          "recorded_by": {"type": ["string", "null"]}
+        },
+        "required": ["status", "target"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["version", "notes"],
+  "additionalProperties": false
+}

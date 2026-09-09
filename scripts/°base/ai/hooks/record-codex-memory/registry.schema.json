@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luckydonald/base/scripts/°base/ai/hooks/record-codex-memory/registry.schema.json",
+  "title": "Codex ad-hoc memory ownership registry",
+  "description": "Local index under $CODEX_HOME/memories/extensions/base_synced/, tracking which project (if any) owns each native extensions/ad_hoc/*.md note on this machine. Rebuildable from the owning projects' own committed .codex-sync.json files -- see codex-sync.schema.json.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "const": "https://github.com/luckydonald/base/scripts/°base/ai/hooks/record-codex-memory/registry.schema.json"
+    },
+    "version": {
+      "const": 2
+    },
+    "notes": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^extensions/ad_hoc/[^/]+\\.md$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/note"
+      }
+    }
+  },
+  "required": ["version", "notes"],
+  "additionalProperties": false,
+  "$defs": {
+    "note": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "Ignored note",
+          "properties": {
+            "status": {"const": "ignored"},
+            "hash": {"type": ["string", "null"]},
+            "recorded_by": {"type": ["string", "null"]}
+          },
+          "required": ["status"],
+          "additionalProperties": false
+        },
+        {
+          "title": "Assigned note",
+          "properties": {
+            "status": {"const": "assigned"},
+            "project": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The owning project's key, i.e. its absolute repo root with non-alphanumeric characters replaced by '-'."
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The mirrored memory file's path relative to the owning project's repo root, e.g. 'ai/°base/memory/<name>.md' or 'ai/memory/<name>.md'."
+            },
+            "hash": {"type": ["string", "null"]},
+            "recorded_by": {"type": ["string", "null"]}
+          },
+          "required": ["status", "project", "target"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

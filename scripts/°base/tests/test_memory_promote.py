@@ -141,14 +141,15 @@ class MemoryPromoteTests(unittest.TestCase):
             sync_path.write_text(
                 json.dumps(
                     {
-                        "version": 1,
-                        "sources": {
-                            "host:extensions/ad_hoc/mynote.md": {
-                                "target": "mynote.md",
+                        "version": 2,
+                        "notes": {
+                            "extensions/ad_hoc/mynote.md": {
+                                "status": "assigned",
+                                "project": "some-project-key",
+                                "target": "ai/°base/memory/mynote.md",
                                 "hash": "abc123",
                             }
                         },
-                        "ignored": {},
                     }
                 ),
                 encoding="utf-8",
@@ -160,13 +161,18 @@ class MemoryPromoteTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             base_sync = json.loads(sync_path.read_text(encoding="utf-8"))
-            self.assertEqual(base_sync["sources"], {})
+            self.assertEqual(base_sync["notes"], {})
             root_sync = json.loads(
                 (repo / "ai" / "memory" / ".codex-sync.json").read_text(encoding="utf-8")
             )
             self.assertEqual(
-                root_sync["sources"]["host:extensions/ad_hoc/mynote.md"],
-                {"target": "mynote.md", "hash": "abc123"},
+                root_sync["notes"]["extensions/ad_hoc/mynote.md"],
+                {
+                    "status": "assigned",
+                    "project": "some-project-key",
+                    "target": "ai/memory/mynote.md",
+                    "hash": "abc123",
+                },
             )
 
     def test_promote_refuses_when_destination_already_has_same_name(self):

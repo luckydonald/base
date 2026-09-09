@@ -14,15 +14,17 @@ stub instead of deleting it, and demoting rewrites that stub back to a bare
 link. Root `ai/memory/MEMORY.md` only ever lists memories that actually live
 there -- demoting removes its entry outright (a stub pointing into
 `ai/°base/` would be a dangling link for subprojects, which have no such
-dir). Any matching `.codex-sync.json` `sources`/`ignored` entry is relocated
-to the destination directory's file (the two files otherwise stay fully
-independent -- see `ai/memory/project_codex_memory_orphan_resource_bug.md`
-and `°memory_lib/dirs.py`).
+dir). Any matching `.codex-sync.json` `notes` entry is relocated to the
+destination directory's file, with its `target` updated to the new in-repo
+path (the two files otherwise stay fully independent -- see
+`ai/memory/project_codex_memory_orphan_resource_bug.md` and
+`°memory_lib/dirs.py`). The Codex-side `$CODEX_HOME` registry and resource
+mirror are not touched here; they reconcile against the moved `target` the
+next time `record-codex-memory/hook.py` runs in this project.
 """
 from __future__ import annotations
 
 import importlib
-import json
 import re
 import subprocess
 import sys
@@ -100,52 +102,36 @@ def _remove_entry(memory_md: Path, name: str) -> None:
         memory_md.write_text("".join(kept), encoding="utf-8")
 
 
-def _read_codex_sync(path: Path) -> dict[str, object]:
-    if not path.is_file():
-        return {"version": 1, "sources": {}, "ignored": {}}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {"version": 1, "sources": {}, "ignored": {}}
-    if not isinstance(data, dict):
-        return {"version": 1, "sources": {}, "ignored": {}}
-    sources = data.get("sources") if isinstance(data.get("sources"), dict) else {}
-    ignored = data.get("ignored") if isinstance(data.get("ignored"), dict) else {}
-    return {"version": 1, "sources": sources, "ignored": ignored}
-
-
-def _write_codex_sync(path: Path, data: dict[str, object]) -> None:
-    rendered = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(rendered, encoding="utf-8")
-
-
-def _relocate_codex_sync_entry(src_dir: Path, dst_dir: Path, name: str) -> list[Path]:
-    """Move a `sources`/`ignored` entry whose `target == name` from
-    `src_dir/.codex-sync.json` to `dst_dir/.codex-sync.json`, if present.
-    Returns the paths written (for `git add`)."""
+def _relocate_codex_sync_entry(root: Path, src_dir: Path, dst_dir: Path, name: str) -> list[Path]:
+    """Move the `notes` entry whose `target` basename is `name` from
+    `src_dir/.codex-sync.json` to `dst_dir/.codex-sync.json`, updating its
+    `target` to the new in-repo path. Returns the paths written (for `git
+    add`); the entry's owning project doesn't change -- promote/demote only
+    moves a memory file between this same project's two memory dirs."""
+    hook = memory_lib.load_codex_hook_module()
     src_path = src_dir / ".codex-sync.json"
-    src_data = _read_codex_sync(src_path)
+    src_data = hook.read_codex_sync(src_path, root)
     moved_key = None
-    moved_bucket = None
-    for bucket in ("sources", "ignored"):
-        entries = src_data[bucket]
-        for identity, entry in list(entries.items()):
-            if isinstance(entry, dict) and entry.get("target") == name:
-                moved_key, moved_bucket = identity, bucket
-                break
-        if moved_key is not None:
+    for identity, entry in src_data["notes"].items():
+        if (
+            isinstance(entry, dict)
+            and entry.get("status") == "assigned"
+            and Path(str(entry.get("target", ""))).name == name
+        ):
+            moved_key = identity
             break
+
     if moved_key is None:
         return []
 
-    entry = src_data[moved_bucket].pop(moved_key)
+    entry = dict(src_data["notes"].pop(moved_key))
+    entry["target"] = str((dst_dir / name).relative_to(root))
     dst_path = dst_dir / ".codex-sync.json"
-    dst_data = _read_codex_sync(dst_path)
-    dst_data[moved_bucket][moved_key] = entry
+    dst_data = hook.read_codex_sync(dst_path, root)
+    dst_data["notes"][moved_key] = entry
 
-    _write_codex_sync(src_path, src_data)
-    _write_codex_sync(dst_path, dst_data)
+    hook.write_codex_sync(src_path, src_data)
+    hook.write_codex_sync(dst_path, dst_data)
     return [src_path, dst_path]
 
 
@@ -222,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             if entry_line is not None:
                 _append_entry(dst_dir / "MEMORY.md", entry_line)
 
-    codex_sync_paths = _relocate_codex_sync_entry(src_dir, dst_dir, name)
+    codex_sync_paths = _relocate_codex_sync_entry(subproject, src_dir, dst_dir, name)
 
     add_paths = [f"{dst_rel}/MEMORY.md", f"{src_rel}/MEMORY.md"]
     add_paths += [str(p.relative_to(Path.cwd())) for p in codex_sync_paths]
