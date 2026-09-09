@@ -5199,3 +5199,33 @@ warning: unable to access 'forked/ai/output/explore/.gitignore': Too many levels
 
 ❯ fix the tag_backup script deleting any tag, not only `bak/*` ones.
 
+❯ /plan "cherry pick" the following commits from @../todo_splits_tracker/ (local):
+1. luckydonald/todo_splits_tracker@2a02ee6d54ea1ef4d02928835685ca16e5746d29
+2. luckydonald/todo_splits_tracker@54eb2749b4f03e13b6a9d1b27d4a0d36a0db9ef4
+3. luckydonald/todo_splits_tracker@01c422a38c722449d0fa159ab7bd88d776e40e06
+4. luckydonald/todo_splits_tracker@5ab74b9ae9b6510c71f3d4ec50825d3467640bc9
+   - squash into previous one
+   - fix/fill `TODO: summarize this file.` in the `ai/MEMORY.md` change.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Commits #1 and #2 (2a02ee6, 54eb2749) are Claude's own planning artifacts from the todo_splits_tracker session: a plan .md under ai/plans/ and appended chat-transcript lines in ai/query.md. They contain facts specific to that repo/session (branch `mane`, commit `9fa4622`, session IDs) that don't exist in base. How should these be ported into base's ai/°base namespace?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Plan artifacts** (1/1) <kbd>Single Select</kbd><br>
+>> Commits #1 and #2 (2a02ee6, 54eb2749) are Claude's own planning artifacts from the todo_splits_tracker session: a plan .md under ai/plans/ and appended chat-transcript lines in ai/query.md. They contain facts specific to that repo/session (branch `mane`, commit `9fa4622`, session IDs) that don't exist in base. How should these be ported into base's ai/°base namespace?
+> - [ ] 1\. Adapt plan files, skip query.md
+>   - _Port the two plan .md files into ai/°base/plans/059_... (renumbered), rewritten to drop todo_splits_tracker-specific facts (branch name, commit hash, session ID) and reflect base repo instead. Skip porting the ai/query.md diffs entirely, since those are literal transcript lines from a session that didn't happen in base and would misrepresent history._
+> - [x] 2\. Adapt both plan files and query.md
+>   - _Same plan-file adaptation, but also append analogous lines to ai/°base/query.md so the query log shows a matching (rewritten) prompt trail for base._
+> - [ ] 3\. Skip plan/query files entirely
+>   - _Only cherry-pick the real implementation (commits #3+#4, squashed) — the hook fix, includeCoAuthoredBy setting, and memory doc. Don't create any plan-history artifacts for #1/#2 since they're just this-session bookkeeping, not functional change._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
