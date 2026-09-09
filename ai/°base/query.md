@@ -5231,3 +5231,7 @@ warning: unable to access 'forked/ai/output/explore/.gitignore': Too many levels
 
 ❯ You can reference the other project's commits with the github reference syntax as I did before (i.e. in Commit A).
 
+❯ Also no `Claude-Session:` in the commit message.
+
+❯ /plan make sure there's no `Claude-Session:` in commit messages, current and future.
+
