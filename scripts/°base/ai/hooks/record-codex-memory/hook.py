@@ -128,8 +128,10 @@ def merge_metadata(project: dict[str, object], resource: dict[str, object]) -> d
 def write_metadata(path: Path, data: dict[str, object]) -> bool:
     rendered = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if path.is_file() and path.read_text(encoding="utf-8") == rendered:
+        print(f"already written: {path!s}")
         return False
     # end if
+    print(f"writing: {path!s}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(rendered, encoding="utf-8")
     return True

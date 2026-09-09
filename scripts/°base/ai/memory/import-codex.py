@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 
-def load_hook() -> object:
+def load_hook():
     hook = Path(__file__).resolve().parents[1] / "hooks" / "record-codex-memory" / "hook.py"
     specification = importlib.util.spec_from_file_location("record_codex_memory", hook)
     if specification is None or specification.loader is None:
