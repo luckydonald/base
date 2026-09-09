@@ -5428,3 +5428,8 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ @ai/skills/code-style/references/md.md
 
+❯ Notes:
+- `$CODEX_HOME/memories` is only a git because I run `git init` in there earlier. This is not a supported way. Assume it is just a plain folder, the sync must be done via the local files in `$CODEX_HOME` and the current repo.
+- have `target` be the exact in-repo path, which will make it possible to use `ai/°base/memory/foo.md` here and `ai/memory/foo.md` if it is for implementing projects. (or recommend something similar).
+- The intention of the device key was to be able to tell if we're reading that file because our codex just created it, or if it's from a project, and we're not the source - it was seen before.
+
