@@ -5235,3 +5235,7 @@ warning: unable to access 'forked/ai/output/explore/.gitignore': Too many levels
 
 ❯ /plan make sure there's no `Claude-Session:` in commit messages, current and future.
 
+❯ Note that `Co-Authored-By` is also disallowed, and has a git hook making sure, which should be extended.
+If you can also disable those commit system message via the git tracked per-repo config file, please do so.
+Add/fix the memory(-ies) to disallow both.
+
