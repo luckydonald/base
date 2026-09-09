@@ -2,7 +2,7 @@ repos:
   - repo: local
     hooks:
       - id: no-co-authored-by
-        name: Reject Co-Authored-By in commit messages
+        name: Reject Co-Authored-By / Claude-Session trailers in commit messages
         entry: scripts/°base/git/hooks/tool_path.sh uv run --no-sync python scripts/°base/git/hooks/commit/reject_co_authored_by.py
         language: system
         stages: [commit-msg]

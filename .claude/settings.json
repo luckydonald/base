@@ -352,5 +352,6 @@
   "enabledMcpjsonServers": [],
   "disabledMcpjsonServers": [
     "bugsink"
-  ]
+  ],
+  "includeCoAuthoredBy": false
 }

@@ -5243,3 +5243,21 @@ Add/fix the memory(-ies) to disallow both.
 
 ❯ do it as separte new (but ai-squashed) commit.
 
+❯ Task Notification:
+> - Task `bnx4bcwpz` <kbd>completed</kbd>
+> - Tool `toolu_01CcJGaSDzrdR57sdTtHvoxp`
+> - > Background command "uv run --project "scripts/°base" python -m unittest discover -s "scripts/°base/tests" -v 2>&1 | tail -40" completed (exit code 0)
+> - [Query (`149` chars, `151 B`)](output/agents/044.bnx4bcwpz/prompt.md)
+> - [Answer (`2430` chars, `2.39 KB`)](output/agents/044.bnx4bcwpz/result.md)
+> - [Raw log (`2430` chars, `2.39 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bnx4bcwpz.output)
+
+❯ Task Notification:
+> - Task `bp564n8kl` <kbd>completed</kbd>
+> - Tool `toolu_01TQBPHePZhjNexBVMSdwR63`
+> - > Background command "uv run --project "scripts/°base" python -m unittest discover -s "scripts/°base/tests" -v 2>&1 | tail -50" completed (exit code 0)
+> - [Query (`149` chars, `151 B`)](output/agents/045.bp564n8kl/prompt.md)
+> - [Answer (`3002` chars, `2.95 KB`)](output/agents/045.bp564n8kl/result.md)
+> - [Raw log (`3034` chars, `2.98 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bp564n8kl.output)
+
+❯ Still seeing commits like `ai: save decision commits-1-and-2-2a02ee6-54eb2749-are-claude-s-own-planning-a` etc.
+

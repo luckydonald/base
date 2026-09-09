@@ -295,6 +295,8 @@ def _render_hooks(shared: dict[str, Any], tool: str) -> dict[str, Any]:
 
 def render_claude(shared: dict[str, Any]) -> dict[str, Any]:
     data = _render_hooks(shared, "claude")
+    if "allowCoAuthoredEtc" in shared:
+        data["includeCoAuthoredBy"] = shared["allowCoAuthoredEtc"]
     permissions = shared.get("permissions")
     if permissions:
         rendered_permissions: dict[str, Any] = {}

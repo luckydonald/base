@@ -1,2 +1,3 @@
 - [Dual work/private Codex config dirs](project_dual_codex_config_dirs.md) — base-repo hooks must resolve `~/.claude`-style paths through `$CLAUDE_CONFIG_DIR`; record-memory hook fixed, delete.py still needs it.
 - [Codex memory orphan-resource bug](project_codex_memory_orphan_resource_bug.md) — a deleted memory can keep resyncing back if its Codex-side resource copy has no matching `sources` metadata entry.
+- [Repo commit hooks](repo_commit_hooks.md) — pre-commit hook rejects Co-Authored-By/Claude-Session commit trailers; `allowCoAuthoredEtc: false` in `ai/tool-settings/settings.json` suppresses Claude Code's own footer.

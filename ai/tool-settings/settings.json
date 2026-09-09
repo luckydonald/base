@@ -1,6 +1,7 @@
 {
   "$schema": "./settings.schema.json",
   "version": 2,
+  "allowCoAuthoredEtc": false,
   "pre_commit": {
     "yarn@4": {
       "enabled": true

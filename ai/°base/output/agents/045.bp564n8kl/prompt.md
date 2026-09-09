@@ -1,0 +1,1 @@
+Background command "uv run --project "scripts/°base" python -m unittest discover -s "scripts/°base/tests" -v 2>&1 | tail -50" completed (exit code 0)
