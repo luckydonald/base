@@ -16,14 +16,14 @@ commit with the memory file written in its final, complete form (no `TODO: summa
 placeholder).
 
 ## Source commits (todo_splits_tracker, local checkout at `../todo_splits_tracker/`)
-1. `2a02ee6d` — plan: remove `Claude-Session:` trailer
-2. `54eb2749` — plan update: also reject `Co-Authored-By:` via hook + `includeCoAuthoredBy`
-3. `01c422a3` — implementation (hook, settings, memory doc)
-4. `5ab74b9a` — original memory-scaffolding commit (squash into #3)
+1. luckydonald/todo_splits_tracker@2a02ee6d54ea1ef4d02928835685ca16e5746d29 — plan: remove `Claude-Session:` trailer
+2. luckydonald/todo_splits_tracker@54eb2749b4f03e13b6a9d1b27d4a0d36a0db9ef4 — plan update: also reject `Co-Authored-By:` via hook + `includeCoAuthoredBy`
+3. luckydonald/todo_splits_tracker@01c422a38c722449d0fa159ab7bd88d776e40e06 — implementation (hook, settings, memory doc)
+4. luckydonald/todo_splits_tracker@5ab74b9ae9b6510c71f3d4ec50825d3467640bc9 — original memory-scaffolding commit (squash into #3)
 
 ## Resulting base-repo commits
 
-### Commit A (adapts #1)
+### Commit A (adapts #1, luckydonald/todo_splits_tracker@2a02ee6d54ea1ef4d02928835685ca16e5746d29)
 - `ai/°base/plans/059_remove-claude-session-trailer-current-future.md` (new) — same structure as the
   source plan, but rewritten Findings for base's actual state: no reachable or dangling commit in `base`
   contains `Claude-Session:` (verified via `git log --all --grep="Claude-Session"`), so there is no
@@ -34,7 +34,7 @@ placeholder).
   - `❯ Also no `Claude-Session:` in the commit message.`
   - `❯ /plan make sure there's no `Claude-Session:` in commit messages, current and future.`
 
-### Commit B (adapts #2)
+### Commit B (adapts #2, luckydonald/todo_splits_tracker@54eb2749b4f03e13b6a9d1b27d4a0d36a0db9ef4)
 - Delete `059_remove-claude-session-trailer-current-future.md`, add
   `ai/°base/plans/059_remove-claude-session-and-co-authored-by-from-commits-curren.md` — rewritten
   Findings: existing hook is `scripts/°base/git/hooks/commit/reject_co_authored_by.py` (id `no-co-authored-by`
@@ -45,7 +45,7 @@ placeholder).
 - `ai/°base/query.md` — append the follow-up prompt line verbatim:
   - `❯ Note that `Co-Authored-By` is also disallowed, and has a git hook making sure, which should be extended. If you can also disable those commit system message via the git tracked per-repo config file, please do so. Add/fix the memory(-ies) to disallow both.`
 
-### Commit C (squash of #3 + #4)
+### Commit C (squash of #3 + #4, luckydonald/todo_splits_tracker@01c422a38c722449d0fa159ab7bd88d776e40e06 + luckydonald/todo_splits_tracker@5ab74b9ae9b6510c71f3d4ec50825d3467640bc9)
 Apply directly — base's current file contents match the parent-commit versions in
 `todo_splits_tracker`, so these are clean patches:
 - `scripts/°base/git/hooks/commit/reject_co_authored_by.py` — add `REJECTED_TRAILERS = ("Co-Authored-By", "Claude-Session")`, check tuple, print which trailer hit.

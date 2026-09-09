@@ -5229,3 +5229,5 @@ warning: unable to access 'forked/ai/output/explore/.gitignore': Too many levels
 > </details>
 >
 
+❯ You can reference the other project's commits with the github reference syntax as I did before (i.e. in Commit A).
+
