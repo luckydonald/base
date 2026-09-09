@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _lib import _is_inside_base_repo, read_payload  # noqa: E402
+from _lib import read_payload  # noqa: E402
 
 memory_lib = importlib.import_module("°memory_lib")
 
@@ -58,11 +58,13 @@ def project_root() -> Path | None:
 # end def
 
 
+def project_memory_dirs(root: Path) -> tuple[Path, Path]:
+    return memory_lib.memory_dirs(root)
+# end def
+
+
 def project_memory_dir(root: Path) -> Path:
-    if _is_inside_base_repo(root):
-        return root / "ai" / "°base" / "memory"
-    # end if
-    return root / "ai" / "memory"
+    return project_memory_dirs(root)[0]
 # end def
 
 
@@ -199,7 +201,7 @@ def ensure_scope(directory: Path, root: Path) -> bool:
 
 
 def synchronize_shared_memory(repository: Path, root: Path) -> tuple[dict[str, object], list[str]]:
-    memory_dir = project_memory_dir(root)
+    memory_dir, secondary_dir = project_memory_dirs(root)
     resource = resource_dir(repository, root)
     changed: list[str] = []
     ensure_extension(repository)
@@ -223,7 +225,18 @@ def synchronize_shared_memory(repository: Path, root: Path) -> tuple[dict[str, o
     # end for
     for source in sorted(resource.glob("*.md")) if resource.is_dir() else []:
         target = memory_dir / source.name
+        secondary_target = secondary_dir / source.name
         if not target.exists():
+            if secondary_target.is_file():
+                # Authoritative copy already lives in the other valid memory
+                # dir (e.g. promoted/demoted via promote.py since this
+                # resource snapshot was taken) -- keep the resource mirror
+                # pointed at the real file, don't resurrect a duplicate here.
+                if not memory_lib.same_inode(secondary_target, source):
+                    memory_lib.link_file(secondary_target, source)
+                # end if
+                continue
+            # end if
             if memory_lib.link_file(source, target):
                 changed.append(str(target.relative_to(root)))
                 if add_index_entry(memory_dir, target):
@@ -372,9 +385,22 @@ def emit_messages(tool: str, messages: list[str]) -> None:
 # end def
 
 
+_LINK_TARGET_RE = re.compile(r"\]\(([^()]+)\)")
+
+
+def _memory_md_references(line: str, name: str) -> bool:
+    """True if a MEMORY.md line's link target is `name`, bare or via a
+    relative path (e.g. the `../../memory/<name>` stub `promote.py` writes
+    into the dir a memory was promoted/demoted *out of*)."""
+    return any(
+        target == name or target.endswith(f"/{name}")
+        for target in _LINK_TARGET_RE.findall(line)
+    )
+
+
 def delete_scoped_memory(repository: Path, root: Path, name: str) -> list[str]:
     """Remove Codex counterparts after the shared repo deletion was approved."""
-    memory_dir = project_memory_dir(root)
+    memory_dir, secondary_dir = project_memory_dirs(root)
     resource = resource_dir(repository, root)
     metadata = merge_metadata(
         read_metadata(memory_dir / METADATA_NAME),
@@ -395,16 +421,19 @@ def delete_scoped_memory(repository: Path, root: Path, name: str) -> list[str]:
         del sources[identity]
     # end for
     memory_lib.unlink_path(resource / name)
-    index = memory_dir / "MEMORY.md"
     changed: list[str] = []
-    if index.is_file():
+    for index_dir in (memory_dir, secondary_dir):
+        index = index_dir / "MEMORY.md"
+        if not index.is_file():
+            continue
+        # end if
         lines = index.read_text(encoding="utf-8").splitlines(keepends=True)
-        kept = [line for line in lines if f"]({name})" not in line]
+        kept = [line for line in lines if not _memory_md_references(line, name)]
         if kept != lines:
             index.write_text("".join(kept), encoding="utf-8")
             changed.append(str(index.relative_to(root)))
         # end if
-    # end if
+    # end for
     metadata = {"version": 1, "sources": dict(sorted(sources.items())), "ignored": dict(sorted(ignored.items()))}
     if write_metadata(memory_dir / METADATA_NAME, metadata):
         changed.append(str((memory_dir / METADATA_NAME).relative_to(root)))

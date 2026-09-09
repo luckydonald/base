@@ -131,6 +131,41 @@ class MemoryDeleteTests(unittest.TestCase):
                 "[base] ai: delete memory note\n\nDeleted Memory: note.md",
             )
 
+    def test_delete_helper_deletes_promoted_memory_from_root_dir(self):
+        """A memory living in root `ai/memory/` (e.g. promoted out of
+        `ai/°base/memory/`) must still be findable and deletable, not just
+        one sitting in the primary base-repo dir."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "base"
+            home = Path(tmp) / "home"
+            init_repo(repo)
+            root_dir = repo / "ai" / "memory"
+            root_dir.mkdir(parents=True)
+            path = root_dir / "shared.md"
+            path.write_text("shared.md\n", encoding="utf-8")
+            run_git(repo, "add", str(path.relative_to(repo)))
+            run_git(repo, "commit", "-m", "seed shared.md")
+
+            env = os.environ.copy()
+            env["HOME"] = str(home)
+            env["CLAUDE_PROJECT_DIR"] = str(repo.resolve())
+
+            result = subprocess.run(
+                [sys.executable, str(DELETE_HELPER), "shared.md"],
+                cwd=repo,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(path.exists())
+            message = run_git(repo, "log", "-1", "--pretty=%B").stdout.strip("\n")
+            self.assertEqual(
+                message,
+                "[base] ai: delete memory shared\n\nDeleted Memory: shared.md",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

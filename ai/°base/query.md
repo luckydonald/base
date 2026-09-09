@@ -5261,3 +5261,94 @@ Add/fix the memory(-ies) to disallow both.
 
 ❯ Still seeing commits like `ai: save decision commits-1-and-2-2a02ee6-54eb2749-are-claude-s-own-planning-a` etc.
 
+❯ /plan I want the `ai/°base/memories` to support root level memories, too. That is, memories which should be available to subprojects on the root `ai/memories` folder.
+Here is how I think that would look like: 726ab6a0a06c72309af47ac4a450fb974901ae88
+Here is what the `./scripts/°base/ai/memory/import-codex.py /home/user/git/luckydonald/base/ai/°base/memory/2026-07-20-history-master-replay-guards.md --ignore` call did: 627567b4ebfa528bd9e2e47f7d0692a30b6fb347
+
+❯ Task Notification:
+> - Task `ab1b7e13d59cd3eb1` <kbd>completed</kbd>
+> - Tool `toolu_011U9iJrjQMhMGkrn7ZfaWu5`
+> - > Agent "Explore memory path resolution / routing logic" finished
+> - [Query (`1748` chars, `1.73 KB`)](output/agents/046.ab1b7e13d59cd3eb1/prompt.md)
+> - [Answer (`5093` chars, `5.01 KB`)](output/agents/046.ab1b7e13d59cd3eb1/result.md)
+> - [Raw log (`299990` chars, `294 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/ab1b7e13d59cd3eb1.output)
+> - `15` tools, `50896` tokens, `1.30948 s`
+
+❯ Task Notification:
+> - Task `a47961e20c350b8a6` <kbd>completed</kbd>
+> - Tool `toolu_012QLqspGG4NAm5Exi1yydd9`
+> - > Agent "Explore import-codex.py and codex-sync mechanism" finished
+> - [Query (`2104` chars, `2.07 KB`)](output/agents/047.a47961e20c350b8a6/prompt.md)
+> - [Answer (`8266` chars, `8.11 KB`)](output/agents/047.a47961e20c350b8a6/result.md)
+> - [Raw log (`221666` chars, `217 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/a47961e20c350b8a6.output)
+> - `12` tools, `37450` tokens, `1.1853 s`
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. For NEW memories going forward (Claude's `record-memory` hook, and Codex's auto-import on PostToolUse) in the base repo, which directory should be the default write target?
+>> 2. The two `.codex-sync.json` files currently live independently (one per directory) and have already drifted (different device-hostname entries, one has 3 ignored variants, the other 1). Should the fix consolidate this into a single canonical `.codex-sync.json` per repo that tracks entries across both directories (via a directory-qualified `target` path), replacing the current split-brain state?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Default target dir** (1/2) <kbd>Single Select</kbd><br>
+>> For NEW memories going forward (Claude's `record-memory` hook, and Codex's auto-import on PostToolUse) in the base repo, which directory should be the default write target?
+> - [ ] 1\. Keep ai/°base/memory as default (Recommended)
+>   - _Unchanged behavior: new/incoming memories still land in ai/°base/memory/ by default (base-tooling-development memories). Promoting one to ai/memory/ (shared with subprojects) stays a manual git mv, same workflow as your example commit 726ab6a. The fix's job is just to make the sync machinery aware of both dirs so it stops fighting that manual move and stops duplicating/resurrecting entries._
+> - [ ] 2\. Default to ai/memory instead
+>   - _Flip the default so new memories land in the subproject-facing ai/memory/ location, and moving something INTO ai/°base/memory/ (meta, base-tooling-only) becomes the manual/deliberate step instead._
+> - [x] 3\. _Type something:_
+>   - > Default to °base if we are in the base repo (that check is already used in some scripts).
+Have a promote (& demote) script which moves it from/to °base to root `ai/memory/`.
+>
+>> **Sync metadata** (2/2) <kbd>Single Select</kbd><br>
+>> The two `.codex-sync.json` files currently live independently (one per directory) and have already drifted (different device-hostname entries, one has 3 ignored variants, the other 1). Should the fix consolidate this into a single canonical `.codex-sync.json` per repo that tracks entries across both directories (via a directory-qualified `target` path), replacing the current split-brain state?
+> - [ ] 1\. Consolidate into one file (Recommended)
+>   - _One `.codex-sync.json` (kept at ai/°base/memory/.codex-sync.json, since that's the base repo's primary/existing location) tracks sources/ignored for entries in EITHER directory, storing a repo-relative target path instead of a bare filename. Removes the split-brain and lets sync recognize a file that moved between the two dirs instead of resurrecting a stale copy._
+> - [x] 2\. Keep two independent files
+>   - _Each directory keeps its own .codex-sync.json scoped to just its own contents; the fix only adds cross-directory awareness at the point of resurrection-prevention (checking the other dir's existence before recreating), without merging the metadata files themselves._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
+❯ Task Notification:
+> - Task `ae602bb7243c36b21` <kbd>completed</kbd>
+> - Tool `toolu_0136LDb1nypXa6vsSJudCoQv`
+> - > Agent "Design dual memory-dir support + promote/demote script" finished
+> - [Query (`11961` chars, `11.8 KB`)](output/agents/048.ae602bb7243c36b21/prompt.md)
+> - [Answer (`30225` chars, `29.7 KB`)](output/agents/048.ae602bb7243c36b21/result.md)
+> - [Raw log (`474604` chars, `465 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/ae602bb7243c36b21.output)
+> - `24` tools, `78303` tokens, `3.76443 s`
+
+❯ Task Notification:
+> - Task `bqiz04qj3` <kbd>completed</kbd>
+> - Tool `toolu_019LMwrXThvSs6XjtEwk2LFr`
+> - > Background command "git stash push -u -m "wip dual memory dirs" -- "scripts/°base/ai/hooks" "scripts/°base/ai/memory"
+uv run --project "scripts/°base" python -m unittest discover -s "scripts/°base/tests" -v 2>&1 | grep -E "^(FAIL|ERROR)" | sort > /tmp/baseline_failures.txt
+cat /tmp/baseline_failures.txt
+git stash pop" completed (exit code 0)
+> - [Query (`343` chars, `347 B`)](output/agents/049.bqiz04qj3/prompt.md)
+> - [Answer (`3002` chars, `2.93 KB`)](output/agents/049.bqiz04qj3/result.md)
+> - [Raw log (`3049` chars, `2.98 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bqiz04qj3.output)
+
+❯ Task Notification:
+> - Task `b2ropss7s` <kbd>completed</kbd>
+> - Tool `toolu_01TELP66fixzd9JFx5tCbuBy`
+> - > Background command "env -u CLAUDE_CONFIG_DIR uv run --project "scripts/°base" python -m unittest discover -s "scripts/°base/tests" -v 2>&1 | grep -E "^(FAIL|ERROR)|Ran |FAILED" | sort > /tmp/mychanges_failures_clean.txt
+cat /tmp/mychanges_failures_clean.txt" completed (exit code 0)
+> - [Query (`282` chars, `284 B`)](output/agents/050.b2ropss7s/prompt.md)
+> - [Answer (`394` chars, `394 B`)](output/agents/050.b2ropss7s/result.md)
+> - [Raw log (`394` chars, `394 B`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/b2ropss7s.output)
+
+❯ Task Notification:
+> - Task `bxh6waaru` <kbd>completed</kbd>
+> - Tool `toolu_01N6sZHbk1xtcSsoM9UM5mV3`
+> - > Background command "env -u CLAUDE_CONFIG_DIR uv run --project "scripts/°base" python -m unittest discover -s "scripts/°base/tests" -v 2>&1 | tail -20 > /tmp/final_test_run.txt &
+echo "started in bg, pid $!"" completed (exit code 0)
+> - [Query (`231` chars, `233 B`)](output/agents/051.bxh6waaru/prompt.md)
+> - [Answer (`49` chars, `49 B`)](output/agents/051.bxh6waaru/result.md)
+> - [Raw log (`49` chars, `49 B`)](/tmp/claude-1000/-home-user-git-luckydonald-base/a260f340-3f6b-4022-84bc-28eafc132f48/tasks/bxh6waaru.output)
+

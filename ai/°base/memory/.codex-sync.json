@@ -1,5 +1,9 @@
 {
-  "ignored": {},
+  "ignored": {
+    "fedora:extensions/ad_hoc/2026-07-20-history-master-replay-guards.md": {
+      "hash": "755ce373a41cc7c9f5c96d3bb7f46bbf2077b07ac6378796aa0eb9ca86c64ff9"
+    }
+  },
   "sources": {
     "fedora:extensions/ad_hoc/2026-07-20-history-master-replay-guards.md": {
       "hash": "755ce373a41cc7c9f5c96d3bb7f46bbf2077b07ac6378796aa0eb9ca86c64ff9",

@@ -44,7 +44,6 @@ import compact_result  # noqa: E402
 from _lib import (  # noqa: E402
     _chdir_to_git_root,
     _encoded_project_dir,
-    _is_inside_base_repo,
     _subproject_root,
     dump_debug_payload,
     read_payload,
@@ -55,10 +54,10 @@ memory_lib = importlib.import_module("°memory_lib")
 commit_message = importlib.import_module("°commit_style_lib").commit_message
 
 
-def _memory_dirs(subproject: Path) -> tuple[Path, Path]:
+def _memory_dirs(subproject: Path) -> tuple[Path, Path, Path]:
     src = _encoded_project_dir(subproject) / "memory"
-    rel = "ai/°base/memory" if _is_inside_base_repo(subproject) else "ai/memory"
-    return src, subproject / rel
+    dst, secondary = memory_lib.memory_dirs(subproject)
+    return src, dst, secondary
 
 
 _SHELL_OPERATORS = {"&&", "||", ";"}
@@ -139,7 +138,7 @@ def _unlink_file(path: Path) -> bool:
     return False
 
 
-def _sync_all(src_dir: Path, dst_dir: Path, dst_dir_rel: str) -> list[str]:
+def _sync_all(src_dir: Path, dst_dir: Path, secondary_dir: Path, dst_dir_rel: str) -> list[str]:
     """Sync memory files without treating a missing source as a delete.
 
     Repo memory is the durable copy, and it wins on content conflicts too: a
@@ -150,6 +149,14 @@ def _sync_all(src_dir: Path, dst_dir: Path, dst_dir_rel: str) -> list[str]:
     instead of being committed. A missing Claude source file is recreated
     from the repo file. A stale Claude source file is removed only when git
     history has an explicit `Deleted Memory: <name>.md` marker for that file.
+
+    `secondary_dir` is the repo's *other* valid memory dir (see
+    `°memory_lib.memory_dirs`) — inside the base repo, a memory may have been
+    deliberately promoted/demoted between `ai/°base/memory/` and `ai/memory/`
+    via `scripts/°base/ai/memory/promote.py`. When the primary `dst` is
+    missing but the file already lives in `secondary_dir`, that's the
+    authoritative copy: re-point the Claude-side hardlink there instead of
+    resurrecting a duplicate in `dst_dir`.
     """
     changed: list[str] = []
     src_names: set[str] = set()
@@ -157,7 +164,12 @@ def _sync_all(src_dir: Path, dst_dir: Path, dst_dir_rel: str) -> list[str]:
         for src in sorted(src_dir.glob("*.md")):
             src_names.add(src.name)
             dst = dst_dir / src.name
+            secondary = secondary_dir / src.name
             if not dst.exists():
+                if secondary.is_file():
+                    if not memory_lib.same_inode(secondary, src):
+                        memory_lib.link_file(secondary, src)
+                    continue
                 if _is_marked_deleted(dst_dir_rel, src.name):
                     _unlink_file(src)
                     continue
@@ -379,7 +391,7 @@ def main() -> int:
     if _git_root() is None:
         return 0
     subproject = _subproject_root()
-    src_dir, dst_dir = _memory_dirs(subproject)
+    src_dir, dst_dir, secondary_dir = _memory_dirs(subproject)
     _chdir_to_git_root()
     dst_dir_rel = str(dst_dir.relative_to(Path.cwd()))
 
@@ -411,16 +423,19 @@ def main() -> int:
             rel = src_file.relative_to(src_dir.resolve())
         except (OSError, ValueError):
             return 0
-        if memory_lib.link_file(src_file, dst_dir / rel):
-            _commit(dst_dir_rel, [str(rel)])
-        _check_memory_index_consistency(dst_dir)
+        # If this memory was already promoted/demoted to the other valid
+        # dir, keep updating it there instead of creating a second copy.
+        target_dir = secondary_dir if (secondary_dir / rel).is_file() and not (dst_dir / rel).is_file() else dst_dir
+        if memory_lib.link_file(src_file, target_dir / rel):
+            _commit(str(target_dir.relative_to(Path.cwd())), [str(rel)])
+        _check_memory_index_consistency(target_dir)
         return 0
 
     # SessionStart (and any other event) — full catch-up sync.
     # Clean up any legacy whole-folder link planted by `hardlink_memories.sh`
     # so the new per-file hardlinks don't duplicate memory state in the repo.
     _uninstall_legacy_all(subproject, src_dir)
-    changed = _sync_all(src_dir, dst_dir, dst_dir_rel)
+    changed = _sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel)
     _commit(dst_dir_rel, changed)
     _check_memory_index_consistency(dst_dir)
     compact_result.capture_session_start(payload)

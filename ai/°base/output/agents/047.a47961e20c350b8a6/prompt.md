@@ -1,0 +1,11 @@
+In the repo /home/user/git/luckydonald/base, I'm investigating the Codex-memory-sync mechanism, specifically `scripts/°base/ai/memory/import-codex.py` and `scripts/°base/ai/hooks/record-codex-memory/hook.py`, because I need to plan making this system aware of a second memory location.
+
+Currently there's `ai/°base/memory/` (base-repo's own AI memory, git-tracked) and a `.codex-sync.json` file inside it that tracks a mapping between Codex-side memory resources (identified by something like `fedora:extensions/ad_hoc/<slug>.md`) and repo-tracked files, with `sources` and `ignored` maps keyed by content hash.
+
+Read and report on:
+1. `scripts/°base/ai/memory/import-codex.py` — full CLI behavior: what does `--ignore` do, how does it decide whether a Codex resource is "new" vs "already imported" vs "should be ignored", and how does it write/read `.codex-sync.json`. Quote key functions with file:line.
+2. `scripts/°base/ai/hooks/record-codex-memory/hook.py` — when/how it fires (PostToolUse/SessionStart/Stop), and how it decides which repo-tracked directory to sync Codex memories into (hardcoded path vs computed). Does it currently support more than one target memory directory?
+3. Look for any existing memory doc about this: `scripts/°base/ai/../../../ai/°base/memory/project_codex_memory_orphan_resource_bug.md` — read it, it documents a known bug: "a deleted memory can keep resyncing back if its Codex-side resource copy has no matching sources metadata entry." Explain the mechanism in your own words based on the code.
+4. Check `scripts/°base/tests/` for any test file covering `import-codex.py` or `record-codex-memory` — list what they assert.
+
+Report back within 700 words: exact mechanism of `.codex-sync.json` (schema, `sources` vs `ignored`), what happens on a `git mv`/rename of a tracked memory file from the Codex-sync tool's perspective (does it detect renames, or does it treat the old path as "gone" and recreate it?), and whether the tool currently hardcodes a single target directory (e.g. `ai/°base/memory/`) anywhere — cite exact file:line for any hardcoded path assumption.

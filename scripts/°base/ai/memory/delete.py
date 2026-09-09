@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import importlib
-import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -13,17 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "hooks"))
 from _lib import (  # noqa: E402
     _chdir_to_git_root,
     _encoded_project_dir,
-    _is_inside_base_repo,
     _subproject_root,
 )
 
 memory_lib = importlib.import_module("°memory_lib")
-
-
-def _memory_dirs(subproject: Path) -> tuple[Path, Path]:
-    src = _encoded_project_dir(subproject) / "memory"
-    rel = "ai/°base/memory" if _is_inside_base_repo(subproject) else "ai/memory"
-    return src, subproject / rel
 
 
 def _git_text(*args: str) -> str:
@@ -33,17 +25,6 @@ def _git_text(*args: str) -> str:
 
 def _usage() -> str:
     return "Usage: python3 scripts/°base/ai/memory/delete.py <filename-or-path>"
-
-
-def _codex_hook() -> object:
-    hook = Path(__file__).resolve().parents[1] / "hooks" / "record-codex-memory" / "hook.py"
-    specification = importlib.util.spec_from_file_location("record_codex_memory", hook)
-    if specification is None or specification.loader is None:
-        raise RuntimeError(f"cannot load {hook}")
-    # end if
-    module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
-    return module
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -58,13 +39,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     subproject = _subproject_root()
-    src_dir, dst_dir = _memory_dirs(subproject)
+    src_dir = _encoded_project_dir(subproject) / "memory"
     _chdir_to_git_root()
 
-    dst_dir_rel = str(dst_dir.relative_to(Path.cwd()))
-    dst_rel = f"{dst_dir_rel}/{name}"
-    if not memory_lib.is_tracked(dst_rel):
-        print(f"Memory is not tracked: {dst_rel}", file=sys.stderr)
+    dst_dir = None
+    dst_dir_rel = ""
+    dst_rel = ""
+    for candidate in memory_lib.memory_dirs(subproject):
+        candidate_rel = str(candidate.relative_to(Path.cwd()))
+        candidate_file_rel = f"{candidate_rel}/{name}"
+        if memory_lib.is_tracked(candidate_file_rel):
+            dst_dir, dst_dir_rel, dst_rel = candidate, candidate_rel, candidate_file_rel
+            break
+
+    if dst_dir is None:
+        primary, secondary = memory_lib.memory_dirs(subproject)
+        print(f"Memory is not tracked in {primary} or {secondary}: {name}", file=sys.stderr)
         return 1
 
     if not memory_lib.delete_memory(name, src_dir=src_dir, dst_dir=dst_dir, dst_dir_rel=dst_dir_rel):
@@ -72,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        hook = _codex_hook()
+        hook = memory_lib.load_codex_hook_module()
         repository = hook.codex_memory_repo()
         if repository is not None:
             changed = hook.delete_scoped_memory(repository, subproject, name)

@@ -1254,6 +1254,79 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertEqual(dst.read_text(encoding="utf-8"), "useful tip\n")
             self.assertEqual(last_subject(repo), "ai: record memory tip")
 
+    def test_memory_session_start_does_not_resurrect_across_promoted_directory(self):
+        """A memory promoted (via promote.py) from `ai/°base/memory/` to root
+        `ai/memory/` must not get resurrected back into `ai/°base/memory/`
+        just because the Claude-side source file still exists."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "base"
+            home = Path(tmp) / "home"
+            init_repo(repo, "https://luckydonald@github.com/luckydonald/base.git")
+
+            promoted = repo / "ai" / "memory" / "shared.md"
+            promoted.parent.mkdir(parents=True)
+            promoted.write_text("the real, promoted copy\n", encoding="utf-8")
+            run_git(repo, "add", str(promoted.relative_to(repo)))
+            run_git(repo, "commit", "-m", "seed promoted memory")
+
+            encoded = _encode_project_path(repo.resolve())
+            src_file = home / ".claude" / "projects" / encoded / "memory" / "shared.md"
+            src_file.parent.mkdir(parents=True)
+            src_file.write_text("stale claude-side copy\n", encoding="utf-8")
+
+            run_hook(
+                repo,
+                MEMORY_HOOK,
+                {"hook_event_name": "SessionStart"},
+                extra_env={"HOME": str(home)},
+            )
+
+            self.assertFalse((repo / "ai" / "°base" / "memory" / "shared.md").exists())
+            self.assertEqual(
+                src_file.read_text(encoding="utf-8"), "the real, promoted copy\n"
+            )
+
+    def test_codex_memory_sync_does_not_resurrect_across_promoted_directory(self):
+        """Same guard, exercised through `record-codex-memory/hook.py`'s
+        resource->project reverse sync."""
+        with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+            project = Path(tmp) / "base"
+            codex_home = Path(tmp) / "codex"
+            memory_repo = codex_home / "memories"
+            init_repo(project, "https://luckydonald@github.com/luckydonald/base.git")
+            memory_repo.mkdir(parents=True)
+            run_git(memory_repo, "init")
+            run_git(memory_repo, "config", "user.email", "tester@example.com")
+            run_git(memory_repo, "config", "user.name", "Test User")
+            (memory_repo / "MEMORY.md").write_text("# Memories\n", encoding="utf-8")
+            run_git(memory_repo, "add", "MEMORY.md")
+            run_git(memory_repo, "commit", "-m", "init memory")
+
+            promoted = project / "ai" / "memory" / "shared.md"
+            promoted.parent.mkdir(parents=True)
+            promoted.write_text("the real, promoted copy\n", encoding="utf-8")
+            run_git(project, "add", str(promoted.relative_to(project)))
+            run_git(project, "commit", "-m", "seed promoted memory")
+
+            encoded = _encode_project_path(project.resolve())
+            resource = memory_repo / "extensions" / "base_synced" / "resources" / encoded
+            resource.mkdir(parents=True)
+            (resource / "shared.md").write_text("stale resource-side copy\n", encoding="utf-8")
+
+            run_hook(
+                project,
+                CODEX_MEMORY_HOOK,
+                {"hook_event_name": "Stop"},
+                "codex",
+                extra_env={"CODEX_HOME": str(codex_home)},
+            )
+
+            self.assertFalse((project / "ai" / "°base" / "memory" / "shared.md").exists())
+            self.assertEqual(
+                (resource / "shared.md").read_text(encoding="utf-8"),
+                "the real, promoted copy\n",
+            )
+
     def test_codex_memory_hook_commits_and_is_idempotent(self):
         with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
             project = Path(tmp) / "project"

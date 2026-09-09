@@ -1,0 +1,9 @@
+In the repo /home/user/git/luckydonald/base, I need to understand how the AI-memory system decides WHERE a memory file lives on disk (base repo vs. consuming/subproject repo), so I can plan adding support for a second, non-namespaced root-level memory folder `ai/memory/` (in addition to the existing base-repo-only `ai/°base/memory/`).
+
+Read and report on:
+1. `scripts/°base/ai/hooks/_lib.py` — specifically `resolve_log_path()`, `_is_inside_base_repo()`, and any function that computes the memory directory path. Quote the exact logic.
+2. `scripts/°base/ai/hooks/record-memory/hook.py` — how it decides the memory directory to sync into, and how it discovers the Claude-side memory files (via `$CLAUDE_CONFIG_DIR` or `~/.claude`).
+3. `scripts/°base/ai/hooks/°memory_lib/links.py` and `scripts/°base/ai/hooks/°memory_lib/delete.py` and `scripts/°base/ai/hooks/°memory_lib/__init__.py` — what these do, especially any function that maps a memory slug/path to a repo-tracked file location.
+4. Any existing tests covering this in `scripts/°base/tests/` (search for `test_ai_hooks_base_routing.py`, `test_memory_delete.py`, or similar) — what invariants they assert about base-repo routing vs subproject routing.
+
+Report back: the exact current decision logic (base repo → `ai/°base/memory/`, consuming repo → `ai/memory/`), the key function names and file:line locations, and whether there is already ANY concept of "root-level memory inside the base repo itself" (i.e. does base repo currently ever write to a plain `ai/memory/` of its own, distinct from `ai/°base/memory/`)? Also note: is there a directory `ai/memory/` already present in this repo right now (check with `ls`)? Keep the report focused and under 600 words, with file:line citations.
