@@ -26,13 +26,14 @@ Scope is the main worktree only. `.claude/worktrees/claude-split-impl` and `.cla
 - `ai/skills/code-style/references/yarn.md`
 - `ai/memory/MEMORY.md` — index line for `repo_commit_hooks.md` mentions `ai/tool-settings/settings.json`
 - `ai/memory/repo_commit_hooks.md` — two references to `ai/tool-settings/settings.json`
+- `ai/°base/memory/MEMORY.md` — a second, distinct tracked memory-index file (not a hardlink of `ai/memory/MEMORY.md` — different inode, different/shorter content) whose one entry for "Repo commit hooks" also names `ai/tool-settings/settings.json`
+- `.codex/config.toml` — one comment line: `# [plugins].*.enabled below is managed by scripts/°base/ai/settings/sync.py from ai/tool-settings/settings.json's enabledPlugins; ...`
 
-## Explicitly out of scope (do not edit)
+## Explicitly out of scope (do not edit) — confirmed
 - `ai/°base/plans/*.md` — historical plan write-ups documenting past work; frozen record
 - `ai/°base/output/agents/**` and `ai/°base/output/compact/**` — frozen agent run logs
 - `ai/output/agents/**` — frozen agent run logs
-- `ai/°base/query.md` — verify what this is; if it's a frozen query log, leave it; if it's a living reference doc, include it (check during execution)
-- `ai/°base/memory/MEMORY.md` — separate from `ai/memory/MEMORY.md`; check whether this is a frozen snapshot or living file before deciding
+- `ai/°base/query.md` — confirmed to be a 302KB tracked transcript/query log of past conversations (contains dozens of `tool-settings` mentions verbatim as things were asked/said at the time); it's a historical record like the plans/output dirs, not living documentation — leave untouched
 
 ## Verification
 1. `grep -rn "tool-settings\|tool_settings" --include="*" .` (excluding `.claude/worktrees/`, `ai/°base/plans/`, `ai/°base/output/`, `ai/output/`) returns nothing.
