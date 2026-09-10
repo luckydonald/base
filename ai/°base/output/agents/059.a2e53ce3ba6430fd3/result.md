@@ -1,0 +1,12 @@
+This is currently an in-progress task: `/plan Fix @ai/°base/errors/25.txt` was just invoked, meaning `25.txt` is the active, undiagnosed error awaiting a fix plan — consistent with what I'm being asked to investigate.
+
+Findings:
+
+**1. Documentation on purpose/lifecycle** — No AGENTS.md/README exists inside `ai/°base/errors/` itself. The governing doc is `/home/user/git/luckydonald/base/ai/skills/sanitize-error-logs/SKILL.md` (mirrored as `.claude/commands/sanitize-error-logs.md`). It states: `ai/errors/<N>.txt` (or `ai/°base/errors/*` "analogously" in this base repo) files "get committed to this repo as regression evidence" of past bugs/log captures, and "must not leak real infrastructure or personal data" — it gives a redaction table (IPs, UUIDs, SSH fingerprints, hostnames, local paths) to sanitize before committing. Nothing in the skill says to delete or move a file once fixed — the explicit design is that files persist as historical evidence; the skill even warns "Don't rewrite older, already-committed error files on your own initiative... ask first."
+
+There's also a numeric convention across files: `N.md`/`N.txt` = the raw captured error/log, `N.expected.md` = the corrected/expected output after the fix, `N.questions.md`/`N.console.md` = supplementary artifacts. So "resolving" an error appears to mean adding a companion `N.expected.md` file (as seen for 5, 9, 10, 11, 12, 13, 15, 18, 23) rather than deleting/moving the original.
+
+**2. Script that creates files here** — No automated script writes into this directory; grep across `scripts/°base/` found no writer. Files are created manually/by the agent per user instruction in `ai/°base/query.md`, e.g. "Fix @ai/°base/errors/25.txt", "Separately commit `ai/°base/errors/{21,22}.txt` after redacting it." Init tooling (`scripts/°base/init/link-subproject-claude.sh`, referenced in query.md) only symlinks a `.gitignore` scaffold into sibling projects' `ai/errors/` dirs, not this one.
+
+**3. Other files in `ai/°base/errors/`** (33 files, numbered 1–25 plus `todo.tmp.md`):
+`1.md, 2.md, 3.md, 4.diff, 5.md, 5.expected.md, 6.txt, 7.txt, 8.md, 9.md, 9.expected.md, 10.md, 10.expected.md, 11.md, 11.expected.md, 12.md, 12.expected.md, 12.questions.md, 13.md, 13.expected.md, 14.console.md, 15.md, 15.expected.md, 16.txt, 17.txt, 18.md, 18.expected.md, 19.md, 20.console.md, 21.txt, 22.txt, 23.md, 23.expected.md, 24.txt, 25.txt, todo.tmp.md`.

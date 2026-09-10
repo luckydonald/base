@@ -1,0 +1,21 @@
+fatal: pathspec 'ai/memory' did not match any files
+removed extensions/ad_hoc/2026-07-20-history-master-replay-guards.md from -home-user-Dokumente-abel-zeiten (/home/user/Dokumente/abel-zeiten)
+removed extensions/ad_hoc/2026-07-20-history-master-replay-guards.md from -home-user-git-luckydonald-CrushCrushEventTracker (/home/user/git/luckydonald/CrushCrushEventTracker)
+removed extensions/ad_hoc/2026-07-20-history-master-replay-guards.md from -home-user-git-luckydonald-DockerTgBot (/home/user/git/luckydonald/DockerTgBot)
+removed extensions/ad_hoc/2026-07-20-history-master-replay-guards.md from -home-user-git-luckydonald-ai-usage (/home/user/git/luckydonald/ai-usage)
+Traceback (most recent call last):
+  File "/home/user/git/luckydonald/base/scripts/°base/ai/memory/codex-sync-audit.py", line 245, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/user/git/luckydonald/base/scripts/°base/ai/memory/codex-sync-audit.py", line 238, in main
+    return fix(hook, base_synced, note, owner_key)
+  File "/home/user/git/luckydonald/base/scripts/°base/ai/memory/codex-sync-audit.py", line 190, in fix
+    _remove_from_project(hook, owner["root"], owner["target"], identity)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/git/luckydonald/base/scripts/°base/ai/memory/codex-sync-audit.py", line 159, in _remove_from_project
+    subprocess.run(["git", "add", "--all", "--", str(hook.project_memory_dir(root).relative_to(root))], cwd=root, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['git', 'add', '--all', '--', 'ai/memory']' returned non-zero exit status 128.
