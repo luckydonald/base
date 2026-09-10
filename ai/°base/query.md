@@ -5522,3 +5522,38 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > - [Raw log (`162713` chars, `160 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/72de2e23-42be-434f-8c6d-57d5eb65e512/tasks/a2e53ce3ba6430fd3.output)
 > - `9` tools, `28954` tokens, `0.8548 s`
 
+❯ Also i kinda wanna save that as memory to the `°base` dir directly. Can we include the promote/demote tech here?
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. What should the new °base memory record actually capture?
+>> 2. How should promote/demote fit in — should I write it as a project-scoped memory first and route it through `promote.py`, or write it directly into `ai/°base/memory` as a base-repo memory?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Memory content** (1/2) <kbd>Single Select</kbd><br>
+>> What should the new °base memory record actually capture?
+> - [ ] 1\. The git-add-on-empty-dir gotcha (Recommended)
+>   - _Record the root cause: `git add --all -- <dir>` fails with 'did not match any files' (exit 128) when the target dir has nothing tracked or untracked left in it — a general pitfall for any memory-management script that stages/commits after deleting files._
+> - [ ] 2\. The whole debugging story
+>   - _A fuller project-memory note: what codex-sync-audit.py --fix does, how it crashed on error 25.txt, and how it was fixed — more narrative, less of a reusable rule._
+> - [ ] 3\. Something else
+>   - _Tell me what you want captured._
+> - [x] 4\. _Type something:_
+>   - > No, I meant that codex-sync-audit.py --fix
+>
+>> **Promote vs direct** (2/2) <kbd>Single Select</kbd><br>
+>> How should promote/demote fit in — should I write it as a project-scoped memory first and route it through `promote.py`, or write it directly into `ai/°base/memory` as a base-repo memory?
+> - [ ] 1\. Write directly to ai/°base/memory (Recommended)
+>   - _This insight is about the base repo's own tooling (codex-sync-audit.py lives under scripts/°base/), so it belongs in ai/°base/memory natively — no promote step needed._
+> - [ ] 2\. Write to ai/memory then promote.py it
+>   - _Author it as a normal project memory first, then run promote.py to move/copy it into the base-shared memory tree, exercising that flow explicitly._
+> - [x] 3\. _Type something:_
+>   - > the "after move" work from premote would make sense - that is adding/removing it to the right MEMORY.py and so on i think
+>
+> </details>
+>
+

@@ -70,6 +70,32 @@ This is the only change needed — it's a self-contained fix in `scripts/°base/
 
 `ai/°base/errors/25.txt` needs no change. Looking at the other numbered `.txt` error captures in that directory (`6.txt`, `7.txt`, `16.txt`, `17.txt`, `21.txt`, `22.txt`, `24.txt`), raw traceback logs like this one are kept as-is with no companion `N.expected.md` — that convention is only used for the `.md`-captured interactive/formatting bugs. `25.txt` is already committed and contains no data needing redaction, so it stays untouched.
 
+## Record a project memory in `ai/°base/memory`
+
+The user wants this crash's root cause captured directly as a base-repo project memory (not routed through `promote.py`, since it already belongs in `ai/°base/memory` — it's about base-tooling itself), but replicating the index bookkeeping `promote.py` does after moving a file (`scripts/°base/ai/memory/promote.py:193-198`): append a link entry to that directory's `MEMORY.md`.
+
+1. Write `ai/°base/memory/codex_sync_audit_fix_empty_memory_dir.md`, matching the frontmatter shape used by `ai/°base/memory/project_codex_memory_orphan_resource_bug.md`:
+   ```markdown
+   ---
+   name: codex-sync-audit-fix-empty-memory-dir
+   description: "codex-sync-audit.py --fix crashed with a git add pathspec error when removing a note emptied a project's memory dir entirely."
+   metadata:
+     type: project
+   ---
+
+   `codex-sync-audit.py --fix` resolves ad-hoc Codex notes claimed by more than one project by deleting the losing project's copy (`_remove_from_project()`). It used to always run `git add --all -- <memory-dir>` unconditionally afterward.
+
+   **Why:** `hook.memory_lib.unlink_path()` only unlinks the single note file — it never prunes the now-possibly-empty parent directory. When the removed note was the only untracked thing under a project's memory dir, `git add --all -- <dir>` had nothing to match (nothing tracked, nothing untracked) and git exits 128 with "did not match any files," which `check=True` turned into a crash (`ai/°base/errors/25.txt`).
+
+   **How to apply:** Any script that deletes files under a memory/notes dir and then unconditionally `git add`s that dir is exposed to this same crash once the dir empties out. Guard with `git status --porcelain -- <dir>` first and skip add/commit when there's nothing to stage — see the fix in `scripts/°base/ai/memory/codex-sync-audit.py`'s `_remove_from_project()`.
+   ```
+   (Leave out `node_type`/`originSessionId`/`modified` — those are added automatically by the record-memory hook's sync, not authored by hand.)
+
+2. Append its index entry to `ai/°base/memory/MEMORY.md`, in the same link format the other entries and `promote.py`'s `_append_entry`/`_LINK_LINE_RE` use:
+   ```
+   - [codex-sync-audit git-add-empty-dir crash](codex_sync_audit_fix_empty_memory_dir.md) — `git add --all` on a memory dir that a delete just emptied fails with pathspec error 128; guard with `git status --porcelain` first.
+   ```
+
 ## Verification
 
 - Re-run `python3 scripts/°base/ai/memory/codex-sync-audit.py` (report mode, read-only) to confirm it still runs cleanly.
