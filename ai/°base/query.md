@@ -5561,3 +5561,5 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ Check if i have moved `codex_sync_audit_fix_empty_memory_dir.md` correctly into this `base` repo now - particularly into the @ai/°base/memory/ folder.
 
+❯ also check `2026-07-20-history-master-replay-guards.md`?
+
