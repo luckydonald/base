@@ -5557,3 +5557,5 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > </details>
 >
 
+❯ Btw, it's okay to run that tool, and commit the result.
+

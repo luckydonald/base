@@ -156,7 +156,14 @@ def _remove_from_project(hook, root: Path, target: str, identity: str) -> None:
     if data["notes"].pop(identity, None) is not None:
         hook.write_codex_sync(sync_path, data)
     # end if
-    subprocess.run(["git", "add", "--all", "--", str(hook.project_memory_dir(root).relative_to(root))], cwd=root, check=True)
+    memory_rel = str(hook.project_memory_dir(root).relative_to(root))
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", memory_rel], cwd=root, capture_output=True, text=True, check=True,
+    )
+    if not status.stdout.strip():
+        return
+    # end if
+    subprocess.run(["git", "add", "--all", "--", memory_rel], cwd=root, check=True)
     subprocess.run(
         ["git", "commit", "--no-verify", "-m", f"ai: remove misassigned codex memory {memory_file.name}"],
         cwd=root, capture_output=True, text=True,

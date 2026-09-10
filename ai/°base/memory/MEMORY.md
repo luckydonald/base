@@ -1,3 +1,4 @@
 - [Dual work/private Codex config dirs](project_dual_codex_config_dirs.md) — base-repo hooks must resolve `~/.claude`-style paths through `$CLAUDE_CONFIG_DIR`; record-memory hook fixed, delete.py still needs it.
 - [Codex memory orphan-resource bug](project_codex_memory_orphan_resource_bug.md) — a deleted memory can keep resyncing back if its Codex-side resource copy has no matching `sources` metadata entry.
 - [Repo commit hooks](../../memory/repo_commit_hooks.md) — pre-commit hook rejects Co-Authored-By/Claude-Session commit trailers; `allowCoAuthoredEtc: false` in `ai/tool-settings/settings.json` suppresses Claude Code's own footer.
+- [codex-sync-audit git-add-empty-dir crash](codex_sync_audit_fix_empty_memory_dir.md) — `git add --all` on a memory dir that a delete just emptied fails with pathspec error 128; guard with `git status --porcelain` first.
