@@ -5563,3 +5563,5 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ also check `2026-07-20-history-master-replay-guards.md`?
 
+❯ summarize the memory in memory.md
+
