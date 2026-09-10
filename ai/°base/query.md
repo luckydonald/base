@@ -5472,3 +5472,30 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ Clean up all the unpushed ai noise (including the one with `[base]` prefix, but otherwise being the typical `ai: …` commit) by squashing same-topic stuff together following /commit-with-lplp-style instructions.
 
+❯ Improve the @ai/skills/code-style/references/md.md being loaded for all /plan commands.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. What should the improvement to md.md focus on?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Improve scope** (1/1) <kbd>Multi Select</kbd><br>
+>> What should the improvement to md.md focus on?
+> - [ ] 1\. Clarify wrapping rule itself
+>   - _Tighten the existing line-wrapping wording (e.g. clarify whether multiple short sentences can share a line, exact sentence-boundary rule) and add a concrete good/bad example._
+> - [ ] 2\. Extend to lists/headings/blockquotes
+>   - _Explicitly state how the wrapping rule applies (or doesn't) to bullet list items, nested lists, headings, and blockquote text._
+> - [ ] 3\. Add broader Markdown conventions
+>   - _Add new sections beyond line wrapping: heading style, bullet markers, emphasis usage, link formatting, blank-line conventions — things plans/docs commonly get inconsistent._
+> - [x] 4\. Something else — tell me <sup><sub><kbd>#1</kbd></sub></sup>
+>   - _I'll describe a specific problem I ran into with this file._
+> - [x] 5\. _Type something:_
+>   - > "No, when doing /plan, i feel it is often not loaded. "
+>
+> </details>
+>
+
