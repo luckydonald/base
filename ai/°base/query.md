@@ -5621,3 +5621,5 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > - [Answer (`2487` chars, `2.44 KB`)](output/agents/061.bg0bwui2u/result.md)
 > - [Raw log (`2487` chars, `2.44 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/72de2e23-42be-434f-8c6d-57d5eb65e512/tasks/bg0bwui2u.output)
 
+❯ The @ai/tool-settings/ folder shall be renamed to just ai/settings
+
