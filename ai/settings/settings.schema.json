@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/luckydonald/base/ai/tool-settings/settings.schema.json",
+  "$id": "https://github.com/luckydonald/base/ai/settings/settings.schema.json",
   "title": "Shared AI tool settings",
   "type": "object",
   "properties": {

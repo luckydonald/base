@@ -208,7 +208,7 @@ jobs:
 ## Repository pre-commit policy
 
 The base repository's Yarn 4 guard is enabled by default when Node/package-manager files exist. Configure it only
-in tracked `ai/tool-settings/settings.json`:
+in tracked `ai/settings/settings.json`:
 
 ```json
 {

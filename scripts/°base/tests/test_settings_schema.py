@@ -10,7 +10,7 @@ from referencing import Registry, Resource
 
 
 ROOT = Path(__file__).resolve().parents[3]
-SETTINGS_DIR = ROOT / "ai" / "tool-settings"
+SETTINGS_DIR = ROOT / "ai" / "settings"
 
 
 def load_json(name: str) -> dict[str, Any]:

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/luckydonald/base/ai/tool-settings/mcp.schema.json",
-  "title": "Neutral MCP server config (ai/tool-settings/settings.json's \"mcp\" key)",
+  "$id": "https://github.com/luckydonald/base/ai/settings/mcp.schema.json",
+  "title": "Neutral MCP server config (ai/settings/settings.json's \"mcp\" key)",
   "description": "Synced by scripts/°base/ai/settings/sync.py into .mcp.json (Claude) and .codex/config.toml's [mcp_servers.*] tables (Codex).",
   "type": "object",
   "properties": {

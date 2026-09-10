@@ -11,8 +11,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-SHARED_SETTINGS = PurePosixPath("ai/tool-settings/settings.json")
-LOCAL_SETTINGS = Path("ai/tool-settings/settings.local.json")
+SHARED_SETTINGS = PurePosixPath("ai/settings/settings.json")
+LOCAL_SETTINGS = Path("ai/settings/settings.local.json")
 YARN_VERSION = re.compile(r"^yarn@4\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 YARN_RELEASE = re.compile(r"^yarn-4\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\.c?js$")
 COMPETING_LOCKS = {"package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml"}
@@ -70,7 +70,7 @@ def yarn_setting(data: dict[str, Any], label: str, local: bool) -> bool:
     if local:
         raise ValueError(
             f"{label}: pre_commit.yarn@4 is shared repository policy; "
-            "move it to ai/tool-settings/settings.json."
+            "move it to ai/settings/settings.json."
         )
     # end if
     setting = pre_commit["yarn@4"]
@@ -292,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         "Use Corepack and the tracked packageManager version, then regenerate with "
         "`yarn install`. Disable only through tracked "
-        "ai/tool-settings/settings.json -> pre_commit.yarn@4.enabled=false.",
+        "ai/settings/settings.json -> pre_commit.yarn@4.enabled=false.",
         file=sys.stderr,
     )
     return 1

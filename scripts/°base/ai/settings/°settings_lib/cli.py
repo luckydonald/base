@@ -1,6 +1,6 @@
 """Synchronize Claude and Codex project settings through a neutral JSON file.
 
-The neutral files under ``ai/tool-settings/`` are meant to be readable and
+The neutral files under ``ai/settings/`` are meant to be readable and
 editable by humans. Native files remain editable too: this script imports
 entries from both sides, unions them by stable identity, then renders the
 native formats back out.
@@ -202,7 +202,7 @@ def _load_layer(
         pre_commit = shared_source.get("pre_commit")
         if isinstance(pre_commit, dict) and "yarn@4" in pre_commit:
             raise ValueError(
-                "ai/tool-settings/settings.local.json may contain other pre_commit settings, "
+                "ai/settings/settings.local.json may contain other pre_commit settings, "
                 "but pre_commit.yarn@4 is shared repository policy and must be configured in settings.json."
             )
         # end if

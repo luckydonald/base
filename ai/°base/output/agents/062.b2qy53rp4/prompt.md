@@ -1,0 +1,1 @@
+Background command "Run remaining test suite excluding pre-existing pydantic-dependent failures" completed (exit code 0)

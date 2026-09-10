@@ -5,7 +5,7 @@ The `bugsink` MCP server (`mcp__bugsink__*` tools) ships disabled by default and
 
 ## The one file that matters
 
-The source of truth is **`ai/tool-settings/settings.json`** (relative to the git root), under:
+The source of truth is **`ai/settings/settings.json`** (relative to the git root), under:
 
 ```json5
 {
@@ -44,8 +44,8 @@ enabled = false        # <-- if this is stale/false, it wins
 ```
 
 If a previous sync left `enabled = false` baked in here, it gets merged back into the shared config *during the same `_load_layer` call that renders `.claude/settings.json`*
-— so your edit to `ai/tool-settings/settings.json` gets silently overridden back to `false` before it ever reaches `.claude/settings.json`.
-Symptom: `sync.py --dry-run` only reports `Would write: ai/tool-settings/settings.json` (just re-normalizing) and never mentions `.claude/settings.json` at all, even though you just changed `enabled` to `true`.
+— so your edit to `ai/settings/settings.json` gets silently overridden back to `false` before it ever reaches `.claude/settings.json`.
+Symptom: `sync.py --dry-run` only reports `Would write: ai/settings/settings.json` (just re-normalizing) and never mentions `.claude/settings.json` at all, even though you just changed `enabled` to `true`.
 
 **Fix:** grep for the server under `.codex/config.toml`'s generated block and flip `enabled` there too, matching the shared file, *before* rerunning sync:
 

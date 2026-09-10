@@ -1,4 +1,4 @@
-# [plugins].*.enabled below is managed by scripts/°base/ai/settings/sync.py from ai/tool-settings/settings.json's enabledPlugins; other content here is preserved.
+# [plugins].*.enabled below is managed by scripts/°base/ai/settings/sync.py from ai/settings/settings.json's enabledPlugins; other content here is preserved.
 
 [plugins."openai-developers@openai-developers"]
 enabled = true

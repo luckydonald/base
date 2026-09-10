@@ -1,6 +1,6 @@
 # AI Tool Settings
 
-`ai/tool-settings/settings.json` is the tracked, human-editable settings file shared by Claude and Codex.
+`ai/settings/settings.json` is the tracked, human-editable settings file shared by Claude and Codex.
 `scripts/°base/ai/settings/sync.py` reads it, preserves non-native metadata there, and renders the native files
 under `.claude/` and `.codex/`.
 

@@ -10,11 +10,11 @@ def repo_root() -> Path:
 
 
 def settings_path() -> Path:
-    return repo_root() / "ai" / "tool-settings" / "settings.json"
+    return repo_root() / "ai" / "settings" / "settings.json"
 
 
 def local_settings_path() -> Path:
-    return repo_root() / "ai" / "tool-settings" / "settings.local.json"
+    return repo_root() / "ai" / "settings" / "settings.local.json"
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@
 # scripts/°base/init/link-subproject-claude.sh
 #
 # Idempotent per-subfolder setup for the monorepo case: creates relative
-# symlinks at <cwd>/.claude, <cwd>/.codex, <cwd>/ai/tool-settings,
+# symlinks at <cwd>/.claude, <cwd>/.codex, <cwd>/ai/settings,
 # <cwd>/ai/references, <cwd>/ai/skills and <cwd>/.mcp.json pointing at their
 # monorepo-root counterparts, each <cwd>/.run/*.run.xml pointing at its
 # monorepo-root counterpart, an <cwd>/AGENTS.md -> CLAUDE.md symlink (moving
@@ -219,7 +219,7 @@ link_agents_claude() {
 
 link_shared ".claude"
 link_shared ".codex"
-link_shared "ai/tool-settings"
+link_shared "ai/settings"
 link_shared "ai/references"
 link_shared "ai/skills"
 link_shared ".mcp.json"

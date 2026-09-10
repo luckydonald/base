@@ -36,8 +36,8 @@ def _is_merge_in_progress() -> bool:
     return (_git_dir() / "MERGE_HEAD").is_file()
 
 
-TRACKED_SHARED = Path("ai/tool-settings/settings.json")
-LOCAL_SHARED = Path("ai/tool-settings/settings.local.json")
+TRACKED_SHARED = Path("ai/settings/settings.json")
+LOCAL_SHARED = Path("ai/settings/settings.local.json")
 CLAUDE_SETTINGS = Path(".claude/settings.json")
 CLAUDE_LOCAL = Path(".claude/settings.local.json")
 CODEX_HOOKS = Path(".codex/hooks.json")

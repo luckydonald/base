@@ -130,7 +130,7 @@ def _migrate_codex_feature_flag(path: Path, apply: bool, interactive: bool) -> i
 
 TOML_GENERATED_MARKER = (
     "# [plugins].*.enabled below is managed by scripts/°base/ai/settings/sync.py "
-    "from ai/tool-settings/settings.json's enabledPlugins; other content here is preserved."
+    "from ai/settings/settings.json's enabledPlugins; other content here is preserved."
 )
 
 _TABLE_HEADER = re.compile(r'^\[([^\[\]]+)\]\s*$')

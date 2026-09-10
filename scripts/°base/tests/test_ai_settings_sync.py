@@ -1000,7 +1000,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_preserves_shared_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             shared_path.parent.mkdir(parents=True)
@@ -1017,7 +1017,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_injects_shared_schema(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             shared_path.parent.mkdir(parents=True)
             shared_path.write_text('{"version": 2}', encoding="utf-8")
 
@@ -1033,7 +1033,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_injects_local_schema_and_allows_other_pre_commit_settings(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.local.json"
+            shared_path = root / "ai" / "settings" / "settings.local.json"
             shared_path.parent.mkdir(parents=True)
             shared_path.write_text(
                 '{"pre_commit": {"other": {"enabled": false}}}',
@@ -1053,7 +1053,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_rejects_local_yarn_policy(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.local.json"
+            shared_path = root / "ai" / "settings" / "settings.local.json"
             shared_path.parent.mkdir(parents=True)
             shared_path.write_text(
                 '{"pre_commit": {"yarn@4": {"enabled": false}}}',
@@ -1073,7 +1073,7 @@ class CliLoadLayerTests(unittest.TestCase):
         # new "plugins" key once migrated.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             shared_path.parent.mkdir(parents=True)
@@ -1092,7 +1092,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_merges_hand_edited_codex_rules_and_plugins(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             rules_path = root / ".codex" / "rules" / "generated.rules"
@@ -1124,7 +1124,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_merges_hand_edited_mcp_tool_approval_and_is_stable_on_rerun(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             config_path = root / ".codex" / "config.toml"
@@ -1155,7 +1155,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_merges_hand_added_claude_mcp_server_as_flat_entry(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             mcp_path = root / ".mcp.json"
@@ -1179,7 +1179,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_keeps_authored_tools_form_when_native_mcp_matches_resolved_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             mcp_path = root / ".mcp.json"
@@ -1205,7 +1205,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_merges_codex_mcp_enabled_flag_change(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             config_path = root / ".codex" / "config.toml"
@@ -1242,7 +1242,7 @@ class CliLoadLayerTests(unittest.TestCase):
         # reliably has the later mtime — reproduced here explicitly.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             config_path = root / ".codex" / "config.toml"
@@ -1285,7 +1285,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_reconstructs_tools_when_native_cmd_content_genuinely_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             config_path = root / ".codex" / "config.toml"
@@ -1323,7 +1323,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_stores_flat_cmd_when_no_tool_prefix_matches(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             config_path = root / ".codex" / "config.toml"
@@ -1357,7 +1357,7 @@ class CliLoadLayerTests(unittest.TestCase):
     def test_load_layer_claude_only_source_does_not_reset_enabled_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             mcp_path = root / ".mcp.json"
@@ -1384,7 +1384,7 @@ class CliApplyOrCheckTests(unittest.TestCase):
     def test_apply_or_check_writes_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             rules_path = root / ".codex" / "rules" / "generated.rules"
@@ -1419,7 +1419,7 @@ class CliApplyOrCheckTests(unittest.TestCase):
         # whole-file rewrite.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             rules_path = root / ".codex" / "rules" / "generated.rules"
@@ -1461,7 +1461,7 @@ class CliApplyOrCheckTests(unittest.TestCase):
         # permission would duplicate it, growing the list on every run.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             rules_path = root / ".codex" / "rules" / "generated.rules"
@@ -1486,7 +1486,7 @@ class CliApplyOrCheckTests(unittest.TestCase):
     def test_mcp_json_and_codex_toml_are_written_and_idempotent_across_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            shared_path = root / "ai" / "tool-settings" / "settings.json"
+            shared_path = root / "ai" / "settings" / "settings.json"
             claude_path = root / ".claude" / "settings.json"
             codex_path = root / ".codex" / "hooks.json"
             config_path = root / ".codex" / "config.toml"

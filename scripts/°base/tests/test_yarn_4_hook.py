@@ -30,7 +30,7 @@ def init_repo(repo: Path, enabled: bool | None = True) -> None:
     if enabled is not None:
         settings["pre_commit"] = {"yarn@4": {"enabled": enabled}}
     # end if
-    write_and_stage(repo, "ai/tool-settings/settings.json", json.dumps(settings))
+    write_and_stage(repo, "ai/settings/settings.json", json.dumps(settings))
 # end def
 
 
@@ -245,7 +245,7 @@ class Yarn4HookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "repo"
             init_repo(repo)
-            local = repo / "ai" / "tool-settings" / "settings.local.json"
+            local = repo / "ai" / "settings" / "settings.local.json"
             local.write_text(json.dumps({"pre_commit": {"other": {"enabled": False}}}), encoding="utf-8")
 
             result = run_hook(repo)
@@ -258,7 +258,7 @@ class Yarn4HookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "repo"
             init_repo(repo)
-            local = repo / "ai" / "tool-settings" / "settings.local.json"
+            local = repo / "ai" / "settings" / "settings.local.json"
             local.write_text(json.dumps({"pre_commit": {"yarn@4": {"enabled": False}}}), encoding="utf-8")
 
             result = run_hook(repo)
