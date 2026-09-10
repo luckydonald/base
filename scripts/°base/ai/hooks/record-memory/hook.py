@@ -24,7 +24,7 @@ Fires on:
     Claude versions whose post-compaction payload arrived only through this
     event.
 
-Linking strategy mirrors `scripts/°base/memories/hardlink_memories.sh` but for
+Linking strategy mirrors `scripts/°base/ai/memory/legacy/hardlink_memories.sh` but for
 single files: hardlink first, fall back to symlink when hardlinks aren't
 supported (e.g. the project and Claude state live on different filesystems).
 Bind mounts are skipped — they only make sense at directory granularity.
@@ -261,7 +261,7 @@ def _is_bind_mount(p: Path) -> bool:
 # DANGER ZONE — legacy whole-folder link cleanup.
 #
 # The functions below remove the whole-folder memory link planted by
-# `scripts/°base/memories/hardlink_memories.sh` so the new per-file hardlinks
+# `scripts/°base/ai/memory/legacy/hardlink_memories.sh` so the new per-file hardlinks
 # don't duplicate state. Sounds innocent — it isn't. Things you must NOT
 # "simplify":
 #
@@ -373,7 +373,7 @@ def _uninstall_legacy_all(subproject: Path, src_dir: Path) -> None:
             print(
                 f"record-memory: a bind mount or directory hardlink remains at {legacy}; "
                 f"the new per-file hooks won't disturb it, but it duplicates memory "
-                f"state in your repo. Run `scripts/°base/memories/unlink_memories.sh` "
+                f"state in your repo. Run `scripts/°base/ai/memory/legacy/unlink_memories.sh` "
                 f"to remove it.",
                 file=sys.stderr,
             )

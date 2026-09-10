@@ -3,3 +3,4 @@
 - [Codex memory orphan-resource bug](project_codex_memory_orphan_resource_bug.md) — a deleted memory can keep resyncing back if its Codex-side resource copy has no matching `sources` metadata entry.
 - [Repo commit hooks](../../memory/repo_commit_hooks.md) — pre-commit hook rejects Co-Authored-By/Claude-Session commit trailers; `allowCoAuthoredEtc: false` in `ai/tool-settings/settings.json` suppresses Claude Code's own footer.
 - [codex-sync-audit git-add-empty-dir crash](codex_sync_audit_fix_empty_memory_dir.md) — `git add --all` on a memory dir that a delete just emptied fails with pathspec error 128; guard with `git status --porcelain` first.
+- [Memory subsystem directory map](memory_subsystem_directory_map.md) — the 5 memory-related dirs under scripts/°base/ aren't redundant; only scripts/°base/memories/ was dead, now moved to ai/memory/legacy/.
