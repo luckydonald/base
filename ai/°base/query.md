@@ -5656,6 +5656,29 @@ echo "started in bg, pid $!"" completed (exit code 0)
 ❯ Add the git-added refs, and install the MCP server to the settings. Use the latest full one, and disable tracking as documented. I want to reuse an open browser window. It should be added to the settings as disabled.
 
 ❯ Rebase the better-cancelation branch onto current mane.
+❯ What are the _unrelated pre-existing modification to `record-codex-memory/hook.py`_? Should we commit those?
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Commit the +x mode change on record-codex-memory/hook.py?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Mode change** (1/1) <kbd>Single Select</kbd><br>
+>> Commit the +x mode change on record-codex-memory/hook.py?
+> - [x] 1\. Yes, commit it
+>   - _Stage and commit the chmod +x as its own small commit — reasonable if the hook is meant to be run directly._
+> - [ ] 2\. No, leave it uncommitted
+>   - _Leave it in the working tree as-is; you'll deal with it separately or it's unintentional._
+> - [ ] 3\. Revert it
+>   - _Set the file back to non-executable (644), discarding the mode change entirely._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
 
 ❯ rebase the local `base` branch where the `°base/feature/better-cancelation-logging` was rebased on top and fast-forwarded-to so that the newer `[base] [sync_todo] …` commits are _after_ that stuff which was from th `better-cancelation` branch. Note that the `better-cancelation` stuff was then also quashed and cleaned up in a few places, which should obviously be kept.
 
