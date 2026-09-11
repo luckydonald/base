@@ -56,6 +56,8 @@ While at it configure it directly with `envmcp` to use `ai/.env` of a repo, see 
 
 ---
 
+#### Overview
+
 /plan I need to create a tool for splitting off AI stuff & `base` from a project, as that project is not supposed to have this base or AI mentions in it.
 The general concept is that for a branch, AI versions can exist.
 Generally, there's the clean branch with any name, but examples could be `feature/ABC-123/something/mr1`, `feature/ABC-123_something`, `ABC-1234_foo`, `bugfix/foo-crash` or just `i-did-a-thing`.
@@ -149,6 +151,9 @@ This one takes all of the three branches and rebases it onto the current `master
 
 Also think about how to handle one or two of them branches missing.
 
+#### Done?
+
+- [x] Probably Done? At least low prio…
 
 ---
 
@@ -160,10 +165,21 @@ Additionally, we need:
    1. block ai or ai-containing commits to be pushed if the branch name is not **unclean** format.
    2. block code or code-containing commits to be pushed if the branch name is not **history** format.
 
-- [ ] Done
+- [x] Probably Done? At least low prio…
 
 ---
 
-- [ ] I mean it's a bit more difficult as the codex memory seems to be only global for all projects, so I guess we need to listen to explicit add/update/delete commands/hooks to make sure we're getting it right?
+- [x] I mean it's a bit more difficult as the codex memory seems to be only global for all projects, so I guess we need to listen to explicit add/update/delete commands/hooks to make sure we're getting it right?
+- [x] Uh oh, `• Running 19 PostToolUse hooks`, which end up in `• PostToolUse hook (failed)` with `error: hook timed out after 600s`.
 
-- [ ] Uh oh, `• Running 19 PostToolUse hooks`, which end up in `• PostToolUse hook (failed)` with `error: hook timed out after 600s`.
+---
+
+Record the other choosable options of a /plan: 
+
+- [ ] Deny (without reason)
+- [ ] Deny (with reason)
+      - Special case for Copilot: It's not possible to exit planning mode without entering something into the "i wanna change something" field, so a empty-like answer (e.g. single whitespace) should be treated as _without reason_.
+- [ ] Accept (with note)
+      - If available modifiers like:
+        - [ ] Reset conversation history and implement — Codex
+        - [ ] Use Autopilot (some model which confirms stuff for you) — Claude, Copilot, (Codex?)
