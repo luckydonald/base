@@ -1,3 +1,5 @@
+<!-- Tasks below are separated by a literal `\n---\n` horizontal rule. To find the next task, scan from the top for the first block containing at least one unchecked `- [ ]` checkbox (a checklist), or — if the block isn't a checklist — an unchecked single checkbox at its end. -->
+
 /plan I want to have "explore" commands written to the prompt log, similar to `Task Notification:`.
 Claude CLI writes:
 ```log
