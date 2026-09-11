@@ -176,7 +176,7 @@ Additionally, we need:
 
 ---
 
-Record the other choosable options of a /plan: 
+Record the other choosable options of a /plan:
 
 - [ ] Deny (without reason)
 - [ ] Deny (with reason)
@@ -185,3 +185,19 @@ Record the other choosable options of a /plan:
       - If available modifiers like:
         - [ ] Reset conversation history and implement — Codex
         - [ ] Use Autopilot (some model which confirms stuff for you) — Claude, Copilot, (Codex?)
+
+---
+
+Misc:
+
+- [ ] Add `squash unpushed` to ignored queries.
+
+---
+
+Rename `query.md` to `prompt.md`.
+- Make sure all usages of that file will first see if they have to rename an old file.
+- If `query.md` exists, and the `prompt.md` is missing or equal to the `base/base` version:
+  - delete the unused `prompt.md` (= 1 commit)
+  - rename `query.md` to `prompt.md` (= 1 commit)
+
+- [ ] Done.

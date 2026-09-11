@@ -101,10 +101,23 @@ offers — this checklist just tracks which outcome has been exercised and what 
 `ai/°base/output/debug/*-save-plan.json` / `ai/°base/query.md` for it. `ai/°base/.debug` must exist (it does)
 for the debug dumps to land at all.
 
-- [ ] **Claude** — see [26.claude.md](../errors/26.claude.md)
+- [x] **Claude** — see [26.claude.md](../errors/26.claude.md) — all 5 outcomes exercised and their hook-visible
+      shape (or lack thereof) confirmed.
   - [x] Accept, manual ("Yes, manually approve edits") — well-covered by 25 pre-existing samples; plain
-        `tool_response: {plan, isAgent, filePath}` shape.
-  - [ ] Accept + auto-mode modifier ("Yes, and use auto mode")
+        `tool_response: {plan, isAgent, filePath}` shape. Re-confirmed once more directly in this session,
+        this time with `permission_mode: "default"` — **not** `"auto"` (it had been `"auto"` since the earlier
+        shift+tab/auto-mode tests). This retroactively resolves the auto-mode row's open question: since
+        manual accept genuinely reverts `permission_mode` to `"default"` rather than it staying stuck at
+        `"auto"`, the earlier `"auto"` reading really was caused by that test's modifier choice, not a stale
+        leftover — `permission_mode` is a reliable, if indirect, signal for which accept variant was picked.
+  - [x] Accept + auto-mode modifier ("Yes, and use auto mode") — `tool_response` is byte-identical in shape
+        to plain accept (`{plan, isAgent, filePath}`); no distinguishing field there. Unlike the note case
+        there's no free text for a fixed modifier choice to ride along on, so the choice doesn't show up in
+        `ExitPlanMode`'s own payload at all — but it does reliably show up as `permission_mode: "auto"` on the
+        *same* `PostToolUse` payload (confirmed: the very next manual-accept test read back
+        `permission_mode: "default"` instead, proving it's not a stale leftover — see the manual-accept row
+        above). So Phase 4 should detect the modifier from `permission_mode` on the `ExitPlanMode`
+        `PostToolUse` payload itself, not a separate/later hook call.
   - [x] Accept + note (`shift+tab` on "Tell Claude what to change") — `PostToolUse` fires normally, but
         `tool_response` is the *same* plain `{plan, isAgent, filePath}` shape as manual accept; no `note`
         field anywhere, `permission_mode` read back as `"auto"`. **Confirmed where the note actually lives**:
@@ -158,7 +171,15 @@ Using Phase 3's captures, extend `save-plan/hook.py`:
 - On accept, recover an optional note by reading `payload["transcript_path"]` and looking for a sibling
   `{"type": "text", ...}` content entry following the matching `tool_use_id`'s `tool_result` block in the same
   transcript message — mirroring the existing `_plan_from_codex_transcript` transcript-reading pattern, not a
-  new mechanism. No hook field carries the note directly (confirmed in Phase 3).
+  new mechanism. No hook field carries the note directly (confirmed in Phase 3). **No race**: checked ordering
+  on both captures — the transcript message (tool_result + note, written together as one entry) lands
+  57ms *before* the `PostToolUse` hook's own debug dump both times (16:48:45.618Z vs .675Z; 17:01:22.610Z vs
+  .667Z). Consistent with Claude Code appending the full synthetic message to the transcript as it finishes
+  the tool call, then spawning the hook — so the hook always sees a transcript that already has the note, not
+  a concurrently-written one. Small sample (n=2), but the write-then-spawn order is a structural property of
+  how the harness processes a tool call, not a timing fluke, so this should hold reliably in general.
+- Detect the auto-mode modifier from `payload["permission_mode"] == "auto"` on the `ExitPlanMode`
+  `PostToolUse` payload itself (confirmed reliable — see Phase 3's Claude checklist), not from `tool_response`.
 - Render a `query.md` block analogous to `save-decision`'s (reuse `append_and_commit` from `_lib.py`) showing
   the decision (Denied / Denied with reason / Accepted / Accepted with note), any reason/note text, and any
   modifier picked.
