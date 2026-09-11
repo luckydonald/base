@@ -142,10 +142,17 @@ for the debug dumps to land at all.
         grepping the transcript JSONL directly for the typed note text and inspecting that line's
         `message.content` array (2 entries: `tool_result` then `text`) — see the `26.claude.md` capture notes
         for the exact snippet. **Reproduced a second time** (note text `"littlepip is best pony"`, 23 chars):
-        same `tool_use_id`-keyed message, same two-entry shape, confirming this isn't a one-off fluke. This is
-        the same "read the tool's own transcript directly" pattern
-        `save-plan.py:_plan_from_codex_transcript` already uses for Codex, so Phase 4 doesn't need a new
-        mechanism, just applying that existing pattern to Claude's transcript too, keyed by `tool_use_id`.
+        same `tool_use_id`-keyed message, same two-entry shape, confirming this isn't a one-off fluke.
+        **Generalized further** (see Phase 3b): the exact same `tool_result`+sibling-`text` shape showed up
+        for a plain `Edit` call and an unrelated `Bash` call in this same session, *neither* of which went
+        through any visible permission dialog — proving this is not an `ExitPlanMode`-specific "note" field at
+        all, but a general Claude Code behavior: **any message sent while a tool call is in flight gets
+        delivered attached to that tool's `tool_result`**, regardless of dialog type or whether one was even
+        shown. `shift+tab`/`Tab`-amend are just one UI path that happens to trigger this same underlying
+        mechanism. Phase 4 should therefore implement this as a general "recover interjected text for a given
+        `tool_use_id`" utility (reusable across `save-plan.py` and the new Phase 4b command-decision hook),
+        not ExitPlanMode-specific parsing — still the same "read the tool's own transcript directly" pattern
+        `save-plan.py:_plan_from_codex_transcript` already uses for Codex, just generalized.
   - [x] Deny with reason (typed text + Enter) — reproduced twice; **no** `save-plan` dump; the typed text
         lands as a plain, unlabeled `query.md` prompt entry.
   - [x] Deny without reason (empty text + Enter) — reproduced once; **zero trace anywhere** (no dump, no
@@ -175,18 +182,28 @@ Same discipline as Phase 3, for the `PermissionRequest`/Bash "This command requi
 of `ExitPlanMode`. Reference file: `[26.claude.md](../errors/26.claude.md)` "Options for commands" section
 (already pasted); `26.codex.md`/`26.copilot.md` get a matching section once each tool's equivalent dialog
 (if any — Codex/Copilot may not gate arbitrary commands the same way, or may use different wording/options
-entirely) is captured. Nothing here is tested yet — no live `PermissionRequest`/Bash-approval hook payload has
-been captured in this session (checked: no fresh dump when the dialog was described, meaning either it fired
-outside this session or the current permission mode auto-approved past it without a dialog at all).
+entirely) is captured. Per the user, only the message-carrying outcomes (accept-with-instructions,
+deny-with-reason) are actually worth recording — the plain modifiers (don't-ask-again, auto-mode) aren't
+pursued. Plain accept was tested as a control (see checklist) and confirmed to leave **zero** hook trace
+whatsoever, worse than `ExitPlanMode`'s deny cases.
 
-- [ ] **Claude**
-  - [ ] Accept, plain ("Yes")
-  - [ ] Accept + "don't ask again for: `<pattern>`" modifier
-  - [ ] Accept + "switch to auto mode" modifier
+- [ ] **Claude** — per the user, only the amended/message-carrying variants are actually worth recording; the
+      plain modifiers (don't-ask-again, auto-mode) aren't interesting for this effort and can stay unchecked.
+  - [x] Accept, plain ("Yes") — tested as a baseline/control. **Confirmed: zero hook trace of the
+        `PermissionRequest` event or the decision at all**, at any level — not just unparsed like
+        `ExitPlanMode` denial, but *never even dumped*: `.claude/hooks/permission-check.py` is the only hook
+        wired to `PermissionRequest` for Bash and it doesn't call `dump_debug_payload`. The only artifact is
+        the completely ordinary `Bash` `PostToolUse` dump (`{stdout, stderr, interrupted, isImage,
+        noOutputExpected}`) — identical in shape to a command that never triggered any approval dialog at
+        all. So plain accept is fundamentally unrecoverable from hooks as currently wired; would need
+        `permission-check.py` itself extended to dump/record, not something read after the fact.
+  - [ ] Accept + "don't ask again for: `<pattern>`" modifier — not pursuing, low value per the user.
+  - [ ] Accept + "switch to auto mode" modifier — not pursuing, low value per the user.
   - [ ] Deny ("No")
   - [ ] Accept + amended instructions (`Tab` on "Yes" → "Yes, and tell Claude what to do next" + typed text) —
-        test whether this behaves like `ExitPlanMode`'s deny-with-reason (falls through to a plain `query.md`
-        prompt, invisible as a distinct decision) or has its own mechanism.
+        **the actually interesting case**: test whether this behaves like `ExitPlanMode`'s deny-with-reason
+        (falls through to a plain `query.md` prompt, invisible as a distinct decision) or has its own
+        mechanism.
   - [ ] Deny + amended reason (`Tab` on "No", if it also opens a text field the same way)
 - [ ] **Codex** — confirm whether an equivalent dialog exists at all before assuming symmetry
 - [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
@@ -212,10 +229,12 @@ Using Phase 3's captures, extend `save-plan/hook.py`:
   or absent, otherwise "Denied with reason" using that prompt's text — and, critically, suppress that text
   from *also* being logged as a plain `query.md` prompt entry by `save-prompt/hook.py`, so the deny reason
   appears exactly once, correctly labeled.
-- On accept, recover an optional note by reading `payload["transcript_path"]` and looking for a sibling
-  `{"type": "text", ...}` content entry following the matching `tool_use_id`'s `tool_result` block in the same
-  transcript message — mirroring the existing `_plan_from_codex_transcript` transcript-reading pattern, not a
-  new mechanism. No hook field carries the note directly (confirmed in Phase 3). **No race**: checked ordering
+- On accept, recover an optional note via a general (not `ExitPlanMode`-specific — see Phase 3's generalized
+  finding) `_lib.py` helper: read `payload["transcript_path"]`, find the message whose `tool_result` block
+  matches the given `tool_use_id`, and return a sibling `{"type": "text", ...}` entry if present. Mirrors the
+  existing `_plan_from_codex_transcript` transcript-reading pattern; worth adding as a shared `_lib.py`
+  function since Phase 4b (command-approval decisions) needs the exact same lookup. No hook field carries the
+  note directly (confirmed in Phase 3). **No race**: checked ordering
   on both captures — the transcript message (tool_result + note, written together as one entry) lands
   57ms *before* the `PostToolUse` hook's own debug dump both times (16:48:45.618Z vs .675Z; 17:01:22.610Z vs
   .667Z). Consistent with Claude Code appending the full synthetic message to the transcript as it finishes

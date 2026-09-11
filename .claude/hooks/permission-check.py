@@ -5,6 +5,10 @@ import json
 import shlex
 import sys
 import traceback
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts" / "°base" / "ai" / "hooks"))
+from _lib import dump_debug_payload  # noqa: E402
 
 
 def deny(reason):
@@ -127,6 +131,7 @@ def split_on_shell_operators(argv):
 def main():
     try:
         data = json.load(sys.stdin)
+        dump_debug_payload(data, "permission-check")
         tool_name = data.get("tool_name", "")
         if tool_name not in {"Bash", "shell", "unified_exec"}:
             print("{}")
