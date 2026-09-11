@@ -5784,3 +5784,35 @@ Alright, I'll next deny without reason (empty), and in case you don't get a turn
 > Where the typed note actually surfaces (if anywhere) is still unconfirmed — watch the next `UserPromptSubmit`/`save-prompt` dump and `query.md`.
 Huh, good question. I'm in implementation mode right now still but prefixing this message with `/plan` in this normal query, to reenable the planning mode, so we can test the `shift+tab` to accept with message option once more. My guess is as part of the tool return maybe? or is it out of band? can you check your logs? The next time I'll write `littlepip is best pony` in that text field and accept.
 
+❯ Mmmh, however, if the tool hook stuff comes first, we might have a race there? As question: Which happens first? Our hook execution or the second json line being written?
+
+❯ Good. What's next?
+
+❯ /plan will test yes+auto now.
+
+❯ /plan I want to test manual accept one more time, just to be sure.
+
+❯ Alright, I will test codex now, make sure the plan is ready for that.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The "Options for commands" dialog you pasted (`This command requires approval` on Bash) is a completely different code path from ExitPlanMode: it's Claude's PermissionRequest gate, today handled only by `.claude/hooks/permission-check.py` (this repo's own git-commit-policy enforcer) — not touched by save-decision.py or save-plan.py at all. No live hook payload was produced for it in this session (nothing fired when I checked), so I can't tell yet whether "Yes, and tell Claude what to do next" behaves like ExitPlanMode's deny-with-reason (falls through to a plain query.md prompt) or is genuinely invisible. This also applies to *every* permission-gated tool call, not just `/plan` — a much bigger surface than the current todo item ("Record the other choosable options of a /plan"). How do you want to scope this?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Scope** (1/1) <kbd>Single Select</kbd><br>
+>> The "Options for commands" dialog you pasted (`This command requires approval` on Bash) is a completely different code path from ExitPlanMode: it's Claude's PermissionRequest gate, today handled only by `.claude/hooks/permission-check.py` (this repo's own git-commit-policy enforcer) — not touched by save-decision.py or save-plan.py at all. No live hook payload was produced for it in this session (nothing fired when I checked), so I can't tell yet whether "Yes, and tell Claude what to do next" behaves like ExitPlanMode's deny-with-reason (falls through to a plain query.md prompt) or is genuinely invisible. This also applies to *every* permission-gated tool call, not just `/plan` — a much bigger surface than the current todo item ("Record the other choosable options of a /plan"). How do you want to scope this?
+> - [x] 1\. Fold into this same plan/todo
+>   - _Treat Bash-command-approval decisions as part of the same effort — add a Phase to this plan, capture real payloads for it too (accept / accept+don't-ask-again / accept+auto-mode / deny / amend-with-text), and widen the todo item's scope beyond just /plan._
+> - [ ] 2\. Separate follow-up todo
+>   - _Note it now (in the plan's context, as a related finding) but keep this plan scoped to /plan's own options as originally written; file command-approval decision-recording as its own new todo.md entry for a later session._
+> - [ ] 3\. Just document the UI paste, no capture yet
+>   - _Keep `26.claude.md`'s new "Options for commands" section as reference documentation only for now — no live testing/capture of this dialog in this session, revisit later regardless of which todo it ends up under._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
