@@ -1,4 +1,4 @@
-# Plan: record `/plan` decision options (and verify question-cancel) across Claude, Codex, Copilot
+# Plan: record `/plan` and command-approval decision options (and verify question-cancel) across Claude, Codex, Copilot
 
 ## Context
 
@@ -63,6 +63,19 @@ Two more findings came out of live-testing *this very plan submission* mid-sessi
 
 This plan is therefore necessarily phased: cheap/certain work first, then live per-tool/per-outcome capture
 (see the Phase 3 checklist below), then implementation building on whatever the captures actually show.
+
+**Scope widened mid-session**: the user also pasted Claude's *command-approval* dialog (`This command requires
+approval` — shown for `Bash`, gated by the `PermissionRequest` hook event) into `26.claude.md`'s new
+"Options for commands" section. Structurally it's the same shape as `ExitPlanMode`'s dialog — plain accept,
+accept+modifier (`Yes, and don't ask again for: <pattern>`, `Yes, and switch to auto mode`), deny, and
+`Tab`-to-amend variants of both accept (`Yes, and tell Claude what to do next`) and deny that presumably let
+you type free text the same way `ExitPlanMode`'s "Tell Claude what to change" does — and the user's hypothesis
+is that the amended-text variants are "basically normal queries" too, i.e. likely suffer the same
+invisible-decision problem already found for `ExitPlanMode` denials. Unlike `ExitPlanMode` though, this gates
+*every* permission-checked tool call (not just plan submissions), and today it is handled only by
+`.claude/hooks/permission-check.py` — this repo's own narrow git-commit-policy enforcer, completely unrelated
+to `save-decision.py`/`save-plan.py` or to `query.md` recording. The user explicitly chose to fold this into
+the same plan/todo rather than deferring it. See Phase 3b/4b below.
 
 ## Phase 1 — todo.md search hint (separate commit)
 
@@ -156,6 +169,37 @@ Once a tool's row is as complete as its UI allows, save the interesting captures
 absence thereof) and the exact `query.md` text for each outcome, so Phase 4's parser has a durable fixture
 instead of only transient debug dumps that get cleaned up eventually.
 
+## Phase 3b — capture real command-approval decision payloads, per tool × per outcome (testing phase)
+
+Same discipline as Phase 3, for the `PermissionRequest`/Bash "This command requires approval" dialog instead
+of `ExitPlanMode`. Reference file: `[26.claude.md](../errors/26.claude.md)` "Options for commands" section
+(already pasted); `26.codex.md`/`26.copilot.md` get a matching section once each tool's equivalent dialog
+(if any — Codex/Copilot may not gate arbitrary commands the same way, or may use different wording/options
+entirely) is captured. Nothing here is tested yet — no live `PermissionRequest`/Bash-approval hook payload has
+been captured in this session (checked: no fresh dump when the dialog was described, meaning either it fired
+outside this session or the current permission mode auto-approved past it without a dialog at all).
+
+- [ ] **Claude**
+  - [ ] Accept, plain ("Yes")
+  - [ ] Accept + "don't ask again for: `<pattern>`" modifier
+  - [ ] Accept + "switch to auto mode" modifier
+  - [ ] Deny ("No")
+  - [ ] Accept + amended instructions (`Tab` on "Yes" → "Yes, and tell Claude what to do next" + typed text) —
+        test whether this behaves like `ExitPlanMode`'s deny-with-reason (falls through to a plain `query.md`
+        prompt, invisible as a distinct decision) or has its own mechanism.
+  - [ ] Deny + amended reason (`Tab` on "No", if it also opens a text field the same way)
+- [ ] **Codex** — confirm whether an equivalent dialog exists at all before assuming symmetry
+- [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
+
+## Phase 4b — implement command-approval decision recording
+
+Likely needs a **new** dedicated hook (e.g. `save-command-decision/hook.py`) wired to `PermissionRequest` (and
+`PreToolUse`/`PostToolUse` on whatever tool was gated, mirroring the pending/sweep pattern) rather than
+extending `.claude/hooks/permission-check.py`, since that script's existing job (git-commit-policy
+enforcement) is unrelated and shouldn't be conflated with decision-recording. Concrete design waits on Phase
+3b's captures — don't guess at payload shape ahead of real data, same rule as Phase 4. Depends on Phase 3b
+being as complete as practical, same gate as Phase 4 depends on Phase 3.
+
 ## Phase 4 — implement `/plan` decision recording (Claude first, then Codex/Copilot as data arrives)
 
 Using Phase 3's captures, extend `save-plan/hook.py`:
@@ -198,7 +242,9 @@ and shared/committed the resulting debug captures — each tool's parser additio
 Once (and only for) the sub-items actually verified/implemented, flip their checkboxes in the final todo
 block. Given the phased, multi-tool nature of this task, it's likely only a subset (e.g. Claude's deny/accept
 cases, or the Codex/Copilot cancel-path verification) lands in this session — leave the rest unchecked for a
-follow-up session, rather than checking off work that hasn't actually been exercised end-to-end.
+follow-up session, rather than checking off work that hasn't actually been exercised end-to-end. Since the
+todo item's original text only mentions `/plan`'s options, also add a note there that scope grew to include
+command-approval (`PermissionRequest`/Bash) decisions too, per Phase 3b/4b above.
 
 ## Verification
 

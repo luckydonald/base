@@ -199,5 +199,10 @@ Rename `query.md` to `prompt.md`.
 - If `query.md` exists, and the `prompt.md` is missing or equal to the `base/base` version:
   - delete the unused `prompt.md` (= 1 commit)
   - rename `query.md` to `prompt.md` (= 1 commit)
+- If both files exist and are equal in comment:
+  - check which file has the longer history (is older) in _this_ repo (so excluding commits from `base/base`).
+  - delete the other (= 1 commit)
+  - if `query.md` remains: rename (= 1 commit)
+
 
 - [ ] Done.
