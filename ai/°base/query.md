@@ -5715,3 +5715,72 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > </details>
 >
 
+❯ /plan Grab the next task from `ai/todos.md` and implement/fix it, if it's still relevant, otherwise mark it checked.
+If it happen to have subtasks or logical grouping, those shall be separate commits.
+Plan to use /commit-with-lplp-style for implementation including cleanup squashes.
+In line 1-4 of that todo file should be a hint how to efficiently search for the next task in that file. (If missing, document it there; separate commit).
+The plan shall use @ai/skills/code-style/references/md.md styling.
+Basically tasks are separated by a HR (literal `\n---\n`), and will have `- [ ] …`/`- [x] …` checkboxes for completion. If not a list of checkboxes, it's a single checkbox at the end of the block.
+Maybe a line-to-issue ToC makes sense?
+
+❯ Task Notification:
+> - Task `a57852862e746f8ee` <kbd>completed</kbd>
+> - Tool `toolu_01WATnDy1PDx8JmfZFAA7Jbk`
+> - > Agent "Explore plan-mode exit / decision hooks" finished
+> - [Query (`2830` chars, `2.78 KB`)](output/agents/063.a57852862e746f8ee/prompt.md)
+> - [Answer (`3728` chars, `3.68 KB`)](output/agents/063.a57852862e746f8ee/result.md)
+> - [Raw log (`328690` chars, `322 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/dd48a76f-30cd-40ee-8855-fe395f5f1658/tasks/a57852862e746f8ee.output)
+> - `14` tools, `47251` tokens, `0.789433 s`
+
+❯ Question canceled (chat about this).
+> <details><summary>
+>
+>> 1. The next unchecked todo (bottom of ai/°base/todo.md) asks to "Record the other choosable options of a /plan" (Deny without reason, Deny with reason, Accept with note + modifiers like Reset-conversation/Autopilot) — mirroring how save-decision/hook.py records AskUserQuestion answers into query.md. I checked: no ExitPlanMode PostToolUse payload in the repo's debug captures (25 samples) ever shows a denial, a reason, a note, or a modifier — every one is the plain "plan approved" shape (`plan`, `isAgent`, `filePath`, `planWasEdited`). save-plan/hook.py has zero branching on decision type today. There's no way to write correct parsing logic without first seeing what a real denied/denied-with-reason/accepted-with-note payload looks like. How do you want to proceed?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Approach** (1/1) <kbd>Single Select</kbd><br>
+>> The next unchecked todo (bottom of ai/°base/todo.md) asks to "Record the other choosable options of a /plan" (Deny without reason, Deny with reason, Accept with note + modifiers like Reset-conversation/Autopilot) — mirroring how save-decision/hook.py records AskUserQuestion answers into query.md. I checked: no ExitPlanMode PostToolUse payload in the repo's debug captures (25 samples) ever shows a denial, a reason, a note, or a modifier — every one is the plain "plan approved" shape (`plan`, `isAgent`, `filePath`, `planWasEdited`). save-plan/hook.py has zero branching on decision type today. There's no way to write correct parsing logic without first seeing what a real denied/denied-with-reason/accepted-with-note payload looks like. How do you want to proceed?
+> - [ ] 1\. Capture-first, this session
+>   - _Right now, deliberately trigger a few ExitPlanMode outcomes in a throwaway way (e.g. reject this very plan submission on purpose with/without a reason, resubmit) to capture real debug JSON, then build the parser from that real data in the same session._
+> - [ ] 2\. Scaffold now, capture later
+>   - _Implement only what's certain from Anthropic's docs (approved-plan capture already works); add a TODO/stub branch for deny/note/modifier handling and leave those checkboxes unchecked until real payloads are captured in a future session._
+> - [ ] 3\. Skip this todo for now
+>   - _Leave it as-is in todo.md (not checked, not implemented) and pick a different, more tractable next task from the file instead._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+❯ Also I just denied your question there, which should be supported just as well.
+
+❯ I did select "chat about this", but weird it did not record anything? Are the `.debug` files present?
+
+❯ Yeah, but also include this question one, as I want to test codex and copilot about that too, and want to reuse your plan for you (claude) and them, just that question asking one already checked & implemented for you.
+
+❯ Now the normal query again, telling you how it looked for me under the plan:
+> Claude has written up a plan and is ready to execute. Would you like to proceed?
+>
+>   1. Yes, and use auto mode
+>   2. Yes, manually approve edits
+> ❯ 3. <cursor>Tell Claude what to change
+>      shift+tab to approve with this feedback
+>
+> ctrl+g to edit in nano · /path/to/plan/file/in/the/claude/config/dir/something/foobar.md
+
+❯ I then typed
+> I am using the "Tell Claude what to do" option now
+into that 3rd option.
+
+❯ Use @ai/skills/code-style/references/md.md for planning, and /commit-with-lplp-style for commits when implementing.
+Alright, I'll next deny without reason (empty), and in case you don't get a turn automatically, I'll prompt you again.
+
+❯ Yeah, no automatic turn for you, it just ended:
+> ✻ Crunched for 6s · done 18:36
+
+❯ /plan regarding
+> Where the typed note actually surfaces (if anywhere) is still unconfirmed — watch the next `UserPromptSubmit`/`save-prompt` dump and `query.md`.
+Huh, good question. I'm in implementation mode right now still but prefixing this message with `/plan` in this normal query, to reenable the planning mode, so we can test the `shift+tab` to accept with message option once more. My guess is as part of the tool return maybe? or is it out of band? can you check your logs? The next time I'll write `littlepip is best pony` in that text field and accept.
+
