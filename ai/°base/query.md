@@ -5433,7 +5433,7 @@ echo "started in bg, pid $!"" completed (exit code 0)
 - have `target` be the exact in-repo path, which will make it possible to use `ai/°base/memory/foo.md` here and `ai/memory/foo.md` if it is for implementing projects. (or recommend something similar).
 - The intention of the device key was to be able to tell if we're reading that file because our codex just created it, or if it's from a project, and we're not the source - it was seen before.
 
-❯ Changes: 
+❯ Changes:
 - version should be bumped to 2 if the data format changes.
 - if i check out the project on a computer with doesn't have the codex memories, it should now get it synced in somehow. How? What's the steps?
 - add json schema or whatever is suited for those config files.
@@ -5630,4 +5630,26 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > - [Query (`120` chars, `120 B`)](output/agents/062.b2qy53rp4/prompt.md)
 > - [Answer (`3002` chars, `2.95 KB`)](output/agents/062.b2qy53rp4/result.md)
 > - [Raw log (`3133` chars, `3.08 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/e92e5747-2b48-4482-aa91-4bc393f78c9c/tasks/b2qy53rp4.output)
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Commit the +x mode change on record-codex-memory/hook.py?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Mode change** (1/1) <kbd>Single Select</kbd><br>
+>> Commit the +x mode change on record-codex-memory/hook.py?
+> - [x] 1\. Yes, commit it
+>   - _Stage and commit the chmod +x as its own small commit — reasonable if the hook is meant to be run directly._
+> - [ ] 2\. No, leave it uncommitted
+>   - _Leave it in the working tree as-is; you'll deal with it separately or it's unintentional._
+> - [ ] 3\. Revert it
+>   - _Set the file back to non-executable (644), discarding the mode change entirely._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
 
