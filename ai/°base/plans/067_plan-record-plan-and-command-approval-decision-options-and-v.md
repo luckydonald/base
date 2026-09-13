@@ -168,10 +168,9 @@ for the debug dumps to land at all.
         produced only `Stop`, followed by ordinary `UserPromptSubmit`; no `exit_plan_mode` / `ExitPlanMode`
         event fired.
   - [x] Accept + note / deny with reason — unavailable: Codex exposes no free-text path for either outcome.
-- [ ] **Copilot** — see [26.copilot.md](../errors/26.copilot.md) (partially captured; menu is `1. Accept plan
-      and build on default permissions`, `2. Accept plan and build on autopilot`, `3. Exit plan mode and I
-      will prompt myself`, `4. Suggest changes`). The overall row remains open because option 3 still needs
-      live exercise; the completed sub-items below are not placeholders.
+- [x] **Copilot** — see [26.copilot.md](../errors/26.copilot.md); the complete captured menu is `1. Accept
+      plan and build on default permissions`, `2. Accept plan and build on autopilot`, `3. Exit plan mode and
+      I will prompt myself`, `4. Suggest changes`.
   - [x] Accept, manual (option 1) — selected during the live test; the plan proceeded with default permissions.
   - [x] Accept + modifier (option 2, "autopilot") — exercised. No `save-plan`-style hook payload fires for
         either option 1 or option 2 (no `ExitPlanMode`/`exit_plan_mode` tool event at all), but `events.jsonl`
@@ -186,8 +185,12 @@ for the debug dumps to land at all.
         hook payload was captured for this plan-exit case, and the current session event-log search found no
         dedicated plan-decision record; therefore the typed text is documented as a UI capture, not claimed
         to be recoverable through the command-approval `permission.completed` mechanism.
-  - [ ] Deny without reason (option 3, "Exit plan mode and I will prompt myself") — not yet exercised; it may
-        be a mode switch rather than a reason-bearing or reason-less denial.
+  - [x] Exit without a reason (option 3, "Exit plan mode and I will prompt myself") — exercised. It is a
+        mode switch, not a denial: `events.jsonl` records `session.mode_changed` from `"plan"` to
+        `"interactive"`, and the `exit_plan_mode` post-tool hook result contains
+        `sessionLog: "✅ Plan approved, exited plan mode (exit_only)"`. No typed reason, plan text, or
+        `save-plan` decision payload is emitted. The `exit_only` marker distinguishes it from option 1,
+        which also ends in interactive mode.
 
 Once a tool's row is as complete as its UI allows, save the interesting captures into a matching
 `ai/°base/errors/26.<tool>.expected.md` (following the `errors/12.*` convention already used for the
