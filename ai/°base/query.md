@@ -5965,3 +5965,7 @@ My request: no we wanna test plan and perms text input.
 
 ◆ The plan still has unchecked copilot items.
 
+❯ Alright, copilot added it's stuff, what's left?
+
+❯ first update the repo plan file. Make sure still-missing stuff clearly has a checkbox. Then start with what code you can already write now.
+

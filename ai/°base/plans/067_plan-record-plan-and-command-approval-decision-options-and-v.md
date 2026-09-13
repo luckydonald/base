@@ -89,19 +89,21 @@ reverse-engineer the file's structure.
 The mechanism (`write_pending_decision`/`delete_pending_decision`/`sweep_pending_decisions` in
 `scripts/°base/ai/hooks/_lib.py:65-127`, driven by `PreToolUse`/`PostToolUse`/`Stop` hooks already wired for
 all three tools per `.codex/hooks.json` and `.github/hooks/generated.json`) is tool-agnostic in principle,
-but has only been exercised for Claude. This phase is verification, not new code, unless a real bug turns up:
+but has only been exercised for Claude. This phase is verification, not new code, unless a real bug turns up.
+**Not started** — despite the extensive Codex/Copilot work done for Phase 3/3b, nobody has yet exercised the
+`AskUserQuestion` cancel path specifically for either tool (checked: no mention in `26.codex.md`/`26.copilot.md`,
+no Codex/Copilot-glyph "Question canceled" block in `query.md`).
 
-- Ask the user to run a Codex session and a Copilot session (their own terminals — this Claude Code session
-  cannot drive those CLIs directly) and trigger the equivalent "cancel without answering" flow on a
-  `request_user_input` (Codex) / `ask_user` (Copilot) call.
-- After each, inspect `ai/°base/query.md` for a correctly rendered "Question canceled" block and
-  `ai/°base/output/debug/*-save-decision.json` for the underlying payload shape.
-- If Codex/Copilot's payload shape breaks the existing `_parse_codex`/`_parse_copilot` parsers or the
-  pending/sweep bookkeeping, fix `save-decision/hook.py` accordingly and add a regression test in
-  `scripts/°base/tests/test_ai_hooks_base_routing.py` (existing `ExitPlanMode`/decision test patterns there
-  are the template) using the captured payload as fixture data.
-- Commit: if no bug found, a one-line update to `ai/°base/todo.md` documenting the verification (checking a
-  sub-item, see Phase 5). If a bug is found and fixed, that fix is its own commit before the todo update.
+- [ ] Run a Codex session and trigger the equivalent "cancel without answering" flow on a
+      `request_user_input` call; inspect `ai/°base/query.md` for a correctly rendered "Question canceled"
+      block and `ai/°base/output/debug/*-save-decision.json` for the underlying payload shape.
+- [ ] Same for a Copilot session, on its `ask_user` call.
+- [ ] If either tool's payload shape breaks the existing `_parse_codex`/`_parse_copilot` parsers or the
+      pending/sweep bookkeeping, fix `save-decision/hook.py` accordingly and add a regression test in
+      `scripts/°base/tests/test_ai_hooks_base_routing.py` (existing `ExitPlanMode`/decision test patterns
+      there are the template) using the captured payload as fixture data.
+- [ ] Commit: if no bug found, a one-line update to `ai/°base/todo.md` documenting the verification. If a bug
+      is found and fixed, that fix is its own commit before the todo update.
 
 ## Phase 3 — capture real decision payloads, per tool × per outcome (testing phase — **no implementation yet**)
 
@@ -282,56 +284,76 @@ the shape of what to record for each tool.
 
 ## Phase 4b — implement command-approval decision recording
 
-Likely needs a **new** dedicated hook (e.g. `save-command-decision/hook.py`) wired to `PermissionRequest` (and
-`PreToolUse`/`PostToolUse` on whatever tool was gated, mirroring the pending/sweep pattern) rather than
-extending `.claude/hooks/permission-check.py`, since that script's existing job (git-commit-policy
-enforcement) is unrelated and shouldn't be conflated with decision-recording. Concrete design waits on Phase
-3b's captures — don't guess at payload shape ahead of real data, same rule as Phase 4. Depends on Phase 3b
-being as complete as practical, same gate as Phase 4 depends on Phase 3. For Copilot specifically, the hook
-must recover the completed denial from the session event log after the `PermissionRequest` hook returns:
-`permission.completed.data.result.feedback` is the typed reason, and `permission.requested.data.permissionRequest`
-provides the command via the shared `toolCallId`. A later `Stop` or `UserPromptSubmit` hook is the earliest
-reliable place to perform this correlation; the initial permission hook cannot see the user's later input.
+**Not started.** Phase 3b's captures now justify a concrete design: a **new** dedicated hook (e.g.
+`save-command-decision/hook.py`) wired to `PermissionRequest` (and `PreToolUse`/`PostToolUse` on whatever tool
+was gated) rather than extending `.claude/hooks/permission-check.py`, since that script's existing job
+(git-commit-policy enforcement) is unrelated and shouldn't be conflated with decision-recording.
+
+- [ ] Claude: implement the session-scoped FIFO pending-queue (push on `PermissionRequest` — it carries no
+      `tool_use_id` to key on, unlike `PreToolUse` — pop on the next matching tool's successful `PostToolUse`;
+      whatever's left at `Stop` is a denial-without-a-hook-visible-reason).
+- [ ] Claude: recover a deny reason from the *next* tool result's embedded rejection text (`"...user said:\n
+      <reason>"`) — a different extraction path than the accept-with-instructions sibling-`text`-block reader
+      built in Phase 4, since deny embeds the reason directly in the single `tool_result` content string.
+- [ ] Claude: reuse Phase 4's general "recover interjected text for a `tool_use_id`" utility for
+      accept-with-instructions.
+- [ ] Copilot: recover the completed denial from `~/.copilot/session-state/<id>/events.jsonl` after the
+      `PermissionRequest` hook returns — match `permission.completed.data.toolCallId` back to the earlier
+      `permission.requested.data.permissionRequest.toolCallId` for the command, and read
+      `data.result.feedback` for the typed reason. A later `Stop`/`UserPromptSubmit` hook is the earliest
+      reliable place to do this correlation; the initial permission hook cannot see the user's later input.
+- [ ] Codex: explicitly **not** implementing — Phase 3b concluded no Codex command-permission path carries
+      text that bypasses normal prompt logging (its "tell Codex what to do differently" text always lands as
+      an ordinary, already-recorded `UserPromptSubmit`). Document this exclusion in code comments, don't
+      silently omit it.
+- [ ] Add unit tests using the `26.claude.md`/`26.copilot.md` capture notes as fixtures.
+- [ ] Widen `permission-check.py`'s `PermissionRequest` matcher (via `ai/settings/settings.json` +
+      `sync.py`) to also cover `Write`/`Edit`/`Read`, per the user's explicit scope call — only after the
+      above Bash-based design is working, so the matcher change doesn't block on an unfinished mechanism.
+- [ ] Commit as its own change, separate from the todo.md checkbox update.
 
 ## Phase 4 — implement `/plan` decision recording (Claude first, then Codex/Copilot as data arrives)
 
-Using Phase 3's captures, extend `save-plan/hook.py`:
+**Not started.** Using Phase 3's captures, extend `save-plan/hook.py`:
 
-- On `ExitPlanMode` `PreToolUse`, write a pending-decision marker (reuse `write_pending_decision` from
-  `_lib.py`, same as `save-decision.py` does for `AskUserQuestion`). On a matching `PostToolUse`, delete the
-  marker and handle the already-working accept path (and, once Phase 3 confirms their shape, the auto-mode
-  and/or accept-with-note variants) as today. If `Stop`/the next `UserPromptSubmit` arrives with the marker
-  still pending, that's a denial: render it as "Denied without reason" if the next prompt is empty/whitespace
-  or absent, otherwise "Denied with reason" using that prompt's text — and, critically, suppress that text
-  from *also* being logged as a plain `query.md` prompt entry by `save-prompt/hook.py`, so the deny reason
-  appears exactly once, correctly labeled.
-- On accept, recover an optional note via a general (not `ExitPlanMode`-specific — see Phase 3's generalized
-  finding) `_lib.py` helper: read `payload["transcript_path"]`, find the message whose `tool_result` block
-  matches the given `tool_use_id`, and return a sibling `{"type": "text", ...}` entry if present. Mirrors the
-  existing `_plan_from_codex_transcript` transcript-reading pattern; worth adding as a shared `_lib.py`
-  function since Phase 4b (command-approval decisions) needs the exact same lookup. No hook field carries the
-  note directly (confirmed in Phase 3). **No race**: checked ordering
-  on both captures — the transcript message (tool_result + note, written together as one entry) lands
-  57ms *before* the `PostToolUse` hook's own debug dump both times (16:48:45.618Z vs .675Z; 17:01:22.610Z vs
-  .667Z). Consistent with Claude Code appending the full synthetic message to the transcript as it finishes
-  the tool call, then spawning the hook — so the hook always sees a transcript that already has the note, not
-  a concurrently-written one. Small sample (n=2), but the write-then-spawn order is a structural property of
-  how the harness processes a tool call, not a timing fluke, so this should hold reliably in general.
-- Detect the auto-mode modifier from `payload["permission_mode"] == "auto"` on the `ExitPlanMode`
-  `PostToolUse` payload itself (confirmed reliable — see Phase 3's Claude checklist), not from `tool_response`.
-- Render a `query.md` block analogous to `save-decision`'s (reuse `append_and_commit` from `_lib.py`) showing
-  the decision (Denied / Denied with reason / Accepted / Accepted with note), any reason/note text, and any
-  modifier picked.
-- For Codex, render `Plan accepted <kbd>context cleared</kbd>` only when the clear-context acceptance capture
-  identifies an explicit, stable modifier in the same plan-exit event or its transcript. Add a paired ordinary-
-  acceptance fixture and a clear-context fixture, and assert that only the latter gets the tag. If the clear-
-  context choice starts a fresh session without such a linking signal, record that absence in
-  `errors/26.codex.md` and omit the tag rather than guessing from session turnover.
-- Handle Copilot's whitespace-only-reason special case explicitly: treat an empty-or-whitespace reason string
-  as "without reason", not as a reason of `" "`.
-- Add unit tests in `scripts/°base/tests/test_ai_hooks_base_routing.py` using the `errors/26.claude.expected.md`
-  fixture (mirrors the existing test built from `12.expected.md`).
-- Commit this as its own change, separate from the todo.md checkbox update.
+- [ ] Claude: on `ExitPlanMode` `PreToolUse`, write a pending-decision marker (reuse `write_pending_decision`
+      from `_lib.py`, same as `save-decision.py` does for `AskUserQuestion`). On a matching `PostToolUse`,
+      delete the marker and handle the already-working accept path as today. If `Stop`/the next
+      `UserPromptSubmit` arrives with the marker still pending, that's a denial: render it as "Denied without
+      reason" if the next prompt is empty/whitespace or absent, otherwise "Denied with reason" using that
+      prompt's text — and, critically, suppress that text from *also* being logged as a plain `query.md`
+      prompt entry by `save-prompt/hook.py`, so the deny reason appears exactly once, correctly labeled.
+- [ ] Claude: add a general (not `ExitPlanMode`-specific) `_lib.py` helper to recover an optional note: read
+      `payload["transcript_path"]`, find the message whose `tool_result` block matches the given
+      `tool_use_id`, and return a sibling `{"type": "text", ...}` entry if present. Mirrors the existing
+      `_plan_from_codex_transcript` transcript-reading pattern; share it with Phase 4b, which needs the exact
+      same lookup. **No race** (checked): the transcript message lands ~57ms before the hook's own debug dump
+      in both captures — Claude Code appends the full message before spawning the hook, so this is a
+      structural guarantee, not a timing fluke.
+- [ ] Claude: detect the auto-mode modifier from `payload["permission_mode"] == "auto"` on the `ExitPlanMode`
+      `PostToolUse` payload itself (confirmed reliable — see Phase 3's Claude checklist), not from
+      `tool_response`.
+- [ ] Claude: render a `query.md` block analogous to `save-decision`'s (reuse `append_and_commit` from
+      `_lib.py`) showing the decision (Denied / Denied with reason / Accepted / Accepted with note), any
+      reason/note text, and any modifier picked.
+- [ ] Codex: per Phase 3, no denial-reason or accept-note text path exists at all — implement only plain
+      accept/deny-without-reason recording. Render `Plan accepted <kbd>context cleared</kbd>` **only** when
+      the clear-context acceptance capture identifies an explicit, stable modifier in the same plan-exit event
+      or its transcript; add a paired ordinary-acceptance fixture and a clear-context fixture asserting only
+      the latter gets the tag. If the clear-context choice starts a fresh session with no such linking signal,
+      record that absence in `errors/26.codex.md` and omit the tag rather than guessing from session turnover.
+- [ ] Copilot: implement plain accept, accept+autopilot modifier (via `session.mode_changed`'s `newMode`
+      field), and exit-without-reason (`exit_only` marker) recording — all confirmed recoverable per Phase 3.
+- [ ] Copilot: deny-with-reason (option 4, "Suggest changes") is **not implementable yet** — Phase 3 found no
+      hook payload and no session-event-log record for this specific plan-exit case (unlike the
+      command-approval case, which *does* have `events.jsonl` recovery). Do not guess at a mechanism; leave
+      this checkbox unchecked and documented rather than silently omitting it.
+- [ ] Handle Copilot's whitespace-only-reason special case (from the original todo item) once/if a recovery
+      path for the above is found — moot until then, but don't drop the requirement.
+- [ ] Add unit tests in `scripts/°base/tests/test_ai_hooks_base_routing.py` using the `errors/26.claude.expected.md`
+      fixture (mirrors the existing test built from `12.expected.md`), plus Codex/Copilot fixtures from their
+      respective `26.<tool>.md` captures.
+- [ ] Commit this as its own change, separate from the todo.md checkbox update.
 
 Repeat capture (Phase 3) + implement (Phase 4) for Codex and Copilot once the user has exercised those tools
 and shared/committed the resulting debug captures — each tool's parser addition is its own commit, matching
@@ -339,12 +361,21 @@ and shared/committed the resulting debug captures — each tool's parser additio
 
 ## Phase 5 — update `ai/°base/todo.md`
 
-Once (and only for) the sub-items actually verified/implemented, flip their checkboxes in the final todo
-block. Given the phased, multi-tool nature of this task, it's likely only a subset (e.g. Claude's deny/accept
-cases, or the Codex/Copilot cancel-path verification) lands in this session — leave the rest unchecked for a
-follow-up session, rather than checking off work that hasn't actually been exercised end-to-end. Since the
-todo item's original text only mentions `/plan`'s options, also add a note there that scope grew to include
-command-approval (`PermissionRequest`/Bash) decisions too, per Phase 3b/4b above.
+**Not started** — checked directly: the original todo block (`ai/°base/todo.md`, "Record the other choosable
+options of a /plan") is still fully unchecked, despite all of Phase 3/3b's research being done. Only flip a
+checkbox once the corresponding Phase 4/4b implementation item above is actually done, not merely captured.
+
+- [ ] Check off `Deny (without reason)` once Phase 4's Claude denial-without-reason handling lands.
+- [ ] Check off `Deny (with reason)` once Phase 4's Claude denial-with-reason handling lands.
+- [ ] Add the Copilot whitespace-only-reason special-case note once (if) a recovery path exists (see Phase 4).
+- [ ] Check off `Accept (with note)` once Phase 4's Claude accept-with-note handling lands.
+- [ ] Check off `Reset conversation history and implement — Codex` once Phase 4's Codex `context cleared`
+      tagging lands.
+- [ ] Check off `Use Autopilot ... — Claude, Copilot, (Codex?)` once Phase 4's Claude/Copilot autopilot-modifier
+      handling lands (Codex has no autopilot-equivalent modifier per Phase 3 — resolve the `(Codex?)` in the
+      todo text to "no").
+- [ ] Add a note to the todo item that scope grew mid-session to include command-approval
+      (`PermissionRequest`) decisions too, per Phase 3b/4b, since the original text only mentions `/plan`.
 
 ## Verification
 
