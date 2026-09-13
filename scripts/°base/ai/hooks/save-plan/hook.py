@@ -26,7 +26,15 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _lib import dump_debug_payload, is_cross_tool_duplicate, read_payload, resolve_log_path, slugify  # noqa: E402
+from _lib import (  # noqa: E402
+    append_and_commit,
+    dump_debug_payload,
+    find_interjected_text,
+    is_cross_tool_duplicate,
+    read_payload,
+    resolve_log_path,
+    slugify,
+)
 from importlib import import_module  # noqa: E402
 
 commit_message = import_module("°commit_style_lib").commit_message
@@ -234,6 +242,60 @@ def _plan_from_codex_sources(payload: dict) -> str:
         _plan_from_codex_transcript(str(payload.get("session_id") or ""))
         or _plan_from_codex_stop(payload)
         or _plan_from_codex_query_log()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Plan decision recording (Claude only for now -- see
+# ai/°base/plans/067_plan-record-plan-and-command-approval-decision-options-and-v.md's
+# Phase 4/Phase 3 for how each signal below was confirmed against real
+# ExitPlanMode payloads. Denial recording (Deny / Deny with reason) is not
+# implemented yet -- no hook fires for either, so it needs a transcript scan
+# from a hook that reliably fires afterward (`UserPromptSubmit` was found
+# more reliable than `Stop`), tracking already-recorded `tool_use_id`s;
+# `_lib.find_tool_rejections` already does the scan, this hook just doesn't
+# call it yet.
+# ---------------------------------------------------------------------------
+
+def _render_decision_block(label: str, detail: str | None) -> str:
+    out = [f"❯ {label}\n"]
+    if detail:
+        for line in detail.splitlines():
+            out.append(f"> {line}\n" if line else ">\n")
+    out.append("\n")
+    return "".join(out)
+
+
+def _record_claude_plan_acceptance(payload: dict) -> None:
+    """Append a `query.md` entry for an accepted Claude `ExitPlanMode` call.
+
+    Three outcomes, all confirmed to share the exact same `tool_response`
+    shape (`{plan, isAgent, filePath}`) -- distinguished only by two signals
+    that live outside `tool_response` entirely:
+    - `payload["permission_mode"] == "auto"` marks the "Yes, and use auto
+      mode" modifier (confirmed reliable: a plain-accept retest in the same
+      session read back `"default"` instead, ruling out a stale leftover).
+    - A sibling `text` block in the raw transcript (`_lib.find_interjected_text`)
+      carries any note typed via `shift+tab`/`Tab`-amend -- never a hook
+      field, and not specific to `ExitPlanMode` (confirmed general across
+      `Edit`/`Bash`/`Read` too).
+    """
+    tool_use_id = payload.get("tool_use_id", "")
+    note = find_interjected_text(payload.get("transcript_path", ""), tool_use_id)
+
+    if note:
+        label, detail = "Plan accepted:", note
+    elif payload.get("permission_mode") == "auto":
+        label, detail = "Plan accepted, auto mode.", None
+    else:
+        label, detail = "Plan accepted.", None
+
+    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    append_and_commit(
+        log_path,
+        _render_decision_block(label, detail),
+        commit_template_relpath="ai/commit-templates/decision",
+        default_commit_msg="ai: save plan decision",
     )
 
 
@@ -471,6 +533,8 @@ def main() -> int:
             plan = _plan_from_response(payload.get("tool_response"))
         if not plan:
             plan = _plan_from_copilot_session(payload)
+        if plan and ai_tool == "claude":
+            _record_claude_plan_acceptance(payload)
     # Stop for Claude: no plan extraction — Write/ExitPlanMode already handled it.
 
     if not plan:
