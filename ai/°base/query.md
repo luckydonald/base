@@ -5975,3 +5975,9 @@ Huh, good question. I'm in implementation mode right now still but prefixing thi
 
 › codex permission (2) is done, no pathes remain which have a text prompt outside of normal prompt, and for the record, that's all we're after-
 
+› retry in plan mode.
+
+› Implement the plan.
+
+› and no text input so we're done here.
+

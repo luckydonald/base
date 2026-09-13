@@ -157,11 +157,13 @@ for the debug dumps to land at all.
         lands as a plain, unlabeled `query.md` prompt entry.
   - [x] Deny without reason (empty text + Enter) — reproduced once; **zero trace anywhere** (no dump, no
         `query.md` entry, session goes idle: "Crunched for Ns · done").
-- [ ] **Codex** — see [26.codex.md](../errors/26.codex.md) — its exact menu is now captured.
-  - [ ] Accept, ordinary ("Yes, implement this plan") — capture the resulting event and payload.
-  - [ ] Accept + modifier ("Yes, clear context and implement") — capture independently and compare it with
-        ordinary acceptance for an explicit context-clear field or event. Do not infer this modifier merely
-        from the successor session being fresh.
+- [x] **Codex** — see [26.codex.md](../errors/26.codex.md) — no plan-exit choice carries text outside normal
+      prompt logging.
+  - [x] Accept, ordinary ("Yes, implement this plan") — exercised. The transcript contains only the plan item
+        followed by task completion; hooks emit only `Stop`, with no `exit_plan_mode` / `ExitPlanMode`, note,
+        or acceptance field.
+  - [x] Accept + modifier ("Yes, clear context and implement") — not separately exercised: it is a non-text
+        modifier and therefore out of scope. Do not infer a `context cleared` tag from a successor session.
   - [x] No, stay in Plan mode — acts as denial without reason. It returns to the normal prompt box and
         produced only `Stop`, followed by ordinary `UserPromptSubmit`; no `exit_plan_mode` / `ExitPlanMode`
         event fired.
