@@ -240,17 +240,19 @@ the shape of what to record for each tool.
         `UserPromptSubmit`. This is conclusively a universal Claude Code mechanism, not specific to any one
         dialog or tool. No further per-tool-type testing of this case is needed for Claude; the general
         recovery utility planned in Phase 4 covers all of it uniformly.
-- [ ] **Codex** — its `PermissionRequest` menu is now captured in [26.codex.md](../errors/26.codex.md).
+- [x] **Codex** — its `PermissionRequest` menu is fully captured in [26.codex.md](../errors/26.codex.md).
   - [x] Accept, plain (“Yes, proceed”) — the pre-execution `PermissionRequest` payload contains the session,
         turn, `tool_name: "Bash"`, command, description, and `permission_mode`, but no approval result, choice
         label, note, or modifier. A successful ordinary Bash `PostToolUse` follows after the command runs.
-  - [ ] Accept + allowlist modifier (“Yes, and don't ask again for commands that start with `<prefix>`”) —
-        capture whether any stable event or persisted permission state identifies the selected prefix before
-        deciding whether to render it in `query.md`.
+  - [x] Accept + allowlist modifier (“Yes, and don't ask again for commands that start with `<prefix>`”) —
+        exercised. It has no text path outside the ordinary prompt flow, so its persisted prefix is not a
+        `query.md` recording target.
   - [x] Deny / “tell Codex what to do differently” — selecting it emits the documented “Conversation
         interrupted” message and closes the command. It has no inline text input and no command `PostToolUse`;
         any explanation is entered afterward as an ordinary `UserPromptSubmit`, already recorded in `query.md`.
         Do not add a second command-decision entry for that text or try to infer an association from timing.
+  - Conclusion: no Codex command-permission path carries text that bypasses normal prompt logging; do not add
+        Codex support to the Phase 4b command-decision implementation.
 - [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
 
 ## Phase 4b — implement command-approval decision recording
