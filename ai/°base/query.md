@@ -5907,3 +5907,7 @@ Huh, good question. I'm in implementation mode right now still but prefixing thi
 
 › I did, but _No, and tell Codex what to do differently_ closes the command; with the text documented again; and I'm now in the regular prompt, which is alright as it's already recorded to `query.md` anyway.
 
+› what's left?
+
+› codex permission (2) is done, no pathes remain which have a text prompt outside of normal prompt, and for the record, that's all we're after-
+
