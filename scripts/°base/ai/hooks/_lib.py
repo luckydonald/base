@@ -157,6 +157,147 @@ def sweep_pending_decisions(session_id: str) -> None:
     )
 
 
+_REJECTION_PREFIX = "The user doesn't want to proceed with this tool use."
+_REJECTION_REASON_RE = re.compile(r"user said:\n(.*)\Z", re.S)
+
+
+def _iter_transcript_lines(transcript_path: str) -> list[dict]:
+    try:
+        raw = Path(transcript_path).read_text(encoding="utf-8")
+    except (OSError, TypeError):
+        return []
+    records = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records
+
+
+def load_transcript_tool_events(transcript_path: str) -> dict[str, dict]:
+    """Parse a session transcript JSONL into ``{tool_use_id: event}``, one
+    entry per ``tool_use``/``tool_result`` pair found, where ``event`` is::
+
+        {"tool_name": str, "tool_input": dict, "is_error": bool,
+         "content": str, "note": str | None}
+
+    ``content`` is the ``tool_result`` block's own text (only ever a plain
+    string for a denied call -- Claude Code's synthetic rejection message).
+    ``note`` is a sibling ``{"type": "text", ...}`` content entry immediately
+    following the ``tool_result`` block in the same transcript message, when
+    present: confirmed (repeatedly, across `ExitPlanMode`, `Edit`, `Bash`,
+    `Read`) to be how Claude Code delivers *any* message the user sends while
+    a tool call is in flight -- not a field specific to one tool or dialog,
+    and never exposed to any hook directly. Both `note` and a denial's typed
+    reason (see :func:`rejection_reason`) exist only here, in the raw
+    transcript -- there is no hook-visible field for either.
+
+    Every hook payload already carries ``payload["transcript_path"]``, so no
+    extra plumbing is needed to call this.
+    """
+    tool_uses: dict[str, tuple[str, dict]] = {}
+    events: dict[str, dict] = {}
+
+    for obj in _iter_transcript_lines(transcript_path):
+        message = obj.get("message")
+        if not isinstance(message, dict):
+            continue
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+
+        if obj.get("type") == "assistant":
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "tool_use":
+                    tool_id = block.get("id")
+                    if tool_id:
+                        tool_uses[tool_id] = (block.get("name") or "", block.get("input") or {})
+            continue
+
+        if obj.get("type") != "user":
+            continue
+        for index, block in enumerate(content):
+            if not (isinstance(block, dict) and block.get("type") == "tool_result"):
+                continue
+            tool_id = block.get("tool_use_id")
+            if not tool_id:
+                continue
+            raw_content = block.get("content")
+            note = None
+            if index + 1 < len(content):
+                sibling = content[index + 1]
+                if isinstance(sibling, dict) and sibling.get("type") == "text":
+                    note = sibling.get("text")
+            name, tool_input = tool_uses.get(tool_id, ("", {}))
+            events[tool_id] = {
+                "tool_name": name,
+                "tool_input": tool_input,
+                "is_error": bool(block.get("is_error")),
+                "content": raw_content if isinstance(raw_content, str) else "",
+                "note": note,
+            }
+    return events
+
+
+def find_interjected_text(transcript_path: str, tool_use_id: str) -> str | None:
+    """Return the note/instructions the user typed while ``tool_use_id``'s
+    tool call was in flight, if any -- see :func:`load_transcript_tool_events`
+    for what this actually is and why it's only ever found here."""
+    if not tool_use_id:
+        return None
+    return load_transcript_tool_events(transcript_path).get(tool_use_id, {}).get("note")
+
+
+def is_rejection(content: str) -> bool:
+    """True when ``content`` is Claude Code's synthetic tool-rejection
+    message (denying any tool call, not just `ExitPlanMode`)."""
+    return content.startswith(_REJECTION_PREFIX)
+
+
+def rejection_reason(content: str) -> str | None:
+    """Extract the typed deny reason from a rejection message, or ``None``
+    when the user denied without typing one (a different, shorter message
+    with no ``"user said:"`` clause -- see :func:`is_rejection`)."""
+    match = _REJECTION_REASON_RE.search(content)
+    return match.group(1).strip() if match else None
+
+
+def find_tool_rejections(
+    transcript_path: str, tool_names: set[str], already_recorded: set[str]
+) -> list[dict]:
+    """Scan the transcript for denied calls to any of ``tool_names``, skipping
+    ``tool_use_id``s already in ``already_recorded``. Returns a list of
+    ``{"tool_use_id", "tool_name", "tool_input", "reason"}`` dicts (``reason``
+    is ``None`` for a denial without one) in transcript order.
+
+    No hook fires for a denied tool call (`PreToolUse` doesn't exist for most
+    gated tools including `ExitPlanMode`; `PostToolUse` only fires on
+    success; `Stop` was observed unreliable) -- callers should invoke this
+    from whatever hook reliably fires *next* in the session (empirically
+    `UserPromptSubmit`), tracking `tool_use_id`s already recorded across
+    calls in a state file to avoid double-recording.
+    """
+    results = []
+    for tool_id, event in load_transcript_tool_events(transcript_path).items():
+        if tool_id in already_recorded:
+            continue
+        if event["tool_name"] not in tool_names:
+            continue
+        if not event["is_error"] or not is_rejection(event["content"]):
+            continue
+        results.append({
+            "tool_use_id": tool_id,
+            "tool_name": event["tool_name"],
+            "tool_input": event["tool_input"],
+            "reason": rejection_reason(event["content"]),
+        })
+    return results
+
+
 def slugify(text: str, *, max_len: int = 60, fallback: str = "untitled") -> str:
     """First non-empty line → lowercase, non-alphanumeric runs → ``-``, capped."""
     line = ""
