@@ -5969,3 +5969,5 @@ Huh, good question. I'm in implementation mode right now still but prefixing thi
 
 › Alright, added it to ai/°base/errors/26.codex.md
 
+› I did, but _No, and tell Codex what to do differently_ closes the command; with the text documented again; and I'm now in the regular prompt, which is alright as it's already recorded to `query.md` anyway.
+
