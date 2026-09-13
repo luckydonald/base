@@ -240,7 +240,16 @@ the shape of what to record for each tool.
         `UserPromptSubmit`. This is conclusively a universal Claude Code mechanism, not specific to any one
         dialog or tool. No further per-tool-type testing of this case is needed for Claude; the general
         recovery utility planned in Phase 4 covers all of it uniformly.
-- [ ] **Codex** — confirm whether an equivalent dialog exists at all before assuming symmetry
+- [ ] **Codex** — its `PermissionRequest` menu is now captured in [26.codex.md](../errors/26.codex.md).
+  - [x] Accept, plain (“Yes, proceed”) — the pre-execution `PermissionRequest` payload contains the session,
+        turn, `tool_name: "Bash"`, command, description, and `permission_mode`, but no approval result, choice
+        label, note, or modifier. A successful ordinary Bash `PostToolUse` follows after the command runs.
+  - [ ] Accept + allowlist modifier (“Yes, and don't ask again for commands that start with `<prefix>`”) —
+        capture whether any stable event or persisted permission state identifies the selected prefix before
+        deciding whether to render it in `query.md`.
+  - [ ] Deny / “tell Codex what to do differently” — despite the label, this menu exposes no inline text input.
+        Exercise it and inspect whether it returns to a normal prompt, emits a denial event, or leaves no trace;
+        only then decide whether a reason can be recorded.
 - [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
 
 ## Phase 4b — implement command-approval decision recording
