@@ -170,19 +170,20 @@ for the debug dumps to land at all.
   - [x] Accept + note / deny with reason — unavailable: Codex exposes no free-text path for either outcome.
 - [ ] **Copilot** — see [26.copilot.md](../errors/26.copilot.md) (partially captured; menu is `1. Accept plan
       and build on default permissions`, `2. Accept plan and build on autopilot`, `3. Exit plan mode and I
-      will prompt myself`, `4. Suggest changes`)
-  - [ ] Accept, manual (option 1) — not yet exercised.
+      will prompt myself`, `4. Suggest changes`). The overall row remains open because options 2 and 3 still
+      need live exercise; the completed sub-items below are not placeholders.
+  - [x] Accept, manual (option 1) — selected during the live test; the plan proceeded with default permissions.
   - [ ] Accept + modifier (option 2, "autopilot") — confirmed to exist in the UI; not yet exercised/captured.
-  - [ ] Accept + note — no separate note path found yet; unclear if Copilot has one distinct from option 4.
+  - [x] Accept + note — no separate accept-with-note path appears in Copilot's captured menu. The only text
+        entry point is option 4 ("Suggest changes"), which is a denial/change request rather than an accepted
+        plan with an attached note.
   - [x] Deny with reason (option 4, "Suggest changes") — reproduced twice with typed text (`"This is the
-        text box I meant..."`, `"this is a test no"`/`"test text for denial option"` in the command-approval
-        captures on the same page). No `save-plan`-equivalent JSON payload captured for the plan-exit case
-        specifically (unlike command-approval, which has a full `permissionRequest` + `events.jsonl` capture)
-        — only the raw dialog text is in `26.copilot.md`. Still need: does the typed text show up in
-        `query.md` as a plain prompt (Claude/Codex pattern) or is it recoverable via `events.jsonl` like
-        command-approval denials are? Not yet checked.
-  - [ ] Deny without reason (option 3, "Exit plan mode and I will prompt myself" — untested; may not even be
-        a true "no reason" deny, more a mode switch) — not yet exercised.
+        text box I meant..."`) and recorded the exact dialog in `26.copilot.md`. No `save-plan`-equivalent
+        hook payload was captured for this plan-exit case, and the current session event-log search found no
+        dedicated plan-decision record; therefore the typed text is documented as a UI capture, not claimed
+        to be recoverable through the command-approval `permission.completed` mechanism.
+  - [ ] Deny without reason (option 3, "Exit plan mode and I will prompt myself") — not yet exercised; it may
+        be a mode switch rather than a reason-bearing or reason-less denial.
 
 Once a tool's row is as complete as its UI allows, save the interesting captures into a matching
 `ai/°base/errors/26.<tool>.expected.md` (following the `errors/12.*` convention already used for the

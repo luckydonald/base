@@ -5963,3 +5963,5 @@ My request: no we wanna test plan and perms text input.
 
 ❯ ontinue
 
+◆ The plan still has unchecked copilot items.
+
