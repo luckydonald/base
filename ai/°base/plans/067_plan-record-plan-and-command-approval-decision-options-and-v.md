@@ -7,7 +7,7 @@ mechanism — today `save-decision/hook.py` already records `AskUserQuestion`/`r
 answers into `query.md`, including the "canceled" (chat about this) case via a `PreToolUse`-pending +
 `Stop`-sweep pattern in `_lib.py` — to also cover the choices available when exiting `/plan` mode: Deny
 (without reason), Deny (with reason, with a Copilot whitespace-only-reason special case), and Accept (with
-note), including tool-specific modifiers (Reset conversation for Codex, Autopilot for Claude/Copilot).
+note), including tool-specific modifiers (clear context for Codex, Autopilot for Claude/Copilot).
 
 `save-plan/hook.py` currently only extracts plan *text* on `ExitPlanMode`/`exit_plan_mode` and snapshots it
 to `ai/plans/NNN_slug.md` — it has no branching on decision type at all, and no denial/note/modifier ever
@@ -157,12 +157,15 @@ for the debug dumps to land at all.
         lands as a plain, unlabeled `query.md` prompt entry.
   - [x] Deny without reason (empty text + Enter) — reproduced once; **zero trace anywhere** (no dump, no
         `query.md` entry, session goes idle: "Crunched for Ns · done").
-- [ ] **Codex** — see [26.codex.md](../errors/26.codex.md) (paste pending; user to run a Codex session)
-  - [ ] Accept, manual
-  - [ ] Accept + modifier ("Reset conversation", per the todo — confirm it actually exists in Codex's UI)
-  - [ ] Accept + note (if Codex's UI offers a free-text note path at all)
-  - [ ] Deny with reason
-  - [ ] Deny without reason
+- [ ] **Codex** — see [26.codex.md](../errors/26.codex.md) — its exact menu is now captured.
+  - [ ] Accept, ordinary ("Yes, implement this plan") — capture the resulting event and payload.
+  - [ ] Accept + modifier ("Yes, clear context and implement") — capture independently and compare it with
+        ordinary acceptance for an explicit context-clear field or event. Do not infer this modifier merely
+        from the successor session being fresh.
+  - [x] No, stay in Plan mode — acts as denial without reason. It returns to the normal prompt box and
+        produced only `Stop`, followed by ordinary `UserPromptSubmit`; no `exit_plan_mode` / `ExitPlanMode`
+        event fired.
+  - [x] Accept + note / deny with reason — unavailable: Codex exposes no free-text path for either outcome.
 - [ ] **Copilot** — see [26.copilot.md](../errors/26.copilot.md) (paste pending; user to run a Copilot session)
   - [ ] Accept, manual
   - [ ] Accept + modifier ("Autopilot", per the todo — confirm it actually exists in Copilot's UI)
@@ -178,33 +181,65 @@ instead of only transient debug dumps that get cleaned up eventually.
 
 ## Phase 3b — capture real command-approval decision payloads, per tool × per outcome (testing phase)
 
-Same discipline as Phase 3, for the `PermissionRequest`/Bash "This command requires approval" dialog instead
-of `ExitPlanMode`. Reference file: `[26.claude.md](../errors/26.claude.md)` "Options for commands" section
-(already pasted); `26.codex.md`/`26.copilot.md` get a matching section once each tool's equivalent dialog
-(if any — Codex/Copilot may not gate arbitrary commands the same way, or may use different wording/options
-entirely) is captured. Per the user, only the message-carrying outcomes (accept-with-instructions,
-deny-with-reason) are actually worth recording — the plain modifiers (don't-ask-again, auto-mode) aren't
-pursued. Plain accept was tested as a control (see checklist) and confirmed to leave **zero** hook trace
-whatsoever, worse than `ExitPlanMode`'s deny cases.
+Same discipline as Phase 3, for `PermissionRequest`-gated dialogs instead of `ExitPlanMode`. Reference file:
+`[26.claude.md](../errors/26.claude.md)` "Options for commands" section (already pasted); `26.codex.md`/
+`26.copilot.md` get a matching section once each tool's equivalent dialog (if any — Codex/Copilot may not gate
+commands the same way, or may use different wording/options entirely) is captured. Per the user, only the
+message-carrying outcomes (accept-with-instructions, deny-with-reason) are actually worth recording — the
+plain modifiers (don't-ask-again, auto-mode) aren't pursued. Plain accept was tested as a control (see
+checklist) and confirmed to leave **zero** hook trace whatsoever, worse than `ExitPlanMode`'s deny cases.
 
-- [ ] **Claude** — per the user, only the amended/message-carrying variants are actually worth recording; the
-      plain modifiers (don't-ask-again, auto-mode) aren't interesting for this effort and can stay unchecked.
-  - [x] Accept, plain ("Yes") — tested as a baseline/control. **Confirmed: zero hook trace of the
-        `PermissionRequest` event or the decision at all**, at any level — not just unparsed like
-        `ExitPlanMode` denial, but *never even dumped*: `.claude/hooks/permission-check.py` is the only hook
-        wired to `PermissionRequest` for Bash and it doesn't call `dump_debug_payload`. The only artifact is
-        the completely ordinary `Bash` `PostToolUse` dump (`{stdout, stderr, interrupted, isImage,
-        noOutputExpected}`) — identical in shape to a command that never triggered any approval dialog at
+**Scope correction, then re-widened**: `PermissionRequest` isn't Bash-specific — `Write`, `Edit`, and even
+`Read` (when the path is *outside* the working directory; `Read` inside the repo has been silently
+auto-allowed all session, with no dialog at all) all trigger the same kind of approval dialog.
+`permission-check.py`'s hook matcher is scoped to `Bash|shell|unified_exec` only (in `ai/settings/settings.json`),
+so confirmed empirically: neither `Write`'s nor `Read`'s `PermissionRequest` ever reaches any of our hooks at
+all — no debug dump appears for either, regardless of accept or deny. Widening that matcher to also cover
+`Write`/`Edit`/`Read` is a `settings.json`/`sync.py` config change, not just a payload-parsing change — but
+per the user it **is** in scope: the underlying goal of this whole effort is finding *every* path by which a
+decision/message can bypass the normal `query.md` prompt-logging pathway, across every gated tool, not just
+`Bash`/`ExitPlanMode`/`AskUserQuestion`. So Phase 4b should widen the matcher too, once captures below justify
+the shape of what to record for each tool.
+
+- [x] **Claude** — both message-carrying outcomes confirmed (deny-with-reason, accept-with-instructions); per
+      the user, the plain modifiers (don't-ask-again, auto-mode) were never worth pursuing, so their checkboxes
+      stay unchecked by design, not as missing work.
+  - [x] Accept, plain ("Yes") — tested as a baseline/control, **before** the fix below existed. **Confirmed:
+        zero hook trace of the `PermissionRequest` event or the decision at all**, at any level — not just
+        unparsed like `ExitPlanMode` denial, but *never even dumped*: `.claude/hooks/permission-check.py` was
+        the only hook wired to `PermissionRequest` for Bash and didn't call `dump_debug_payload`. The only
+        artifact was the completely ordinary `Bash` `PostToolUse` dump (`{stdout, stderr, interrupted,
+        isImage, noOutputExpected}`) — identical in shape to a command that never triggered any approval
+        dialog at all. **Fixed in a separate commit** (`6b51e7b`, `[base] git hooks: ai: Run: Wired debug
+        dumping into permission-check.py:`) — it now calls `dump_debug_payload(data, "permission-check")`
+        right after parsing stdin, before any branching, matching every other hook's convention. Re-testing
+        plain accept after this fix would now at least show the raw `PermissionRequest` payload shape, though
+        per the user this variant isn't worth pursuing further beyond that plumbing fix.
         all. So plain accept is fundamentally unrecoverable from hooks as currently wired; would need
         `permission-check.py` itself extended to dump/record, not something read after the fact.
   - [ ] Accept + "don't ask again for: `<pattern>`" modifier — not pursuing, low value per the user.
   - [ ] Accept + "switch to auto mode" modifier — not pursuing, low value per the user.
-  - [ ] Deny ("No")
-  - [ ] Accept + amended instructions (`Tab` on "Yes" → "Yes, and tell Claude what to do next" + typed text) —
-        **the actually interesting case**: test whether this behaves like `ExitPlanMode`'s deny-with-reason
-        (falls through to a plain `query.md` prompt, invisible as a distinct decision) or has its own
-        mechanism.
-  - [ ] Deny + amended reason (`Tab` on "No", if it also opens a text field the same way)
+  - [x] Deny + amended reason — reproduced 3 times (denying three different `Bash` commands with typed reasons).
+        Now that `permission-check.py` dumps its payload (see the fix above), confirmed: the `PermissionRequest`
+        event fires and is captured, but it carries **no `tool_use_id`** at all (matches the docs: `tool_name`
+        + `tool_input` only, unlike `PreToolUse`). Crucially, this is a **third, different** pattern from both
+        earlier ones: the deny reason isn't a sibling `text` block — it's embedded **directly inside the single
+        `tool_result` content string** the model receives: `"The user doesn't want to proceed with this tool
+        use... user said:\n<reason>"`. That message is what I (the model) see in-context; no hook ever
+        observes it (no `PostToolUse` fires for a denied/never-executed command). Since `PermissionRequest` has
+        no `tool_use_id`, correlating a denial to its originating request can't use the `tool_use_id`-keyed
+        pending/sweep pattern as-is — Phase 4b will need a session-scoped FIFO-style pending queue instead
+        (push on `PermissionRequest`, pop on the next matching tool's successful `PostToolUse`, whatever's left
+        at `Stop` is a denial), since commands are processed sequentially within a session.
+  - [x] Accept + amended instructions (`Tab` on "Yes" → "Yes, and tell Claude what to do next" + typed text) —
+        **confirmed, reproduced 6 times across every tool type tried this session**: `ExitPlanMode` (×2, see
+        above), `Edit`, `Bash` (×3, including once with multiline text — no truncation/escaping issues), and
+        `Read` (outside-repo path). Every single time: the exact same sibling `{"type": "text", ...}` block
+        appended after that call's `tool_result` in the transcript, recoverable only by reading
+        `payload["transcript_path"]` and matching on `tool_use_id` — never a hook field, never a separate
+        `UserPromptSubmit`. This is conclusively a universal Claude Code mechanism, not specific to any one
+        dialog or tool. No further per-tool-type testing of this case is needed for Claude; the general
+        recovery utility planned in Phase 4 covers all of it uniformly.
 - [ ] **Codex** — confirm whether an equivalent dialog exists at all before assuming symmetry
 - [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
 
@@ -246,6 +281,11 @@ Using Phase 3's captures, extend `save-plan/hook.py`:
 - Render a `query.md` block analogous to `save-decision`'s (reuse `append_and_commit` from `_lib.py`) showing
   the decision (Denied / Denied with reason / Accepted / Accepted with note), any reason/note text, and any
   modifier picked.
+- For Codex, render `Plan accepted <kbd>context cleared</kbd>` only when the clear-context acceptance capture
+  identifies an explicit, stable modifier in the same plan-exit event or its transcript. Add a paired ordinary-
+  acceptance fixture and a clear-context fixture, and assert that only the latter gets the tag. If the clear-
+  context choice starts a fresh session without such a linking signal, record that absence in
+  `errors/26.codex.md` and omit the tag rather than guessing from session turnover.
 - Handle Copilot's whitespace-only-reason special case explicitly: treat an empty-or-whitespace reason string
   as "without reason", not as a reason of `" "`.
 - Add unit tests in `scripts/°base/tests/test_ai_hooks_base_routing.py` using the `errors/26.claude.expected.md`

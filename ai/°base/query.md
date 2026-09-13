@@ -5820,3 +5820,78 @@ Huh, good question. I'm in implementation mode right now still but prefixing thi
 
 ❯ Alright first wire debug writing in the mentioned hook.
 
+❯ Alright, do a bogus command again, then a file edit in a weird /tmp/ location.
+
+❯ Sure, go ahead
+
+❯ Huh, try reading etc-passwd then, and if we end up there, I'll deny it with a message.
+
+❯ Read some safe-for-reading but outside-of-this-repo file, next. And, yes, that will be part of the change, too, as I'm connecting all ways to write a prompt without it showing up via the regular way.
+
+❯ *collecting
+
+❯ Yeah, but like I again want to record the custtom message if any.
+
+❯ Did you got enough for "no, …" too?
+
+❯ sorry, didn't want to interrupt your command though
+
+› @ai/°base/plans/067_plan-record-plan-and-command-approval-decision-options-and-v.md
+
+› Question answered.
+> <details><summary>
+>
+>> 1. What should the implementation plan commit in the next execution pass, given that only Claude has real captures?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Delivery scope** (1/1) <kbd>Single Select</kbd><br>
+>> What should the implementation plan commit in the next execution pass, given that only Claude has real captures?
+> - [ ] 1\. Claude now, parity later (Recommended)
+>   - _Implement and verify Claude plan and message-carrying command decisions now; retain explicit Codex/Copilot capture gates._
+> - [x] 2\. Capture all first
+>   - _Do no feature implementation until Codex and Copilot menus/payloads are captured too._
+>   - > You are codex, so we test yours now.
+> - [ ] 3\. Claude plans only
+>   - _Implement only `/plan` decisions now; defer command-approval recording and other tools._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+› Question answered.
+> <details><summary>
+>
+>> 1. Which Codex plan-exit outcome should the next throwaway `<proposed_plan>` capture?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **First Codex trial** (1/1) <kbd>Single Select</kbd><br>
+>> Which Codex plan-exit outcome should the next throwaway `<proposed_plan>` capture?
+> - [x] 1\. Deny with reason (Recommended)
+>   - _Use the UI's change-request path and enter `Codex capture: deny with reason`._
+> - [ ] 2\. Deny without reason
+>   - _Use the change-request path but submit empty text or cancel._
+> - [ ] 3\. Accept manually
+>   - _Choose normal/manual approval without any note or reset modifier._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+› Huh, it just has a "stay in plan mode" which drops you in the normal query box again. Guess we should test the other cases.
+
+› I stored the result in @ai/°base/errors/26.codex.md - so there's no option to add a query in any of them it seems, but the context clear option is quite unique. See @ai/°base/plans/67 , too.
+
+› The reset option would be a neat tag on the query.md additon
+
+› is that checked to be detectable, and added to the plan how in deatil?
+
+› yeah update te
+
+› yeah update the mds, read the md language primer first though and the commit style
+
