@@ -170,10 +170,14 @@ for the debug dumps to land at all.
   - [x] Accept + note / deny with reason — unavailable: Codex exposes no free-text path for either outcome.
 - [ ] **Copilot** — see [26.copilot.md](../errors/26.copilot.md) (partially captured; menu is `1. Accept plan
       and build on default permissions`, `2. Accept plan and build on autopilot`, `3. Exit plan mode and I
-      will prompt myself`, `4. Suggest changes`). The overall row remains open because options 2 and 3 still
-      need live exercise; the completed sub-items below are not placeholders.
+      will prompt myself`, `4. Suggest changes`). The overall row remains open because option 3 still needs
+      live exercise; the completed sub-items below are not placeholders.
   - [x] Accept, manual (option 1) — selected during the live test; the plan proceeded with default permissions.
-  - [ ] Accept + modifier (option 2, "autopilot") — confirmed to exist in the UI; not yet exercised/captured.
+  - [x] Accept + modifier (option 2, "autopilot") — exercised. No `save-plan`-style hook payload fires for
+        either option 1 or option 2 (no `ExitPlanMode`/`exit_plan_mode` tool event at all), but `events.jsonl`
+        records a `session.mode_changed` event for both, and its `newMode` field cleanly distinguishes them:
+        `"interactive"` for option 1 vs. `"autopilot"` for option 2 (`previousMode` is `"plan"` in both). See
+        `26.copilot.md` for the exact captured events.
   - [x] Accept + note — no separate accept-with-note path appears in Copilot's captured menu. The only text
         entry point is option 4 ("Suggest changes"), which is a denial/change request rather than an accepted
         plan with an attached note.
