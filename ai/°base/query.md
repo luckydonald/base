@@ -5895,3 +5895,13 @@ Huh, good question. I'm in implementation mode right now still but prefixing thi
 
 › yeah update the mds, read the md language primer first though and the commit style
 
+› then we should check the permission promts
+
+› no got no prompt
+
+› retry
+
+› ah i got a menu now, after I disabled auto-approval, but I forgot to copy it. Also it again has no text input. Please open another.
+
+› Alright, added it to ai/°base/errors/26.codex.md
+
