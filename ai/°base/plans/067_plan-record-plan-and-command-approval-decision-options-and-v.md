@@ -168,12 +168,21 @@ for the debug dumps to land at all.
         produced only `Stop`, followed by ordinary `UserPromptSubmit`; no `exit_plan_mode` / `ExitPlanMode`
         event fired.
   - [x] Accept + note / deny with reason — unavailable: Codex exposes no free-text path for either outcome.
-- [ ] **Copilot** — see [26.copilot.md](../errors/26.copilot.md) (paste pending; user to run a Copilot session)
-  - [ ] Accept, manual
-  - [ ] Accept + modifier ("Autopilot", per the todo — confirm it actually exists in Copilot's UI)
-  - [ ] Accept + note (if Copilot's UI offers one — check the todo's whitespace-only-reason special case here)
-  - [ ] Deny with reason
-  - [ ] Deny without reason
+- [ ] **Copilot** — see [26.copilot.md](../errors/26.copilot.md) (partially captured; menu is `1. Accept plan
+      and build on default permissions`, `2. Accept plan and build on autopilot`, `3. Exit plan mode and I
+      will prompt myself`, `4. Suggest changes`)
+  - [ ] Accept, manual (option 1) — not yet exercised.
+  - [ ] Accept + modifier (option 2, "autopilot") — confirmed to exist in the UI; not yet exercised/captured.
+  - [ ] Accept + note — no separate note path found yet; unclear if Copilot has one distinct from option 4.
+  - [x] Deny with reason (option 4, "Suggest changes") — reproduced twice with typed text (`"This is the
+        text box I meant..."`, `"this is a test no"`/`"test text for denial option"` in the command-approval
+        captures on the same page). No `save-plan`-equivalent JSON payload captured for the plan-exit case
+        specifically (unlike command-approval, which has a full `permissionRequest` + `events.jsonl` capture)
+        — only the raw dialog text is in `26.copilot.md`. Still need: does the typed text show up in
+        `query.md` as a plain prompt (Claude/Codex pattern) or is it recoverable via `events.jsonl` like
+        command-approval denials are? Not yet checked.
+  - [ ] Deny without reason (option 3, "Exit plan mode and I will prompt myself" — untested; may not even be
+        a true "no reason" deny, more a mode switch) — not yet exercised.
 
 Once a tool's row is as complete as its UI allows, save the interesting captures into a matching
 `ai/°base/errors/26.<tool>.expected.md` (following the `errors/12.*` convention already used for the
@@ -255,7 +264,13 @@ the shape of what to record for each tool.
         Do not add a second command-decision entry for that text or try to infer an association from timing.
   - Conclusion: no Codex command-permission path carries text that bypasses normal prompt logging; do not add
         Codex support to the Phase 4b command-decision implementation.
-- [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
+- [x] **Copilot** — equivalent command-approval dialog captured in [26.copilot.md](../errors/26.copilot.md).
+  Its `permissionRequest` hook payload uses camelCase (`hookName`, `toolName`, `toolInput`) and contains no
+  typed denial reason. The reason is recoverable afterward from
+  `~/.copilot/session-state/<session_id>/events.jsonl`: match a
+  `permission.completed` event's `data.toolCallId` and
+  `data.result.kind == "denied-interactively-by-user"`, then read `data.result.feedback`; correlate the
+  same `toolCallId` to the earlier `permission.requested` event to recover `fullCommandText`.
 
 ## Phase 4b — implement command-approval decision recording
 
@@ -264,7 +279,11 @@ Likely needs a **new** dedicated hook (e.g. `save-command-decision/hook.py`) wir
 extending `.claude/hooks/permission-check.py`, since that script's existing job (git-commit-policy
 enforcement) is unrelated and shouldn't be conflated with decision-recording. Concrete design waits on Phase
 3b's captures — don't guess at payload shape ahead of real data, same rule as Phase 4. Depends on Phase 3b
-being as complete as practical, same gate as Phase 4 depends on Phase 3.
+being as complete as practical, same gate as Phase 4 depends on Phase 3. For Copilot specifically, the hook
+must recover the completed denial from the session event log after the `PermissionRequest` hook returns:
+`permission.completed.data.result.feedback` is the typed reason, and `permission.requested.data.permissionRequest`
+provides the command via the shared `toolCallId`. A later `Stop` or `UserPromptSubmit` hook is the earliest
+reliable place to perform this correlation; the initial permission hook cannot see the user's later input.
 
 ## Phase 4 — implement `/plan` decision recording (Claude first, then Codex/Copilot as data arrives)
 
