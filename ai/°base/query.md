@@ -5971,3 +5971,5 @@ My request: no we wanna test plan and perms text input.
 
 ❯ Yo check the markdown code style!!!
 
+❯ Notice the markdown reference file (md.md) in the plan, too.
+
