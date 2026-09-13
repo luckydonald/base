@@ -247,9 +247,10 @@ the shape of what to record for each tool.
   - [ ] Accept + allowlist modifier (“Yes, and don't ask again for commands that start with `<prefix>`”) —
         capture whether any stable event or persisted permission state identifies the selected prefix before
         deciding whether to render it in `query.md`.
-  - [ ] Deny / “tell Codex what to do differently” — despite the label, this menu exposes no inline text input.
-        Exercise it and inspect whether it returns to a normal prompt, emits a denial event, or leaves no trace;
-        only then decide whether a reason can be recorded.
+  - [x] Deny / “tell Codex what to do differently” — selecting it emits the documented “Conversation
+        interrupted” message and closes the command. It has no inline text input and no command `PostToolUse`;
+        any explanation is entered afterward as an ordinary `UserPromptSubmit`, already recorded in `query.md`.
+        Do not add a second command-decision entry for that text or try to infer an association from timing.
 - [ ] **Copilot** — confirm whether an equivalent dialog exists at all before assuming symmetry
 
 ## Phase 4b — implement command-approval decision recording
