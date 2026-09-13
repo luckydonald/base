@@ -131,3 +131,7 @@ Repeat capture (Phase 3) + implement (Phase 4) for Codex and Copilot once the us
 ## Commit style
 
 Origin is `luckydonald/base`, so `commit-with-lplp-style` applies automatically for implementation — no need to ask. Each phase above lands as its own commit (or small commit group), per the todo's "subtasks → separate commits" instruction.
+
+## Formatting
+
+This plan's prose follows `ai/skills/code-style/references/md.md`: one line per paragraph or list item, never hard-wrapped mid-sentence at an arbitrary column. Keep future edits to this file consistent with that.
