@@ -6033,3 +6033,5 @@ My request: no we wanna test plan and perms text input.
 
 ❯ first update the repo plan file. Make sure still-missing stuff clearly has a checkbox. Then start with what code you can already write now.
 
+❯ Yo check the markdown code style!!!
+
