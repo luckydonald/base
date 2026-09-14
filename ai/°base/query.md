@@ -5973,3 +5973,7 @@ My request: no we wanna test plan and perms text input.
 
 ❯ Notice the markdown reference file (md.md) in the plan, too.
 
+❯ Continue implementing @ai/°base/plans/067_plan-record-plan-and-command-approval-decision-options-and-v.md and use /commit-with-lplp-style
+
+❯ Keep in mind the @ai/skills/code-style/references/md.md markdown code style.
+

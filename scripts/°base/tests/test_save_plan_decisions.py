@@ -10,10 +10,12 @@ import importlib
 import json
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 _routing = importlib.import_module("scripts.°base.tests.test_ai_hooks_base_routing")
 PLAN_HOOK = _routing.PLAN_HOOK
+PROMPT_HOOK = _routing.PROMPT_HOOK
 init_repo = _routing.init_repo
 last_subject = _routing.last_subject
 run_hook = _routing.run_hook
@@ -38,6 +40,45 @@ def _write_transcript(tmp_dir: Path, tool_use_id: str, note: str | None) -> str:
     path = tmp_dir / "transcript.jsonl"
     path.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
     return str(path)
+
+
+def _write_rejection_transcript(tmp_dir: Path, tool_use_id: str, reason: str | None) -> str:
+    """A minimal transcript with one denied ExitPlanMode tool_use/tool_result
+    pair, mirroring Claude Code's actual generic rejection wrapper."""
+    if reason:
+        content = (
+            "The user doesn't want to proceed with this tool use. The tool use was rejected "
+            "(eg. if it was a file edit, the new_string was NOT written to the file). "
+            f"To tell you how to proceed, the user said:\n{reason}"
+        )
+    else:
+        content = (
+            "The user doesn't want to proceed with this tool use. The tool use was rejected "
+            "(eg. if it was a file edit, the new_string was NOT written to the file). "
+            "STOP what you are doing and wait for the user to tell you how to proceed."
+        )
+    lines = [
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": tool_use_id, "name": "ExitPlanMode", "input": {"plan": "# Plan\n"}},
+        ]}},
+        {"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": tool_use_id, "content": content, "is_error": True},
+        ]}},
+    ]
+    path = tmp_dir / f"transcript-{tool_use_id}.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def _user_prompt_submit_payload(*, session_id: str, transcript_path: str, prompt: str = "commit") -> dict:
+    # "commit" is in save-prompt/hook.py's SKIP_PROMPTS, so this exercises the
+    # rejection scan without also logging an unrelated prompt entry.
+    return {
+        "hook_event_name": "UserPromptSubmit",
+        "session_id": session_id,
+        "prompt": prompt,
+        "transcript_path": transcript_path,
+    }
 
 
 def _exit_plan_mode_payload(*, session_id: str, tool_use_id: str, transcript_path: str, permission_mode: str = "default") -> dict:
@@ -144,6 +185,78 @@ class PlanDecisionRecordingTests(unittest.TestCase):
                     "permission_mode": "default",
                 },
                 "codex",
+            )
+
+            self.assertFalse(_query_md(repo).exists())
+
+
+class PlanDenialRecordingTests(unittest.TestCase):
+    """save-prompt/hook.py's UserPromptSubmit handler scans the transcript
+    for denied ExitPlanMode calls via `_lib.find_tool_rejections`, since no
+    hook fires directly on denial -- see Phase 4 in plan 067."""
+
+    def test_deny_with_reason_records_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            # `_REJECTIONS_STATE_FILE` lives at a fixed path outside `tmp`, so
+            # tool_use_ids must be unique across test *runs* (not just within
+            # one), or a rerun sees them as already-recorded and no-ops.
+            tool_use_id = f"toolu_deny_reason_{uuid.uuid4().hex}"
+            transcript = _write_rejection_transcript(Path(tmp), tool_use_id, "change the approach")
+
+            run_hook(
+                repo, PROMPT_HOOK,
+                _user_prompt_submit_payload(session_id="d1", transcript_path=transcript),
+                "claude",
+            )
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertIn("Plan denied:", content)
+            self.assertIn("change the approach", content)
+
+    def test_deny_without_reason_records_plain_denial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            tool_use_id = f"toolu_deny_plain_{uuid.uuid4().hex}"
+            transcript = _write_rejection_transcript(Path(tmp), tool_use_id, None)
+
+            run_hook(
+                repo, PROMPT_HOOK,
+                _user_prompt_submit_payload(session_id="d2", transcript_path=transcript),
+                "claude",
+            )
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertIn("Plan denied.", content)
+            self.assertNotIn("Plan denied:", content)
+
+    def test_denial_is_not_recorded_twice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            tool_use_id = f"toolu_deny_once_{uuid.uuid4().hex}"
+            transcript = _write_rejection_transcript(Path(tmp), tool_use_id, "no thanks")
+
+            payload = _user_prompt_submit_payload(session_id="d3", transcript_path=transcript)
+            run_hook(repo, PROMPT_HOOK, payload, "claude")
+            run_hook(repo, PROMPT_HOOK, payload, "claude")
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertEqual(content.count("Plan denied:"), 1)
+
+    def test_accepted_call_is_not_recorded_as_denied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            tool_use_id = f"toolu_deny_accept_control_{uuid.uuid4().hex}"
+            transcript = _write_transcript(Path(tmp), tool_use_id, note=None)
+
+            run_hook(
+                repo, PROMPT_HOOK,
+                _user_prompt_submit_payload(session_id="d4", transcript_path=transcript),
+                "claude",
             )
 
             self.assertFalse(_query_md(repo).exists())

@@ -30,6 +30,7 @@ from _lib import (  # noqa: E402
     append_and_commit,
     dump_debug_payload,
     find_interjected_text,
+    find_tool_rejections,
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
@@ -249,13 +250,30 @@ def _plan_from_codex_sources(payload: dict) -> str:
 # Plan decision recording (Claude only for now -- see
 # ai/°base/plans/067_plan-record-plan-and-command-approval-decision-options-and-v.md's
 # Phase 4/Phase 3 for how each signal below was confirmed against real
-# ExitPlanMode payloads. Denial recording (Deny / Deny with reason) is not
-# implemented yet -- no hook fires for either, so it needs a transcript scan
-# from a hook that reliably fires afterward (`UserPromptSubmit` was found
-# more reliable than `Stop`), tracking already-recorded `tool_use_id`s;
-# `_lib.find_tool_rejections` already does the scan, this hook just doesn't
-# call it yet.
+# ExitPlanMode payloads.
+#
+# Denial recording (Deny / Deny with reason) has no hook of its own -- no
+# `PreToolUse`/`PostToolUse`/`Stop` ever fires for a rejected `ExitPlanMode`
+# call -- so `record_claude_plan_rejections` below is instead called from
+# `save-prompt/hook.py`'s `UserPromptSubmit` handler (found more reliable
+# than `Stop` in testing), which fires soon after almost any denial. It scans
+# the transcript via `_lib.find_tool_rejections`, tracking already-recorded
+# `tool_use_id`s in `_REJECTIONS_STATE_FILE` to avoid double-recording across
+# calls.
 # ---------------------------------------------------------------------------
+
+_REJECTIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-rejections-state.json"
+
+
+def _load_recorded_rejection_ids() -> set[str]:
+    try:
+        return set(json.loads(_REJECTIONS_STATE_FILE.read_text(encoding="utf-8")))
+    except Exception:
+        return set()
+
+
+def _save_recorded_rejection_ids(ids: set[str]) -> None:
+    _REJECTIONS_STATE_FILE.write_text(json.dumps(sorted(ids)), encoding="utf-8")
 
 def _render_decision_block(label: str, detail: str | None) -> str:
     out = [f"❯ {label}\n"]
@@ -297,6 +315,45 @@ def _record_claude_plan_acceptance(payload: dict) -> None:
         commit_template_relpath="ai/commit-templates/decision",
         default_commit_msg="ai: save plan decision",
     )
+
+
+def _render_claude_plan_rejection(rejection: dict) -> str:
+    """Render a denied `ExitPlanMode` call, matching the accept side's
+    plain/with-detail shape. Both deny variants get the exact same generic
+    rejection wrapper in the transcript (see `_lib.is_rejection`) --
+    `rejection["reason"]` is `None` for a denial without one."""
+    reason = rejection.get("reason")
+    if reason:
+        return _render_decision_block("Plan denied:", reason)
+    return _render_decision_block("Plan denied.", None)
+
+
+def record_claude_plan_rejections(payload: dict) -> None:
+    """Scan ``payload["transcript_path"]`` for denied Claude `ExitPlanMode`
+    calls not yet recorded, and append a `query.md` entry for each. Intended
+    to be called from `save-prompt/hook.py`'s `UserPromptSubmit` handler --
+    see the module comment above for why no hook can call this directly on
+    denial itself."""
+    transcript_path = payload.get("transcript_path") or ""
+    if not transcript_path:
+        return
+
+    already_recorded = _load_recorded_rejection_ids()
+    rejections = find_tool_rejections(transcript_path, {"ExitPlanMode"}, already_recorded)
+    if not rejections:
+        return
+
+    blocks = [_render_claude_plan_rejection(rejection) for rejection in rejections]
+    already_recorded.update(rejection["tool_use_id"] for rejection in rejections)
+
+    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    append_and_commit(
+        log_path,
+        "".join(blocks),
+        commit_template_relpath="ai/commit-templates/decision",
+        default_commit_msg="ai: save plan decision",
+    )
+    _save_recorded_rejection_ids(already_recorded)
 
 
 # ---------------------------------------------------------------------------
