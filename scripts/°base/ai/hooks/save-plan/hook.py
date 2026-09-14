@@ -263,6 +263,7 @@ def _plan_from_codex_sources(payload: dict) -> str:
 # ---------------------------------------------------------------------------
 
 _REJECTIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-rejections-state.json"
+_COPILOT_DECISIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-copilot-decisions-state.json"
 
 
 def _load_recorded_rejection_ids() -> set[str]:
@@ -354,6 +355,98 @@ def record_claude_plan_rejections(payload: dict) -> None:
         default_commit_msg="ai: save plan decision",
     )
     _save_recorded_rejection_ids(already_recorded)
+
+
+def _load_recorded_copilot_decision_ids() -> set[str]:
+    try:
+        return set(json.loads(_COPILOT_DECISIONS_STATE_FILE.read_text(encoding="utf-8")))
+    except Exception:
+        return set()
+
+
+def _save_recorded_copilot_decision_ids(ids: set[str]) -> None:
+    _COPILOT_DECISIONS_STATE_FILE.write_text(json.dumps(sorted(ids)), encoding="utf-8")
+
+
+def _copilot_session_events(session_id: str) -> list[dict]:
+    if not session_id:
+        return []
+    path = Path.home() / ".copilot" / "session-state" / session_id / "events.jsonl"
+    try:
+        return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _record_copilot_plan_blocks(blocks: list[str]) -> None:
+    if not blocks:
+        return
+    append_and_commit(
+        resolve_log_path("ai/query.md", "ai/°base/query.md"),
+        "".join(blocks),
+        commit_template_relpath="ai/commit-templates/decision",
+        default_commit_msg="ai: save plan decision",
+    )
+
+
+def _record_copilot_plan_acceptances(payload: dict) -> None:
+    """Record Copilot's real `/plan` accepts from its session event log.
+
+    Copilot emits no ExitPlanMode-style hook event for menu options 1 and 2.
+    Its append-only ``events.jsonl`` instead records ``session.mode_changed``
+    from ``plan`` to ``interactive`` (ordinary accept) or ``autopilot``. This
+    runs from Stop, after that choice is visible in the event log.
+    """
+    if payload.get("hook_event_name") not in {"Stop", "stop"}:
+        return
+    session_id = str(payload.get("session_id") or payload.get("sessionId") or "")
+    recorded = _load_recorded_copilot_decision_ids()
+    blocks: list[str] = []
+    for index, event in enumerate(_copilot_session_events(session_id)):
+        if event.get("type") != "session.mode_changed":
+            continue
+        data = event.get("data")
+        if not isinstance(data, dict) or data.get("previousMode") != "plan":
+            continue
+        new_mode = data.get("newMode")
+        if new_mode not in {"interactive", "autopilot"}:
+            continue
+        decision_id = f"accept:{session_id}:{index}:{new_mode}"
+        if decision_id in recorded:
+            continue
+        label = "Plan accepted, autopilot." if new_mode == "autopilot" else "Plan accepted."
+        blocks.append(_render_decision_block(label, None))
+        recorded.add(decision_id)
+
+    _record_copilot_plan_blocks(blocks)
+    if blocks:
+        _save_recorded_copilot_decision_ids(recorded)
+
+
+def _record_copilot_exit_only(payload: dict) -> None:
+    """Record Copilot's option 3, which has an explicit post-tool marker.
+
+    The same mode transition as an ordinary acceptance (``plan`` to
+    ``interactive``) accompanies this option, so mark that transition as
+    consumed before a later Stop scan can mistake it for an acceptance.
+    """
+    tool_response = payload.get("tool_response") or {}
+    session_log = tool_response.get("sessionLog") if isinstance(tool_response, dict) else ""
+    if "exit_only" not in session_log:
+        return
+    session_id = str(payload.get("session_id") or payload.get("sessionId") or "")
+    tool_use_id = str(payload.get("tool_use_id") or "")
+    decision_id = f"exit-only:{session_id}:{tool_use_id}"
+    recorded = _load_recorded_copilot_decision_ids()
+    if decision_id in recorded:
+        return
+    _record_copilot_plan_blocks([_render_decision_block("Plan exited.", None)])
+    recorded.add(decision_id)
+    for index, event in enumerate(_copilot_session_events(session_id)):
+        data = event.get("data") if isinstance(event, dict) else None
+        if event.get("type") == "session.mode_changed" and isinstance(data, dict) and data.get("previousMode") == "plan" and data.get("newMode") == "interactive":
+            recorded.add(f"accept:{session_id}:{index}:interactive")
+    _save_recorded_copilot_decision_ids(recorded)
 
 
 # ---------------------------------------------------------------------------
@@ -576,6 +669,11 @@ def main() -> int:
     if tool_name in ("TaskCreate", "TaskUpdate"):
         tool_response = payload.get("tool_response") or {}
         return _handle_task_tool_capture(session_id, tool_name, tool_input, tool_response)
+
+    if ai_tool == "copilot":
+        _record_copilot_plan_acceptances(payload)
+        if tool_name == "exit_plan_mode":
+            _record_copilot_exit_only(payload)
 
     plan = ""
     if ai_tool == "codex":

@@ -262,5 +262,61 @@ class PlanDenialRecordingTests(unittest.TestCase):
             self.assertFalse(_query_md(repo).exists())
 
 
+class CopilotPlanDecisionRecordingTests(unittest.TestCase):
+    def _write_events(self, home: Path, session_id: str, events: list[dict]) -> None:
+        path = home / ".copilot" / "session-state" / session_id / "events.jsonl"
+        path.parent.mkdir(parents=True)
+        path.write_text("\n".join(json.dumps(event) for event in events) + "\n", encoding="utf-8")
+
+    def test_stop_records_manual_and_autopilot_acceptances(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            home = Path(tmp) / "home"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            session_id = f"copilot-accept-{uuid.uuid4().hex}"
+            self._write_events(home, session_id, [
+                {"type": "session.mode_changed", "data": {"previousMode": "plan", "newMode": "interactive"}},
+                {"type": "session.mode_changed", "data": {"previousMode": "plan", "newMode": "autopilot"}},
+            ])
+
+            run_hook(
+                repo, PLAN_HOOK,
+                {"hook_event_name": "Stop", "session_id": session_id},
+                "copilot", extra_env={"HOME": str(home)},
+            )
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertIn("Plan accepted.", content)
+            self.assertIn("Plan accepted, autopilot.", content)
+
+    def test_exit_only_is_not_mistaken_for_an_acceptance_on_later_stop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            home = Path(tmp) / "home"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            session_id = f"copilot-exit-{uuid.uuid4().hex}"
+            self._write_events(home, session_id, [
+                {"type": "session.mode_changed", "data": {"previousMode": "plan", "newMode": "interactive"}},
+            ])
+            exit_payload = {
+                "hook_event_name": "PostToolUse",
+                "session_id": session_id,
+                "tool_name": "exit_plan_mode",
+                "tool_use_id": f"exit-{uuid.uuid4().hex}",
+                "tool_response": {"sessionLog": "✅ Plan approved, exited plan mode (exit_only)"},
+            }
+
+            run_hook(repo, PLAN_HOOK, exit_payload, "copilot", extra_env={"HOME": str(home)})
+            run_hook(
+                repo, PLAN_HOOK,
+                {"hook_event_name": "Stop", "session_id": session_id},
+                "copilot", extra_env={"HOME": str(home)},
+            )
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertIn("Plan exited.", content)
+            self.assertNotIn("Plan accepted.", content)
+
+
 if __name__ == "__main__":
     unittest.main()
