@@ -10,7 +10,7 @@
   "hooks": {
     "PermissionRequest": [
       {
-        "matcher": "Bash|shell|unified_exec",
+        "matcher": "Bash|shell|unified_exec|Write|Edit|Read",
         "hooks": [
           {
             "type": "command",
@@ -108,6 +108,16 @@
         ]
       },
       {
+        "matcher": "Write|Edit|Read|Bash|shell|unified_exec|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-command-decision/hook.py\" 'claude'",
+            "async": true
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|Bash|shell|unified_exec|apply_patch",
         "hooks": [
           {
@@ -157,6 +167,11 @@
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-decision/hook.py\" 'claude'",
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-command-decision/hook.py\" 'claude'",
+            "async": true
           }
         ]
       }
@@ -167,6 +182,11 @@
           {
             "type": "command",
             "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-prompt/hook.py\" 'claude'",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-command-decision/hook.py\" 'claude'",
             "async": true
           }
         ]

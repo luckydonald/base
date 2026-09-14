@@ -23,6 +23,7 @@ MEMORY_HOOK = ROOT / "scripts" / "°base" / "ai" / "hooks" / "record-memory" / "
 CODEX_MEMORY_HOOK = ROOT / "scripts" / "°base" / "ai" / "hooks" / "record-codex-memory" / "hook.py"
 DECISION_HOOK = ROOT / "scripts" / "°base" / "ai" / "hooks" / "save-decision" / "hook.py"
 COMPACT_PROMPT_HOOK = ROOT / "scripts" / "°base" / "ai" / "hooks" / "save-compact-prompt" / "hook.py"
+COMMAND_DECISION_HOOK = ROOT / "scripts" / "°base" / "ai" / "hooks" / "save-command-decision" / "hook.py"
 
 
 def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
