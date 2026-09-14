@@ -3,7 +3,7 @@
   "hooks": {
     "PermissionRequest": [
       {
-        "matcher": "Bash|shell|unified_exec",
+        "matcher": "Bash|shell|unified_exec|Write|Edit|Read",
         "hooks": [
           {
             "type": "command",
@@ -88,6 +88,15 @@
         ]
       },
       {
+        "matcher": "Write|Edit|Read|Bash|shell|unified_exec|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "bash": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-command-decision/hook.py\" 'copilot'"
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|Bash|shell|unified_exec|apply_patch",
         "hooks": [
           {
@@ -131,6 +140,10 @@
           {
             "type": "command",
             "bash": "\"$(git rev-parse --show-toplevel)/scripts/°base/git/hooks/tool_path.sh\" uv run --project \"$(git rev-parse --show-toplevel)/scripts/°base\" python \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-decision/hook.py\" 'copilot'"
+          },
+          {
+            "type": "command",
+            "bash": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-command-decision/hook.py\" 'copilot'"
           }
         ]
       }
@@ -141,6 +154,10 @@
           {
             "type": "command",
             "bash": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-prompt/hook.py\" 'copilot'"
+          },
+          {
+            "type": "command",
+            "bash": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/save-command-decision/hook.py\" 'copilot'"
           }
         ]
       }

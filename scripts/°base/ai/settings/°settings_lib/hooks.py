@@ -186,6 +186,7 @@ def _replace_tool_arg(command: str, tool: str) -> str:
     if (
         "save-prompt/hook.py" in command
         or "save-decision/hook.py" in command
+        or "save-command-decision/hook.py" in command
         or "save-plan/hook.py" in command
         or "save-compact-prompt/hook.py" in command
         or "record-codex-memory/hook.py" in command
@@ -244,6 +245,7 @@ def _neutralize_command(command: str) -> str:
     if (
         "save-prompt/hook.py" in command
         or "save-decision/hook.py" in command
+        or "save-command-decision/hook.py" in command
         or "save-plan/hook.py" in command
         or "save-compact-prompt/hook.py" in command
         or "record-codex-memory/hook.py" in command
