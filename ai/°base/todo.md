@@ -193,6 +193,15 @@ Misc:
 - [ ] Add `squash unpushed` to ignored queries.
 - [ ] Once the `# end if` plugin is released, remove the `# end …` rule from the `python.md` code style.
 - [ ] Improve the Markdown (`md.md`) code style to actually automatically be loaded if `/plan` is executed.
+- [ ] Add the information about the currently selected file:
+  - File selected: [⧉ File `todo.md`](./todo.md)
+  - Single line:  [⧉ File `todo.md`: 1 line selected](./todo.md#L190) TODO: figure out if/how we can properly link a specific line.
+    - Update: Moving the file as title probably makes sense when rendered<br>
+      <a class="selection multi" href="./todo.md#L190" title="File &lt;code&gt;todo.md&lt;/code&gt;">⧉ 1 line selected</a>
+    - But it's not really readable... Can we set that with still using Markdown? Not sure if GitHub & GitLab render:
+      [⧉ 1 line selected](./todo.md#L190){title="File `todo.md`"}
+  - Multiple lines:  [⧉ File `todo.md`: 10 lines selected](./todo.md#L190-200) TODO: figure out if/how we can properly link a specific line.
+    - See above with possibly shortening it.
 
 ---
 
