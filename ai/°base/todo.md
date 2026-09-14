@@ -178,13 +178,15 @@ Additionally, we need:
 
 Record the other choosable options of a /plan:
 
-- [ ] Deny (without reason)
-- [ ] Deny (with reason)
+- [x] Deny (without reason)
+- [x] Deny (with reason)
       - Special case for Copilot: It's not possible to exit planning mode without entering something into the "i wanna change something" field, so a empty-like answer (e.g. single whitespace) should be treated as _without reason_.
-- [ ] Accept (with note)
+- [x] Accept (with note)
       - If available modifiers like:
         - [ ] Reset conversation history and implement — Codex
-        - [ ] Use Autopilot (some model which confirms stuff for you) — Claude, Copilot, (Codex?)
+        - [x] Use Autopilot (some model which confirms stuff for you) — Claude, Copilot; no Codex equivalent.
+
+Command-approval decisions with typed feedback are recorded too: Claude from its transcript and Copilot from its session event log. Codex follow-up text remains an ordinary prompt and is already logged.
 
 ---
 
@@ -218,4 +220,3 @@ Rename `query.md` to `prompt.md`.
 - [ ] Done.
 
 ---
-
