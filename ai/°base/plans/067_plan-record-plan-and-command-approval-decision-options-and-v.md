@@ -112,15 +112,15 @@ Repeat capture (Phase 3) + implement (Phase 4) for Codex and Copilot once the us
 
 ## Phase 5 — update `ai/°base/todo.md`
 
-**Not started** — checked directly: the original todo block (`ai/°base/todo.md`, "Record the other choosable options of a /plan") is still fully unchecked, despite all of Phase 3/3b's research being done. Only flip a checkbox once the corresponding Phase 4/4b implementation item above is actually done, not merely captured.
+**Partially completed** — only the confirmed, implemented Claude/Copilot outcomes are checked in `ai/°base/todo.md`; the Codex clear-context item and Copilot deny-with-reason/whitespace special case remain open.
 
-- [ ] Check off `Deny (without reason)` once Phase 4's Claude denial-without-reason handling lands.
-- [ ] Check off `Deny (with reason)` once Phase 4's Claude denial-with-reason handling lands.
+- [x] Check off `Deny (without reason)` after Phase 4's Claude denial-without-reason handling landed.
+- [x] Check off `Deny (with reason)` after Phase 4's Claude denial-with-reason handling landed.
 - [ ] Add the Copilot whitespace-only-reason special-case note once (if) a recovery path exists (see Phase 4).
-- [ ] Check off `Accept (with note)` once Phase 4's Claude accept-with-note handling lands.
+- [x] Check off `Accept (with note)` after Phase 4's Claude accept-with-note handling landed.
 - [ ] Check off `Reset conversation history and implement — Codex` once Phase 4's Codex `context cleared` tagging lands.
-- [ ] Check off `Use Autopilot ... — Claude, Copilot, (Codex?)` once Phase 4's Claude/Copilot autopilot-modifier handling lands (Codex has no autopilot-equivalent modifier per Phase 3 — resolve the `(Codex?)` in the todo text to "no").
-- [ ] Add a note to the todo item that scope grew mid-session to include command-approval (`PermissionRequest`) decisions too, per Phase 3b/4b, since the original text only mentions `/plan`.
+- [x] Check off `Use Autopilot ... — Claude, Copilot, (Codex?)` after the Claude/Copilot autopilot modifiers landed; resolved Codex to "no".
+- [x] Add a note to the todo item that scope grew mid-session to include command-approval (`PermissionRequest`) decisions too, per Phase 3b/4b.
 
 ## Verification
 
