@@ -191,11 +191,13 @@ Record the other choosable options of a /plan:
 Misc:
 
 - [ ] Add `squash unpushed` to ignored queries.
+- [ ] Once the `# end if` plugin is released, remove the `# end …` rule from the `python.md` code style.
+- [ ] Improve the Markdown (`md.md`) code style to actually automatically be loaded if `/plan` is executed.
 
 ---
 
 Rename `query.md` to `prompt.md`.
-- Make sure all usages of that file will first see if they have to rename an old file.
+- Make sure all script usages of that file will first see if they have to rename an old file.
 - If `query.md` exists, and the `prompt.md` is missing or equal to the `base/base` version:
   - delete the unused `prompt.md` (= 1 commit)
   - rename `query.md` to `prompt.md` (= 1 commit)
@@ -204,5 +206,7 @@ Rename `query.md` to `prompt.md`.
   - delete the other (= 1 commit)
   - if `query.md` remains: rename (= 1 commit)
 
-
 - [ ] Done.
+
+---
+
