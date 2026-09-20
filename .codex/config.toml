@@ -19,6 +19,11 @@ approval_mode = "auto"
 [mcp_servers."bugsink".tools."list_projects"]
 approval_mode = "auto"
 
+[mcp_servers."chrome-devtools"]
+enabled = false
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"]
+
 # --- END generated mcp_servers ---
 
 [plugins."skill-creator@claude-plugins-official"]

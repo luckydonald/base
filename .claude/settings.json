@@ -351,7 +351,8 @@
   },
   "enabledMcpjsonServers": [],
   "disabledMcpjsonServers": [
-    "bugsink"
+    "bugsink",
+    "chrome-devtools"
   ],
   "includeCoAuthoredBy": false
 }
