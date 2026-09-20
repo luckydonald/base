@@ -390,6 +390,8 @@
       "chrome-devtools": {
         "enabled": false,
         "type": "stdio",
+        "tools": [
+        ],
         "cmd": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"]
       }
     }
