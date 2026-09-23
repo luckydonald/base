@@ -6117,3 +6117,10 @@ My request: no we wanna test plan and perms text input.
 > </details>
 >
 
+› alright, strip it from the plan then with that remark.
+
+› alright, anythong left?
+
+❯ Generalize @/home/user/git/luckydonald/DockerTgBot/ai/skills/uvicorn-app-logging/SKILL.md for this template repo.
+❯ Cherry pick that into `base/base`, then rebase the current feature branch onto that. Squash this ai message commit into the cherry picked one.
+
