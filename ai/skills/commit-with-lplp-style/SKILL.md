@@ -15,6 +15,8 @@ Adopt these rules for every commit made this session:
    3. Immediately fold any `ai:` auto-commit hook commits that are now sitting just before your new commit, using the interactive-rebase procedure under "Cleaning up stray `ai:` auto-commits" below — same auto-commit patterns and fold/keep-separate judgment calls as always applied.
    4. **If any rebase step needs to reset a branch pointer, use `git reset --keep`, never `git reset --hard`.** `--keep` aborts instead of clobbering if the working tree has changes the reset would overwrite, so a slip here can't quietly eat uncommitted work the way `--hard` would.
 
+   **The user's own replies can add more `ai:` commits after your fold, including mid-cleanup.** Answering an `AskUserQuestion` (`ai: save decision <slug>`), or simply the user sending you a message/task (`ai: updated prompt`), each auto-commits on arrival — including messages sent *while you're already running this cleanup procedure*, and including a plain acknowledgement like "commit" or "squash" with nothing else in it. `git log` again right before you consider the branch clean; don't assume the auto-commits you audited at the start of the procedure are still the complete set by the time you finish it. If invoking this skill produces "nothing to do" more than once in a row, that itself is a signal — it usually means a trailing `ai:` commit landed after your last fold (often from the very message that re-invoked the skill) and was missed, not that the skill has nothing left to do.
+
    Steps 1–2 run as one whitelisted command: `git commit -F ai/git/pending-commit.md && ./scripts/tag_backup.py`.
 
    Auto-commit patterns — fold into the preceding code commit **by default**:
