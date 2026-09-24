@@ -1,0 +1,1 @@
+Background command "Run full test suite excluding pydantic-dependent pre-existing modules" completed (exit code 0)

@@ -1255,6 +1255,85 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertEqual(dst.read_text(encoding="utf-8"), "useful tip\n")
             self.assertEqual(last_subject(repo), "ai: record memory tip")
 
+    def test_memory_posttooluse_write_honors_project_dir_name_override(self):
+        """When CLAUDE_CODE_PROJECT_DIR_NAME (+ CLAUDE_CONFIG_DIR) is set —
+        e.g. via a linked subproject's `.claude-project.env` — the hook must
+        read from `<config-dir>/projects/<override>/`, matching Claude
+        Code's own gated override behavior, instead of the sanitized-cwd
+        directory it would otherwise compute."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "my_subproject"
+            home = Path(tmp) / "home"
+            init_repo(repo, "https://github.com/user/my_subproject.git")
+
+            src_dir = home / ".claude" / "projects" / "monorepo-my-subproject" / "memory"
+            src_dir.mkdir(parents=True)
+            src_file = src_dir / "tip.md"
+            src_file.write_text("useful tip\n", encoding="utf-8")
+
+            # A sanitized-cwd bucket also exists but must NOT be read from
+            # while the override is set — proves the override takes priority.
+            decoy_dir = home / ".claude" / "projects" / _encode_project_path(repo.resolve()) / "memory"
+            decoy_dir.mkdir(parents=True)
+            (decoy_dir / "tip.md").write_text("wrong tip\n", encoding="utf-8")
+
+            run_hook(
+                repo,
+                MEMORY_HOOK,
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Write",
+                    "tool_input": {"file_path": str(src_file)},
+                },
+                extra_env={
+                    "HOME": str(home),
+                    "CLAUDE_CONFIG_DIR": str(home / ".claude"),
+                    "CLAUDE_CODE_PROJECT_DIR_NAME": "monorepo-my-subproject",
+                },
+            )
+
+            dst = repo / "ai" / "memory" / "tip.md"
+            self.assertTrue(dst.exists(), "memory file was not synced to repo")
+            self.assertEqual(dst.read_text(encoding="utf-8"), "useful tip\n")
+            self.assertEqual(last_subject(repo), "ai: record memory tip")
+
+    def test_memory_posttooluse_write_ignores_project_dir_name_without_config_dir(self):
+        """CLAUDE_CODE_PROJECT_DIR_NAME alone (no CLAUDE_CONFIG_DIR) must be
+        ignored, mirroring Claude Code's own gating — the hook falls back to
+        the sanitized-cwd directory."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "my_subproject"
+            home = Path(tmp) / "home"
+            init_repo(repo, "https://github.com/user/my_subproject.git")
+
+            encoded = _encode_project_path(repo.resolve())
+            src_dir = home / ".claude" / "projects" / encoded / "memory"
+            src_dir.mkdir(parents=True)
+            src_file = src_dir / "tip.md"
+            src_file.write_text("useful tip\n", encoding="utf-8")
+
+            run_hook(
+                repo,
+                MEMORY_HOOK,
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Write",
+                    "tool_input": {"file_path": str(src_file)},
+                },
+                extra_env={
+                    "HOME": str(home),
+                    # Explicitly cleared: this test asserts the override is
+                    # ignored when CLAUDE_CONFIG_DIR is unset, regardless of
+                    # whatever the test runner's own ambient shell has.
+                    "CLAUDE_CONFIG_DIR": "",
+                    "CLAUDE_CODE_PROJECT_DIR_NAME": "should-be-ignored",
+                },
+            )
+
+            dst = repo / "ai" / "memory" / "tip.md"
+            self.assertTrue(dst.exists(), "memory file was not synced to repo")
+            self.assertEqual(dst.read_text(encoding="utf-8"), "useful tip\n")
+
     def test_memory_session_start_does_not_resurrect_across_promoted_directory(self):
         """A memory promoted (via promote.py) from `ai/°base/memory/` to root
         `ai/memory/` must not get resurrected back into `ai/°base/memory/`
