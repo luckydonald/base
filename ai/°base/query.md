@@ -5655,3 +5655,7 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ Add the git-added refs, and install the MCP server to the settings. Use the latest full one, and disable tracking as documented. I want to reuse an open browser window. It should be added to the settings as disabled.
 
+❯ squash ai: commit!!!!
+
+❯ squash this commit too!!!!!
+

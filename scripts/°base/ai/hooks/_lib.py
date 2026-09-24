@@ -219,12 +219,36 @@ def _claude_config_dir() -> Path:
     return Path.home() / ".claude"
 
 
+_PROJECT_DIR_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _project_dir_name_override() -> str | None:
+    """``CLAUDE_CODE_PROJECT_DIR_NAME`` pins Claude Code's per-project state
+    directory name, but Claude Code itself only honors it when
+    ``CLAUDE_CONFIG_DIR`` is also set in the environment, and only when it
+    matches ``^[A-Za-z0-9_-]{1,64}$`` (verified against the installed CLI:
+    ``/home/user/.local/share/claude/versions/*``). Mirroring both
+    conditions here keeps this repo's own hooks looking in the same
+    directory Claude Code actually wrote to — e.g. for a monorepo subfolder
+    seeded with ``.claude-project.env`` by ``link-subproject-claude.sh``,
+    where the subfolder's own encoded cwd path is not what Claude used."""
+    if not os.environ.get("CLAUDE_CONFIG_DIR"):
+        return None
+    name = os.environ.get("CLAUDE_CODE_PROJECT_DIR_NAME")
+    if name and _PROJECT_DIR_NAME_RE.match(name):
+        return name
+    return None
+
+
 def _encoded_project_dir(subproject: Path) -> Path:
     """Claude Code stores per-project state at
-    ``<config-dir>/projects/<encoded>/``, where <encoded> is the absolute
+    ``<config-dir>/projects/<encoded>/``, where <encoded> is either the
+    ``CLAUDE_CODE_PROJECT_DIR_NAME`` override (see
+    :func:`_project_dir_name_override`) or, by default, the absolute
     project path with all non-alphanumeric characters (including `/` and
     `_`) replaced by `-`."""
-    encoded = re.sub(r"[^a-zA-Z0-9]", "-", str(subproject))
+    override = _project_dir_name_override()
+    encoded = override or re.sub(r"[^a-zA-Z0-9]", "-", str(subproject))
     return _claude_config_dir() / "projects" / encoded
 
 
