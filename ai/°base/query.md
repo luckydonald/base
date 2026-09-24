@@ -6137,3 +6137,7 @@ My request: no we wanna test plan and perms text input.
 
 ❯ Plan denied.
 
+❯ Use @ai/skills/code-style/references/md.md
+
+❯ Plan accepted, auto mode.
+
