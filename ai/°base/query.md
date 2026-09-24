@@ -6259,3 +6259,5 @@ My request: no we wanna test plan and perms text input.
 
 ❯ squash this commit too!!!!!
 
+❯ Add a hint to the lplp style that the user answering questions or writing you tasks may add a new commit, which should also be considered. Additionally, repeating the skill often means that you missed some `ai:` commit to clean up.
+
