@@ -5655,3 +5655,40 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ Add the git-added refs, and install the MCP server to the settings. Use the latest full one, and disable tracking as documented. I want to reuse an open browser window. It should be added to the settings as disabled.
 
+❯ Rebase the better-cancelation branch onto current mane.
+
+❯ rebase the local `base` branch where the `°base/feature/better-cancelation-logging` was rebased on top and fast-forwarded-to so that the newer `[base] [sync_todo] …` commits are _after_ that stuff which was from th `better-cancelation` branch. Note that the `better-cancelation` stuff was then also quashed and cleaned up in a few places, which should obviously be kept.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The two meta commits titled "git: Rebase branch °base/feature/better-cancelation-logging onto mane." (one before, one after the sync_todo block) document the rebase/squash actions themselves, not cancelation-branch feature work. Where should they end up after reordering?
+>> 2. Should this turn's own trailing 'ai: updated prompt' commit (db4ba239, for the message you just sent) be folded into whatever meta/summary commit ends up on top, or left as-is at the tip?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Meta commits** (1/2) <kbd>Single Select</kbd><br>
+>> The two meta commits titled "git: Rebase branch °base/feature/better-cancelation-logging onto mane." (one before, one after the sync_todo block) document the rebase/squash actions themselves, not cancelation-branch feature work. Where should they end up after reordering?
+> - [ ] 1\. Move both after the cancel-34 block, before sync_todo (Recommended)
+>   - _Keep them as history of 'what was done', placed right after the 34 real cancel commits and before the sync_todo block. They stay separate, in their current relative order._
+> - [ ] 2\. Merge the two into one commit
+>   - _Since both describe the same rebase/squash effort, fold them into a single summary commit placed after the cancel-34 block._
+> - [ ] 3\. Drop them entirely
+>   - _They're just bookkeeping about this conversation's own git operations, not real repo history — omit them from the reordered result._
+> - [x] 4\. _Type something:_
+>   - > They were nice to frame the start & end of the canel-34 block, and could be kept. Possibly this question and instruction to `query.md` could be moved into the first of those.
+>
+>> **Trailing commit** (2/2) <kbd>Single Select</kbd><br>
+>> Should this turn's own trailing 'ai: updated prompt' commit (db4ba239, for the message you just sent) be folded into whatever meta/summary commit ends up on top, or left as-is at the tip?
+> - [ ] 1\. Leave it as-is at the tip (Recommended)
+>   - _It's this in-progress turn's own auto-commit; don't fold it now — it'll get folded normally after this task completes per the lplp-style skill._
+> - [ ] 2\. Fold it now into the meta commit
+>   - _Absorb it immediately as part of this reorder, following the same fold logic as before._
+> - [x] 3\. _Type something:_
+>   - > See last question, folding it into the first.
+>
+> </details>
+>
+
