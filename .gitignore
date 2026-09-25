@@ -909,6 +909,9 @@ install-state.gz
 .playwright-mcp/
 
 # AI folder
+ai/git/pending-commit.md
+ai/git/rebase-msg-*.md
+ai/git/rebase-msg.md
 **/ai/git/pending-commit.md
 **/ai/git/rebase-msg-*.md
 **/ai/git/rebase-msg.md
