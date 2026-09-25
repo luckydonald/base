@@ -5688,3 +5688,5 @@ echo "started in bg, pid $!"" completed (exit code 0)
 > </details>
 >
 
+❯ check if the two session output things are logged in `query.md` and if so, commit noting down to which commit they belong.
+
