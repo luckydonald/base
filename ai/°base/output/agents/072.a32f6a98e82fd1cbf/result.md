@@ -1,0 +1,1 @@
+This agent's report was delivered to you as a message from "a32f6a98e82fd1cbf" (its SubagentHandback call). Read it there; it is not repeated here.
