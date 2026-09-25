@@ -6288,3 +6288,5 @@ My request: no we wanna test plan and perms text input.
 > </details>
 >
 
+❯ check if the two session output things are logged in `query.md` and if so, commit noting down to which commit they belong.
+
