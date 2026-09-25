@@ -6322,3 +6322,5 @@ For that, and because it's helpful generally, log the URL it's actually loading 
 ❯ Check out the `ai/skills/commit-with-lplp-style/SKILL.2.md`, compare the changes to the **prior** version, and apply on top of what you commited.
 You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
+❯ /plan For the /commit-with-lplp-style skill, for the `[prefix] prefix:` thing (not the `[base]` repo part obviously), the agent shall have a short look at the file's history to check for a common scheme for it. Look maybe the last 5 commits, and prioritise non-`ai: Run:` (= human) commits over previous generized, if not uniform.
+
