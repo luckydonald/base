@@ -5728,3 +5728,7 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ Can you improve the commit skill so that the actually rebase operation call starts with a "current commit = <expected sha>" pre-condition, to fail doing the operation otherwise?
 
+❯ /plan Oh, the last ai/hooks comment should not be using hoass repo prefix. Those need to be more thoroughly looked into - which may not be documented in the general skill (?) (Maybe split the base repo stuff to a linked file?). The last commit from that repo was sooooo long ago, it's rather unlikely to be that same source repo. I guess usually those must be either instructed at the start of the session, or like at least be quite recent of the general commits, and still match the topic of those (remember: this is base repo scope instructions).
+
+❯ Obviously this issue needs to be fixed both in that commit and in the skill file.
+
