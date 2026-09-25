@@ -162,9 +162,14 @@ Put `exec git commit --amend -F ...` after all fixups for that group to rename t
 
 **6. Run**
 
+Gate the actual rebase on a `current commit = <expected sha>` precondition, using the tip sha confirmed in step 4 — never run the rebase itself unguarded:
+
 ```bash
+test "$(git rev-parse HEAD)" = "<expected-sha-from-step-4>" && \
 GIT_SEQUENCE_EDITOR=ai/git/rebase-todo.sh git rebase -i origin/<upstream>
 ```
+
+`test ... &&` makes the rebase a no-op instead of running against a HEAD your plan wasn't built on: if any commit landed between step 4's audit and this call (however unlikely), the check fails, the rebase never starts, and you go back to step 1 for a fresh pass — instead of silently rewriting a HEAD your rebase-todo doesn't actually match.
 
 `ai/git/` is gitignored, so `rebase-todo.sh` and the `rebase-msg-<sha>.md` files never leak into a commit — clean them up (`rm ai/git/rebase-todo.sh ai/git/rebase-msg-*.md`) once the rebase lands.
 
