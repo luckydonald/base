@@ -15,7 +15,7 @@ Adopt these rules for every commit made this session:
    3. Immediately fold any `ai:` auto-commit hook commits that are now sitting just before your new commit, using the interactive-rebase procedure under "Cleaning up stray `ai:` auto-commits" below — same auto-commit patterns and fold/keep-separate judgment calls as always applied.
    4. **If any rebase step needs to reset a branch pointer, use `git reset --keep`, never `git reset --hard`.** `--keep` aborts instead of clobbering if the working tree has changes the reset would overwrite, so a slip here can't quietly eat uncommitted work the way `--hard` would.
 
-   **The user's own replies can add more `ai:` commits after your fold, including mid-cleanup.** Answering an `AskUserQuestion` (`ai: save decision <slug>`), or simply the user sending you a message/task (`ai: updated prompt`), each auto-commits on arrival — including messages sent *while you're already running this cleanup procedure*, and including a plain acknowledgement like "commit" or "squash" with nothing else in it. `git log` again right before you consider the branch clean; don't assume the auto-commits you audited at the start of the procedure are still the complete set by the time you finish it. If invoking this skill produces "nothing to do" more than once in a row, that itself is a signal — it usually means a trailing `ai:` commit landed after your last fold (often from the very message that re-invoked the skill) and was missed, not that the skill has nothing left to do. It can also mean the opposite direction: an `ai:` commit sitting *before* the range you last squashed (e.g. a memory-sync commit from another tool, or anything else that landed on the branch between your prior code commit and the one you just cleaned up) — check the commit right before your last squash's starting point too, not just what trails after it.
+   **The user's own replies can add more `ai:` commits after your fold, including mid-cleanup.** Answering an `AskUserQuestion` (`ai: save decision <slug>`), or simply the user sending you a message/task (`ai: updated prompt`), each auto-commits on arrival — including messages sent *while you're already running this cleanup procedure*, and including a plain acknowledgement like "commit" or "squash" with nothing else in it. This is not a background risk to keep in mind — it is step 6 of the Procedure below (**Re-audit — loop until actually clean**), and it is mandatory, not something to remember to do: run it right after every rebase, and again after every `AskUserQuestion` call in this procedure, since that call's own answer is guaranteed to leave a fresh commit on `HEAD`. If invoking this skill produces "nothing to do" more than once in a row, that itself is a signal — it usually means a trailing `ai:` commit landed after your last fold (often from the very message that re-invoked the skill) and was missed, not that the skill has nothing left to do. It can also mean the opposite direction: an `ai:` commit sitting *before* the range you last squashed (e.g. a memory-sync commit from another tool, or anything else that landed on the branch between your prior code commit and the one you just cleaned up) — check the commit right before your last squash's starting point too, not just what trails after it.
 
    Steps 1–2 run as one whitelisted command: `git commit -F ai/git/pending-commit.md && ./scripts/tag_backup.py`.
 
@@ -152,7 +152,15 @@ GIT_SEQUENCE_EDITOR=ai/git/rebase-todo.sh git rebase -i origin/<upstream>
 
 `ai/git/` is gitignored, so `rebase-todo.sh` and the `rebase-msg-<sha>.md` files never leak into a commit — clean them up (`rm ai/git/rebase-todo.sh ai/git/rebase-msg-*.md`) once the rebase lands.
 
-**6. Optional — rewrite HEAD as branch summary**
+**6. Re-audit — loop until actually clean**
+
+```bash
+git log --oneline -3
+```
+
+Do this immediately after step 5, and again after any `AskUserQuestion` call made anywhere in this procedure (including rule 7's own confirmation prompt) — answering a question auto-commits `ai: save decision <slug>` the moment it resolves, so if you asked one, a new commit is already waiting on `HEAD`, not a maybe. If the tip commit is an `ai:` auto-commit not covered by the rebase plan you just ran, it landed mid-cleanup: treat it as a new pass and go back to step 1 for it. Only consider the branch clean once this check comes back with nothing new to fold — "ran the rebase" is not the same as "done."
+
+**7. Optional — rewrite HEAD as branch summary**
 
 Write to `ai/git/pending-commit.md`:
 

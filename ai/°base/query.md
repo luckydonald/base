@@ -6315,3 +6315,7 @@ For that, and because it's helpful generally, log the URL it's actually loading 
 
 ❯ what about the new commits?
 
+❯ The skill /commit-with-lplp-style should have covered to look for these, why didn't you?
+
+❯ How can you improve that skill to work?
+
