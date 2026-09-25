@@ -126,3 +126,13 @@ Before writing or editing the plan document's prose, read `ai/skills/code-style/
 ```
 
 `[base]` is the where-tag; `topic` is a component or subsystem name (not a Conventional Commit type like `feat` or `fix`).
+
+**Optional source-repo bracket:** `[base] [source repo] topic: ai: Run: ...`. The nested bracket names a `luckydonald/`-owned repo that this base change is *for* — the reason the change is happening, e.g. a hook or feature ported in from, or requested by, a session working in that linked repo.
+
+Only add it when one of these holds:
+- The source repo was stated explicitly this session (at session start, or named while describing the task), or
+- The exact file/area has a source-repo tag in *recent* history (not a months-old match) whose topic matches the current change.
+
+Otherwise omit the bracket entirely — plain `[base] topic: ai: Run: ...` is the default when there's no current-session signal. Never guess a source repo from a stale or topically-unrelated prior commit just because it touched the same file — that produced a real bug once (a commit tagged `[hoass_plugin-template]` reusing a tag whose only prior use on that file was over two months old).
+
+This is distinct from feature-area tags like `[ssp]` (see `ai/°base/memory/feedback_commit_prefix_ssp_tag.md`), which are a standing convention for a specific feature area, not a "where did this originate" tag — don't conflate the two.

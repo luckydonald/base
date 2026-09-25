@@ -56,7 +56,9 @@ Adopt these rules for every commit made this session:
    ```bash
    git log --oneline -5 -- <changed file(s)>
    ```
-   Run this for the file(s) the current commit is actually about (the primary file if several were touched for one cohesive reason). Parse out the `component-or-topic` segment from each prior subject that matches the `[where] component-or-topic: ...` shape (the text between `]` and the following `: ai:`/`:`). If those subjects agree, reuse that exact wording instead of inventing a fresh label. If they disagree, prefer the wording from non-`ai: Run:` subjects — human-written commits, or renamed/kept-separate `ai: Plan:`/`ai: Plan update:` commits — over prior `ai: Run:` auto-generated ones. Only fall back to picking a new label (per the examples below) when the file is new or nothing reusable turns up.
+   Run this for the file(s) the current commit is actually about (the primary file if several were touched for one cohesive reason). Parse out the `component-or-topic` segment from each prior subject that matches the `[where] component-or-topic: ...` shape — the text **after the last `]`** in the subject, up to the following `: ai:`/`:`. When `[where]` itself has a leading `[base] [source-repo]`-style nested bracket, that source-repo bracket is not part of `component-or-topic` and must never be swept into the reused wording; only the text after the final `]` counts. If those subjects agree, reuse that exact wording instead of inventing a fresh label. If they disagree, prefer the wording from non-`ai: Run:` subjects — human-written commits, or renamed/kept-separate `ai: Plan:`/`ai: Plan update:` commits — over prior `ai: Run:` auto-generated ones. Only fall back to picking a new label (per the examples below) when the file is new or nothing reusable turns up.
+
+   **This history lookup governs `component-or-topic` only.** It must never be used to infer or carry forward an optional source-repo bracket (see below) just because a prior commit on the same file happened to have one — that's a separate decision with its own freshness/relevance rule.
 
    ```md
    [where] component-or-topic: ai: Run: <short one-line summary><sentence-separator>
@@ -81,7 +83,7 @@ Adopt these rules for every commit made this session:
 
    For normal use, multiple `[where]` parts can be written as one bracket with pipes, e.g. `[backend|frontend]`.
 
-   For the base repo itself, use `[base] [optional source repo] topic: ai: …`. Recent examples include `[base] git hooks: ai: …`, `[base] ai/hooks: ai: …`, `[base] [AllMyStorage] skills: ai: …`, and `[base] [userscripts] gitignore: …`.
+   For the base repo itself, see `ai/°base/AGENTS.md`'s "Commit format" section for the `[base] [optional source repo] topic: ai: …` rule — that bracket has its own base-specific decision criteria and doesn't belong in this shared skill.
 
 5. **Stage only files you changed yourself as part of the current task.** Before staging, run `git status` and `git diff --name-only` to confirm every file you are about to add. Never stage:
    - `ai/git/pending-commit.md` (it is gitignored)
