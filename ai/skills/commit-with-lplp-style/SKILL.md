@@ -80,6 +80,7 @@ Adopt these rules for every commit made this session:
    - `ai/git/pending-commit.md` (it is gitignored)
    - files modified by the user, by hooks, or by other tooling that you did not touch
    - files unrelated to the task at hand, even if they appear modified
+   - if there are other files changed, someone (user or other agent) else might be working here, in that case check that we only stage our own diff lines.
 
    Add files by explicit path — never `git add .` or `git add -A`.
 
@@ -124,7 +125,7 @@ done
 **4. Re-audit before writing the rebase todo — this is the one that actually matters**
 
 ```bash
-git log --oneline -3
+git log --oneline -5
 ```
 
 Steps 1–3 take real time, and any `AskUserQuestion` call along the way (including rule 7's own confirmation prompt) auto-commits `ai: save decision <slug>` the instant it's answered. A rebase todo written from a stale step-1 audit is wrong before it's even run — it will silently omit whatever landed since, and running it produces a plan that *looks* successful while leaving a new stray commit sitting right on top. If the tip commit here isn't the one your plan from steps 1–3 was built on, go back and fold it into the plan now, before step 5 — don't write the todo script first and hope to catch it after.
@@ -163,7 +164,7 @@ GIT_SEQUENCE_EDITOR=ai/git/rebase-todo.sh git rebase -i origin/<upstream>
 **7. Re-audit once more after running**
 
 ```bash
-git log --oneline -3
+git log --oneline -5
 ```
 
 This is the safety net for whatever lands *during* the rebase itself (e.g. a message arriving mid-run) — step 4 is what prevents writing a stale plan in the first place, this just catches the remainder. If the tip commit is an `ai:` auto-commit not covered by the plan you just ran, treat it as a new pass and go back to step 1. Only consider the branch clean once this comes back with nothing new — "ran the rebase" is not the same as "done."

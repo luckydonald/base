@@ -5719,3 +5719,6 @@ For that, and because it's helpful generally, log the URL it's actually loading 
 
 ❯ How can you improve that skill to work?
 
+❯ Check out the `ai/skills/commit-with-lplp-style/SKILL.2.md`, compare the changes to the **prior** version, and apply on top of what you commited.
+You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
+
