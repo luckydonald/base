@@ -27,9 +27,14 @@ Expand the existing "Commit format" section (currently just `[base] topic: ai: R
 - **Otherwise omit the bracket entirely** — plain `[base] topic: ai: Run: ...` is the correct default when there's no current-session signal. Do not guess a source repo from a stale or topically-unrelated prior commit just because it touched the same file.
 - Note that this is distinct from feature-area tags like `[ssp]` (see `ai/°base/memory/feedback_commit_prefix_ssp_tag.md`), which are a standing convention for a specific feature area, not a "where did this originate" tag — don't conflate the two lookup rules.
 
-### 3. Fix the mislabeled commit
-`9d799aba` is the current tip; reword its subject to drop `[hoass_plugin-template]` (plain `[base] ai/hooks: ai: Run: ...`) via `git commit --amend`, since nothing establishes that repo as the source for this change and no other commits have landed on top of it.
+### 3. Fix today's commit tags
+The user has clarified that this whole work bunch (today's session, 2026-09-25) is actually sourced from `sync_todo` work, not `hoass_plugin-template`. `9d799aba` isn't the only commit in the affected range — the range runs from today's first real commit (`adbfe106`) through the current tip (`d4acd145`, an `ai: updated prompt` auto-commit). Since this info only exists as something the user just said this session, it's exactly the "stated explicitly this session" case from rule 2 above, so:
+- Interactively rebase `adbfe106^..HEAD`.
+- Reword `9d799aba`'s subject from `[hoass_plugin-template]` to `[sync_todo]`.
+- For every other real (non-`ai:`-auto-commit) commit in that range that currently has no source-repo bracket (`b69e545c`, `49642ca6`, `170b78b5`, `071b119e`, `3473c194`, `57ca8b00`, `ca2c77c7`, `08bbdb87`, `8008f27b`, `abc8e0bf`, `adbfe106`), insert `[sync_todo]` after `[base]` in the subject, leaving the rest of each message untouched.
+- Leave `ai:`-prefixed auto-commits (`ai: updated prompt`, `ai: save plan ...`) alone — this reword is only about the real work commits' `[where]` tags, not a fold/cleanup pass, and untouched auto-commits keep the rest of history stable.
+- Tag the pre-rebase tip via `./scripts/tag_backup.py` first, same safety-net habit as the lplp style's own rule 2.
 
 ## Verification
 - Re-read both edited files to confirm the parsing rule and the decision rule are unambiguous and don't contradict each other.
-- `git log --oneline -1` after the amend to confirm the subject no longer carries the stale tag and the sha changes as expected (not amending anything else).
+- `git log --oneline adbfe106^..HEAD` after the rebase: every real work commit in range should show `[base] [sync_todo] ...`, `9d799aba` specifically no longer says `hoass_plugin-template`, and the `ai:` auto-commits are byte-identical to before.

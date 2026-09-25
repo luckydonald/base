@@ -6332,3 +6332,5 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ Obviously this issue needs to be fixed both in that commit and in the skill file.
 
+❯ In fact, the current work bunch is sourced from `sync_todo` work, so when later rewording this you can fix probably all of todays commits for that.
+
