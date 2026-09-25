@@ -5726,3 +5726,5 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ add `push it`, `push` to the ignored query params of the ai hook.
 
+❯ Can you improve the commit skill so that the actually rebase operation call starts with a "current commit = <expected sha>" pre-condition, to fail doing the operation otherwise?
+
