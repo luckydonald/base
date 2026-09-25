@@ -80,6 +80,7 @@ SKIP_PROMPTS = {
     "please commit", "pls commit", "plz commit",
     "commit now", "now commit",
     "keep committing", "always commit",
+    "push", "push it",
     # squashing/cleanup
     "squash", "squash it", "squash it with lplp style",
     "rebase", "rebase it", "rebase it with lplp style",
