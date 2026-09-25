@@ -5690,3 +5690,28 @@ echo "started in bg, pid $!"" completed (exit code 0)
 
 ❯ check if the two session output things are logged in `query.md` and if so, commit noting down to which commit they belong.
 
+❯ /plan Check if `download_ref.py` for the link `https://coolify.io/docs/applications/configuration/advanced` would download from `https://coolify.io/docs/llms.mdx/docs/applications/configuration/advanced/content.md`, or try to raw-dog the html to html.
+For that, and because it's helpful generally, log the URL it's actually loading from, and redirects and rewrites and tries etc.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Fold the stray `2c2a3e48 ai: updated prompt` commit into the preceding `4d78807f` (agent-output logs) commit?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Stray commit** (1/1) <kbd>Single Select</kbd><br>
+>> Fold the stray `2c2a3e48 ai: updated prompt` commit into the preceding `4d78807f` (agent-output logs) commit?
+> - [x] 1\. Yes, fold it
+>   - _Rebase to fixup 2c2a3e48 into 4d78807f, same as the routine auto-commit folding done for new work._
+> - [ ] 2\. No, leave it
+>   - _Leave history as-is; don't touch commits from before this session's task._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
+❯ what about the new commits?
+

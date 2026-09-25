@@ -7,6 +7,7 @@ from pathlib import Path
 from .archive import is_cloudflare_challenge, latest_snapshot_url
 from .html import final_output_path, html_to_markdown
 from .http import fetch_url
+from .log import log
 from .models import DownloadError, DownloadPlan, DownloadResult, Fetch, Response
 from .paths import output_path_for_url, strip_fragment, unique
 from .providers import generic_forge_plan, github_plan, unsupported_forge_reason
@@ -29,6 +30,14 @@ def markdown_candidate_urls(url: str) -> list[str]:
         candidates.append(urllib.parse.urlunsplit(parts._replace(path=f"{path.rstrip('/')}/content.md")))
         candidates.append(urllib.parse.urlunsplit(parts._replace(path=f"{path.rstrip('/')}/index.md")))
         candidates.append(urllib.parse.urlunsplit(parts._replace(path=f"{path.rstrip('/')}/README.md")))
+        segments = [part for part in path.split("/") if part]
+        if segments:
+            candidates.append(
+                urllib.parse.urlunsplit(
+                    parts._replace(path=f"/{segments[0]}/llms.mdx{path.rstrip('/')}/content.md")
+                )
+            )
+        # end if
     return unique(candidates)
 
 
@@ -85,12 +94,15 @@ def markdown_plan_if_available(plan: DownloadPlan, output_root: Path, fetch: Fet
             source_candidate = candidate
             if candidate == plan.download_url:
                 source_candidate = plan.source_url
+            log(f"rewrite: {plan.download_url} -> {candidate}")
             return DownloadPlan(
                 source_url=source_candidate,
                 download_url=candidate,
                 output_path=output_path_for_url(output_root, source_candidate),
                 convert_html=False,
             )
+        # end if
+    log(f"no markdown rewrite found for {plan.download_url}, converting HTML")
     return plan
 
 
@@ -98,9 +110,11 @@ def download(plan: DownloadPlan, fetch: Fetch = fetch_url) -> DownloadResult:
     response = fetch(plan.download_url, "GET")
     archive_timestamp: str | None = None
     if is_cloudflare_challenge(response):
+        log(f"cloudflare challenge on {plan.download_url}, trying archive.org snapshot")
         snapshot = latest_snapshot_url(plan.source_url, fetch)
         if snapshot is not None:
             archive_timestamp, archive_url = snapshot
+            log(f"using archive.org snapshot from {archive_timestamp}")
             response = fetch(archive_url, "GET")
         # end if
     # end if
