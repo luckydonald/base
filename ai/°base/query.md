@@ -6434,3 +6434,9 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ Enhance the /commit-with-lplp-style style: Notice that agents often write back, and that calling `/commit-with-lplo-style` (activating the skill) during `/plan` session means it should be executed in the implementation, and hence briefly called out in the plan file.
 
+❯ Will the `subfoldr/ai/.env` symlink in `0b3837865fbff39238204511237ff59fe09e885f` be commited? We might have forgotten to add that.
+
+❯ Actually add that the **subfolder symlink** (not root ai/.env) gets comitted.
+
+❯ It should be committed, fix `.gitignore` then.
+

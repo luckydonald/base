@@ -199,8 +199,10 @@ touch_scratch_gitkeeps() {
 # link_env — symlinks <sub_dir>/ai/.env -> <git_root>/ai/.env, touching the
 # monorepo-root ai/.env first if it doesn't exist yet (it's gitignored, so
 # link_path's usual "no source — skipping" behavior would otherwise leave
-# this permanently unlinked). Not `git add`ed — ai/.env is gitignored and
-# meant to hold per-machine secrets.
+# this permanently unlinked). The symlink itself IS `git add`ed — only the
+# root-level ai/.env it points at is gitignored (per-machine secrets); the
+# subproject symlink is unignored in .gitignore so it tracks like the other
+# link_shared targets.
 link_env() {
   local rel="ai/.env"
   local source="$git_root/$rel"
@@ -232,6 +234,7 @@ link_env() {
   rel_link="$(relpath_of "$source" "$target_dir")"
   ln -s "$rel_link" "$target"
   echo "linked $target -> $rel_link"
+  git -C "$sub_dir" add -- "$rel"
 }
 
 # link_agents_claude — ensures <sub_dir>/AGENTS.md -> CLAUDE.md, moving a
