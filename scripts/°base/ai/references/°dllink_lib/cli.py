@@ -30,9 +30,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("url", nargs="?")
     parser.add_argument("--output-root", default="ai/references")
     parser.add_argument("--open-ide", "--open", "--ide", "--ide-open", dest="open_ide", default=None, metavar="COMMAND")
-    parser.add_argument("--no-git-add", "--no-git", "--no-add-git", action="store_true")
+    parser.add_argument("--no-git-add", "--no-add-git", action="store_true")
+    parser.add_argument("--no-git-commit", action="store_true")
+    parser.add_argument("--no-git", action="store_true")
     parser.add_argument("--no-open-ide", "--no-ide", "--no-ide-open", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.no_git:
+        args.no_git_add = True
+        args.no_git_commit = True
+    return args
 
 
 def _git_add(path: Path) -> None:
@@ -45,6 +51,21 @@ def _git_add(path: Path) -> None:
         return
     details = (result.stderr or result.stdout or f"exit {result.returncode}").strip()
     raise DownloadError(f"git add failed for {path}: {details}")
+
+
+def _git_commit(path: Path) -> None:
+    result = subprocess.run(
+        [
+            "git", "-C", str(repo_root()), "commit", "--no-verify", "--only", str(path.resolve()),
+            "-m", f"ai/references: Downloaded `{path}`.",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+    details = (result.stderr or result.stdout or f"exit {result.returncode}").strip()
+    raise DownloadError(f"git commit failed for {path}: {details}")
 
 
 def _open_ide(path: Path, command: str) -> bool:
@@ -75,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
         path.write_bytes(content)
         if not args.no_git_add:
             _git_add(path)
+        if not args.no_git_commit:
+            _git_commit(path)
         opened = False
         if not args.no_open_ide:
             opened = _open_ide(path, args.open_ide or settings.ide)
@@ -89,6 +112,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"wrote: {path}")
     if not args.no_git_add:
         print(f"git add: {path}")
+    if not args.no_git_commit:
+        print(f"git commit: {path}")
     if not args.no_open_ide and opened:
         print(f"open: {args.open_ide or settings.ide} {path}")
     return 0

@@ -6430,3 +6430,5 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ Now run git gc to purge the unreferenced object
 
+❯ Add an autocommit unless `--no-git-commit` is given, and split `--no-git` to imply both `--no-git-add` and `--no-git-commit`.
+
