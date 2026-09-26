@@ -6761,3 +6761,28 @@ Use PushNotification when the loop can't move further without the user, or when 
 > </details>
 >
 
+❯ Plan denied.
+
+❯ Just to make sure, the code block is also scanned for file mentions, but those are then listed _immediatly after_ the codeblock, matching the previously established template (+ anchor stuff to introduce now), and calculating and using the indent of that code block (and possibly any backquotes, too).
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. "calculating and using the indent of that code block (and possibly any backquotes, too)" — for the indent part, clear: prefix each line of the inserted summary block with the fenced block's own leading whitespace (so it stays nested under a list item, matching how `find_mentions` already detects an indented fence). What do you mean by "backquotes"?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Backquotes meaning** (1/1) <kbd>Single Select</kbd><br>
+>> "calculating and using the indent of that code block (and possibly any backquotes, too)" — for the indent part, clear: prefix each line of the inserted summary block with the fenced block's own leading whitespace (so it stays nested under a list item, matching how `find_mentions` already detects an indented fence). What do you mean by "backquotes"?
+> - [ ] 1\. Blockquote nesting (Recommended)
+>   - _If the fenced block sits inside a markdown blockquote (lines prefixed with `> `), the inserted summary needs that same `> ` prefix added on top of its own `> ` template lines (nested blockquote), not just whitespace indent._
+> - [ ] 2\. Fence character/length
+>   - _If the code fence itself uses a longer or different delimiter (e.g. ```` ```` ```` or `~~~~` because the block's contents contain literal triple-backticks), something about that should influence how the summary block is rendered._
+> - [x] 3\. _Type something:_
+>   - > yes, blockqoute nesting. Regarding fence character/length, that would matter to the detection of code-fenced blocks, and I guess it makes sense to add, but that's a secondary step (and hence a separte edit & commit)
+>
+> </details>
+>
+
