@@ -6786,3 +6786,11 @@ Use PushNotification when the loop can't move further without the user, or when 
 > </details>
 >
 
+❯ Plan denied.
+
+❯ I guess it also makes sense to split the file path/name at any of those delemiters (currently `#` and `:`), and check first if that path exists. In that case a file named _(for whatever unlikely reason)_ `foo.ext:1234#245` could be still be addressed with exactly that, or _(even weirder, don't do that!)_ `foo.ext:1234#245:123` adding a line or fragment.
+Also a fragment like `#L123-456` could exist because there could be a `<a name="L123-456">` or a title `# L123 456` in the document _(why would anyone do that? Stop! Get some help! Aaaah!)_.
+But incrementially checking if it exists would mean we handle those cases _(Maybe they should be forbidden, lol)_ just as well. _(Gurl, do I love overengineering, amirighte?)_
+
+❯ Plan denied.
+
