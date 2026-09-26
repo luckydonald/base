@@ -1,0 +1,1 @@
+Background command "Run the entire scripts/°base test suite" completed (exit code 0)

@@ -82,6 +82,203 @@ def is_tracked(rel: str) -> bool:
 # end def
 
 
+def rev_parse_quiet(rev: str, cwd: Path) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(cwd), "rev-parse", "--verify", "--quiet", rev],
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+# end def
+
+
+def is_ancestor(ancestor: str, descendant: str, cwd: Path) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(cwd), "merge-base", "--is-ancestor", ancestor, descendant],
+        capture_output=True,
+    )
+    return result.returncode == 0
+# end def
+
+
+def git_dir(cwd: Path) -> Path:
+    return Path(git(["rev-parse", "--git-dir"], cwd))
+# end def
+
+
+def env_symlink_committed(rel: str, target: Path) -> bool:
+    # "tracked" means HEAD actually has this path, as a symlink whose stored
+    # target text matches what's on disk right now — not just present in the
+    # index, since a stale/different symlink could technically be tracked at
+    # this path.
+    if rev_parse_quiet(f"HEAD:./{rel}", sub_dir) is None:
+        return False
+    # end if
+    result = subprocess.run(
+        ["git", "-C", str(sub_dir), "cat-file", "-p", f"HEAD:./{rel}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout == os.readlink(sub_dir / rel)
+# end def
+
+
+def commit_env_symlink(rel: str) -> str:
+    # `git add -f` since ai/.env is gitignored everywhere — the subproject
+    # symlink gets tracked by forcing this one path in, not by carving a
+    # gitignore exception (that approach already needed a fix once, see
+    # `dc3dbe2`). `core.hooksPath=/dev/null` because this is a synthetic,
+    # single-file bookkeeping commit, not a real authored change — a
+    # consuming repo's own commit hooks (this one's `pre-commit` suite
+    # included) shouldn't get a vote on it, same reasoning `history_master.py`
+    # uses for its own internal replay commits.
+    git(["add", "-f", "--", rel], sub_dir)
+    git(
+        ["-c", "core.hooksPath=/dev/null", "commit", "-m", f"link_subproject: track `{rel}` symlink.", "--", rel],
+        sub_dir,
+    )
+    return git(["rev-parse", "HEAD"], sub_dir)
+# end def
+
+
+def verify_env_symlink(target: Path, source: Path) -> bool:
+    return target.is_symlink() and realpath_of(target) == realpath_of(source)
+# end def
+
+
+def all_branch_and_tag_refs(cwd: Path) -> list[str]:
+    output = git(["for-each-ref", "--format=%(refname)", "refs/heads", "refs/tags"], cwd)
+    return [line for line in output.splitlines() if line]
+# end def
+
+
+def refs_reaching(sha: str, cwd: Path) -> list[str]:
+    return [ref for ref in all_branch_and_tag_refs(cwd) if is_ancestor(sha, ref, cwd)]
+# end def
+
+
+def reachable_object_shas(cwd: Path) -> set[str]:
+    output = git(["rev-list", "--objects", "--all"], cwd)
+    return {line.split(" ", 1)[0] for line in output.splitlines() if line}
+# end def
+
+
+def loose_object_path(sha: str, cwd: Path) -> Path:
+    return git_dir(cwd) / "objects" / sha[:2] / sha[2:]
+# end def
+
+
+def delete_loose_object_if_unreachable(sha: str | None, reachable: set[str], cwd: Path) -> None:
+    if sha is None or sha in reachable:
+        return
+    # end if
+    path = loose_object_path(sha, cwd)
+    if path.is_file():
+        path.unlink()
+        print(f"purged unreachable object {sha}", file=sys.stderr)
+    # end if
+# end def
+
+
+def replay_onto(commits: list[str], new_base: str, cwd: Path) -> str:
+    # Replays `commits` (oldest first, none of them the purged commit itself)
+    # onto `new_base` via a detached scratch branch, so the caller's actual
+    # checkout/working tree is left alone throughout, then restores whatever
+    # was checked out before this ran. Always runs with `cwd` = the repo
+    # root, never the subproject dir — the subproject dir may not exist yet
+    # at `new_base` (e.g. its very first tracked file was the purged
+    # commit), and `git checkout` would otherwise fail to even start once
+    # its cwd disappears from the working tree.
+    scratch_ref = "refs/heads/_link_subproject_purge_scratch"
+    try:
+        original_checkout = git(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd)
+    except subprocess.CalledProcessError:
+        original_checkout = git(["rev-parse", "HEAD"], cwd)
+    # end try
+
+    git(["update-ref", scratch_ref, new_base], cwd)
+    git(["checkout", "--quiet", "--detach", scratch_ref], cwd)
+    try:
+        for commit_sha in commits:
+            result = subprocess.run(
+                ["git", "-C", str(cwd), "-c", "core.hooksPath=/dev/null", "cherry-pick", commit_sha],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                subprocess.run(["git", "-C", str(cwd), "cherry-pick", "--abort"], capture_output=True)
+                raise RuntimeError(
+                    f"purge_commit_everywhere: replaying {commit_sha} onto {new_base} conflicted — manual recovery needed."
+                )
+            # end if
+        # end for
+        new_tip = git(["rev-parse", "HEAD"], cwd)
+    finally:
+        git(["checkout", "--quiet", original_checkout], cwd)
+        subprocess.run(["git", "-C", str(cwd), "update-ref", "-d", scratch_ref], capture_output=True)
+    # end try
+    return new_tip
+# end def
+
+
+def purge_commit_everywhere(bad_sha: str, repo_rel_path: str) -> None:
+    # Undoes a commit that failed post-commit verification, everywhere it's
+    # reachable — including branches/tags that have since moved past it —
+    # without ever running `git gc`/`git prune`/`git repack`. Never prints
+    # object content, only shas/refs/paths. Operates with cwd = git_root
+    # throughout (see `replay_onto`).
+    cwd = git_root
+    parent = rev_parse_quiet(f"{bad_sha}^", cwd)
+    if parent is None:
+        raise RuntimeError(f"purge_commit_everywhere: {bad_sha} has no parent — refusing to purge a root commit.")
+    # end if
+
+    affected_refs = refs_reaching(bad_sha, cwd)
+    if not affected_refs:
+        return
+    # end if
+
+    print(
+        f"purging {bad_sha} from: {', '.join(affected_refs)} "
+        f"(prior tips: {', '.join(rev_parse_quiet(r, cwd) or '?' for r in affected_refs)})",
+        file=sys.stderr,
+    )
+
+    for ref in affected_refs:
+        tip = rev_parse_quiet(ref, cwd)
+        if tip == bad_sha:
+            new_tip = parent
+        else:
+            descendants = [
+                line
+                for line in git(["rev-list", "--reverse", "--ancestry-path", f"{bad_sha}..{tip}"], cwd).splitlines()
+                if line
+            ]
+            new_tip = replay_onto(descendants, parent, cwd)
+        # end if
+
+        if ref.startswith("refs/tags/"):
+            tag_name = ref.removeprefix("refs/tags/")
+            git(["tag", "-d", tag_name], cwd)
+            git(["tag", tag_name, new_tip], cwd)
+        else:
+            git(["update-ref", ref, new_tip, tip], cwd)
+        # end if
+    # end for
+
+    root_tree = rev_parse_quiet(f"{bad_sha}^{{tree}}", cwd)
+    parent_repo_rel = os.path.dirname(repo_rel_path)
+    ai_tree = rev_parse_quiet(f"{bad_sha}:{parent_repo_rel}", cwd) if parent_repo_rel else None
+    blob_sha = rev_parse_quiet(f"{bad_sha}:{repo_rel_path}", cwd)
+
+    reachable = reachable_object_shas(cwd)
+    for candidate in (blob_sha, ai_tree, root_tree, bad_sha):
+        delete_loose_object_if_unreachable(candidate, reachable, cwd)
+    # end for
+# end def
+
+
 def backup_path(rel: str) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     parent = os.path.dirname(rel)
@@ -191,10 +388,9 @@ def link_env() -> None:
     # symlinks <sub_dir>/ai/.env -> <git_root>/ai/.env, touching the
     # monorepo-root ai/.env first if it doesn't exist yet (it's gitignored, so
     # link_path's usual "no source — skipping" behavior would otherwise leave
-    # this permanently unlinked). The symlink itself IS `git add`ed — only the
-    # root-level ai/.env it points at is gitignored (per-machine secrets); the
-    # subproject symlink is unignored in .gitignore so it tracks like the other
-    # link_shared targets.
+    # this permanently unlinked). ai/.env is gitignored everywhere (root and
+    # every subfolder) — the subproject symlink still gets tracked, but via
+    # `git add -f` in the commit dance below, not a gitignore exception.
     rel = "ai/.env"
     source = git_root / rel
 
@@ -209,24 +405,47 @@ def link_env() -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     if target.is_symlink():
-        if realpath_of(target) == realpath_of(source):
-            print(f"{target} already linked to {source}")
+        if realpath_of(target) != realpath_of(source):
+            print(
+                f"{target} is a symlink but points elsewhere ({os.readlink(target)}) — leaving it alone.",
+                file=sys.stderr,
+            )
             return
         # end if
-        print(
-            f"{target} is a symlink but points elsewhere ({os.readlink(target)}) — backing up.",
-            file=sys.stderr,
-        )
-        backup_path(rel)
+        if env_symlink_committed(rel, target):
+            print(f"{target} already linked to {source} and committed.")
+            return
+        # end if
+        print(f"{target} is already linked to {source} but not committed — committing.")
     elif target.exists():
-        print(f"{target} exists and is not a symlink — backing up.", file=sys.stderr)
-        backup_path(rel)
+        print(f"{target} exists and is not a symlink — leaving it alone.", file=sys.stderr)
+        return
+    else:
+        rel_link = relpath_of(source, target_dir)
+        target.symlink_to(rel_link)
+        print(f"linked {target} -> {rel_link}")
     # end if
 
-    rel_link = relpath_of(source, target_dir)
-    target.symlink_to(rel_link)
-    print(f"linked {target} -> {rel_link}")
-    git(["add", "--", rel], sub_dir)
+    # Commit dance: assert it's really the fresh symlink, force-add + commit
+    # just this path, then re-verify before trusting it. If verification
+    # fails, undo the commit everywhere it landed and leave the path
+    # untracked again — never print the file's content anywhere in this path.
+    if not verify_env_symlink(target, source):
+        raise RuntimeError(f"{target} is not the expected symlink right before committing it")
+    # end if
+
+    new_sha = commit_env_symlink(rel)
+
+    if verify_env_symlink(target, source):
+        print(f"committed {target} as {new_sha}")
+        return
+    # end if
+
+    print(f"{target} failed post-commit verification — undoing {new_sha}.", file=sys.stderr)
+    repo_rel_path = relpath_of(target, git_root)
+    purge_commit_everywhere(new_sha, repo_rel_path)
+    git(["rm", "--cached", "--", rel], sub_dir)
+    raise RuntimeError(f"{target}: post-commit verification failed, commit {new_sha} was purged; left untracked")
 # end def
 
 

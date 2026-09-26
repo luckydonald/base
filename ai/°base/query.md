@@ -6661,3 +6661,21 @@ Use PushNotification when the loop can't move further without the user, or when 
 
 ❯ Plan accepted, auto mode.
 
+❯ # Autonomous loop tick (dynamic pacing)
+
+Run the autonomous check using the loop instructions established earlier in this conversation. If you cannot find them, treat this as a no-op tick.
+
+You scheduled this tick via the ScheduleWakeup tool (not a recurring cron). To keep the loop alive, call ScheduleWakeup again at the end of this turn with `prompt` set to the literal sentinel `<<autonomous-loop-dynamic>>` and `noop` set to `true` if this tick changed nothing (or `false` if it did) — otherwise the loop ends after this tick.
+
+If a Monitor is armed (check TaskList), keep `delaySeconds` at 1200–1800s — the Monitor is the wake signal and this is only the fallback heartbeat. If you were woken by a `<task-notification>`, handle the event before deciding whether to re-arm. To stop the loop, call ScheduleWakeup with `stop: true` and TaskStop the monitor (use TaskList to find its task ID if no longer in context).
+
+Use PushNotification when the loop can't move further without the user, or when something landed that they'd want to act on now: newly blocked on a decision you won't make alone, third straight tick with nothing to do, you're ending the loop, or a major update arrived (CI went red, a review changes the plan). Progress you made yourself isn't a trigger — the transcript covers that. One ping per state, not per tick.
+
+❯ Task Notification:
+> - Task `b8s102dtu` <kbd>completed</kbd>
+> - Tool `toolu_01SD7B5N1v2mXgLW9hJCooxu`
+> - > Background command "Run the entire scripts/°base test suite" completed (exit code 0)
+> - [Query (`84` chars, `85 B`)](output/agents/079.b8s102dtu/prompt.md)
+> - [Answer (`1909` chars, `1.87 KB`)](output/agents/079.b8s102dtu/result.md)
+> - [Raw log (`1909` chars, `1.87 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/8afdf7b5-9953-47a8-beff-4f97d004f2fb/tasks/b8s102dtu.output)
+
