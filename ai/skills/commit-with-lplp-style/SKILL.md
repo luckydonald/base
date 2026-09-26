@@ -27,9 +27,9 @@ Adopt these rules for every commit made this session:
    - `ai: save plan <NNN>_<slug>` — plan files
 
    **When to keep a commit separate instead of folding:**
-   - A plan commit whose plan file content is a genuine, substantive change over the plan it follows — cutting a new version — stays its own commit. Rename it away from the raw hook message per the plan-commit format below.
-   - A plan commit is followed by one or more further plan-file revisions for the *same* plan number — folding any of them would erase the revision history. Keep each version as its own commit (first one `ai: Plan:`, each later one `ai: Plan update:`).
-   - A plan-save commit whose plan file content is **byte-identical** (or near-identical, no real change) to the plan it follows is not a new version — it did not "change" anything — fold it into its implementation like any other lone auto-commit.
+   - The plan revision immediately preceding the implementation — the one that actually becomes code — **always folds into the run/implementation commit**, even when it's itself a genuine, substantive change over the version before it. It doesn't need its own commit: the run commit's summary already covers it (de-conjugated per the summary-line rule below), and its body should note what changed in that final revision when it differed from the last kept plan version.
+   - Every *earlier* revision of the same plan number — one followed by at least one further plan-file revision rather than directly by the implementation — stays its own commit; folding it would erase the revision history. Keep each as `ai: Plan:` (first) or `ai: Plan update:` (each later one, up to but excluding the final pre-run revision).
+   - A plan-save commit whose plan file content is **byte-identical** (or near-identical, no real change) to the plan it follows is not a new version — it did not "change" anything — fold it into whichever kept version precedes it like any other lone auto-commit (or into the implementation, if it's the one immediately before it).
    - Several plan-save commits landing within seconds of each other, with **non-overlapping** edits (e.g. drafting different sections back-to-back rather than revising the same content) — squash those into a single plan commit. They're one drafting burst, not distinct versions; only genuinely separate revision passes (later editing, e.g. after review or a test run surfaced something) earn their own `ai: Plan update:`.
    - A prompt commit (`ai: updated prompt`) represents a clearly new or unrelated topic — it started a different task, not a continuation of the preceding code commit.
    - When in doubt, fold. The goal is readable preserved history, not having every auto-save as separate commit.
@@ -42,6 +42,8 @@ Adopt these rules for every commit made this session:
    [where] component-or-topic: ai: Plan update: <short one-line summary of what changed in this revision><sentence-separator>
    ```
    Leaving the bare `ai: save plan <NNN>_<slug>`/`ai: Plan …` hook message on a commit that's staying in history is not wanted — always rename it once it's confirmed to be a real, kept version cut.
+
+   This naming/rename step applies only to the earlier revisions that stay separate — the final pre-run revision is never renamed on its own, since it folds into the run commit instead.
 
    The plan's summary line should read as basically the same line as the `ai: Run:` commit that eventually implements it, just in **current/imperative tense instead of past tense** — e.g. plan says `ai: Plan: Fix \`get-base.py\` auto mode failing on a fresh repo...`, the implementation says `ai: Run: Fixed \`get-base.py\` auto mode failing on a fresh repo...`. Don't invent a differently-worded plan summary; write the eventual Run summary first (even if only in your head) and de-conjugate it.
 
@@ -116,7 +118,7 @@ Handles these hook-created commits:
 - **`ai: save decision <slug>`** — one per resolved `AskUserQuestion`; touches only `ai/query.md` or `ai/°base/query.md`. The slug is derived from the first question's text.
 - **`ai: agent <id> results`** — subagent result record; touches only agent result files.
 - **`ai: record memory <slug>`** — memory file written; touches only files under the memory directory.
-- **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>`; touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. Keep separate — and renamed to `ai: Plan: …`/`ai: Plan update: …` (never left as the raw hook message) — when the plan file content is a genuine change cutting a new version, or when there are multiple revisions of the same plan number (the sequence records how the plan evolved). A plan commit whose content is unchanged/near-identical to the plan before it, or a lone plan commit with no real content and no follow-up updates, may be folded into its implementation instead.
+- **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>`; touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. The revision immediately preceding the implementation commit **always folds into it**, even if it's a genuine new version — note what changed in that final revision in the run commit's body when it differed from the last kept plan version. Every earlier revision of the same plan number (one followed by at least one further plan-file revision rather than directly by the implementation) stays its own commit, renamed to `ai: Plan: …` (first) / `ai: Plan update: …` (each later one) — never left as the raw hook message. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding kept version instead (or into the implementation, if it's the one immediately before it).
 
 ### Procedure
 
@@ -132,7 +134,7 @@ done
 **2. Plan groups**
 
 - **`ai: updated prompt`**, **`ai: save decision <slug>`**, **`ai: agent <id> results`**, and **`ai: record memory <slug>`** commits → fix up under the **preceding** code commit by default. Exception: a prompt commit that clearly starts a different/unrelated task should stay as its own `pick`.
-- **Plan commits** → fix up into the implementation commit if the plan was never revised, or if a follow-up plan-save's content turned out unchanged/near-identical (no real "change" happened, so it didn't earn a new version). Plan-saves seconds apart with non-overlapping edits (one drafting burst) squash together into a single plan `pick`. If the plan was genuinely revised in separate passes, keep each version as a separate `pick` and rename it — `ai: Plan: …` for the first, `ai: Plan update: …` for each later revision — instead of leaving the raw `ai: save plan <NNN>_<slug>` hook message. Word each summary as the eventual `ai: Run: …` summary in current tense rather than past tense.
+- **Plan commits** → the revision immediately preceding the implementation commit **always** fixes up into it — never kept as its own `pick`, even if it's a genuine new version — with a short body note on what changed in that revision when it differed from the last kept plan version. Plan-saves seconds apart with non-overlapping edits (one drafting burst) squash together into a single version first. Every earlier, genuinely distinct revision of the same plan number keeps its own `pick`, renamed — `ai: Plan: …` for the first, `ai: Plan update: …` for each later one up to (but excluding) the final pre-implementation revision — instead of leaving the raw `ai: save plan <NNN>_<slug>` hook message. Word each kept summary as the eventual `ai: Run: …` summary in current tense rather than past tense. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding version instead (or into the implementation, if it's the one immediately before it).
 - **Mislabeled commits** → flag commits whose message does not match the files they actually changed. Rename them as part of the rebase instead of silently folding them the wrong way.
 
 **3. Write renamed commit messages** to `ai/git/rebase-msg-<sha>.md` for any commits needing a label fix.
@@ -156,17 +158,18 @@ fixup <decision-commit>        # ai: save decision <slug>; backward-fold
 fixup <agent-commit>           # ai: agent <id> results; backward-fold
 fixup <memory-commit>          # ai: record memory <slug>; backward-fold
 exec git commit --amend -F ai/git/rebase-msg-<sha>.md
-pick <plan-commit>             # plan with follow-up updates: keep separate
-# fixup <plan-commit>         # lone plan (no updates): may fold into implementation
+pick <plan-commit-v1>          # earlier revision, superseded by a further plan update: keep separate
+exec git commit --amend -F ai/git/rebase-msg-<sha>.md
 pick <next-code-commit>
-fixup <prompt-commit>
+fixup <plan-commit-vN>         # final revision immediately before this implementation: always fold
+fixup <prompt-commit>          # ai: updated prompt; backward-fold
 ...
 REBASE
 SCRIPT
 chmod +x ai/git/rebase-todo.sh
 ```
 
-Put `exec git commit --amend -F ...` after all fixups for that group to rename the squashed result.
+Put `exec git commit --amend -F ...` after all fixups for that group to rename the squashed result. A plan revised more than twice repeats the `pick <plan-commit-vN>` + `exec ... --amend` pair for each additional kept earlier version, before the final revision's `fixup` line. A plan never revised at all skips the `pick <plan-commit-v1>` lines entirely — its single plan commit is just another entry in `<next-code-commit>`'s fixup group, alongside the prompt/decision/agent/memory commits.
 
 **6. Run**
 

@@ -6440,3 +6440,11 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ It should be committed, fix `.gitignore` then.
 
+❯ /plan Improve the LPLP commit style to mention that the last plan version should be the merged with the code.
+so it's not (1) plan (2) update plan (3) update plan (4) run,
+but instead (1) plan (2) update plan (3) run (+ plan change explaination)
+Similar, not (1) plan (2) run,
+but (1) run (the task description should automatically fit both plan and code changes after all)
+
+❯ Plan accepted, auto mode.
+
