@@ -7016,3 +7016,12 @@ Where is the actual processing of those queued events supposed to happen?
 > </details>
 >
 
+❯ Plan denied.
+
+❯ 1. > Working through it more carefully, there are actually two different races here with different fixes:
+   > - The **transcript-scan cache** doesn't need a lock at all.
+   >   It's a pure memoization of a deterministic function over an append-only byte prefix — if two processes race and one's write clobbers the other's, the only consequence is the next reader recomputes a few extra lines from an earlier offset. Never wrong data, just occasionally redundant parsing. Your reconciliation idea would fix a problem that doesn't actually exist here.
+   No, it may be CPU-paused at a weird moment for way-to-long-TM, and now it would overwrite the list of pending stuff with a shorter list of it's own, removing lines again, possibly while it's already read by the next call. Threefore, I don't think _Never wrong data_ applies.
+2. > - The actual commit step (flush_pending_rejections's check-recorded-ids → commit → save-recorded-ids) is the one place a race is dangerous: two concurrent hooks could both see the same rejection as "not yet recorded" and both commit it. That's exactly what the record-codex-memory lock already guards against for its own state. I'll reuse that same pattern, scoped tightly around just that check-and-commit step (not the parse) — so "where does processing happen" is: inline, in whichever hook's flush_pending_rejections() call wins the non-blocking lock; a loser just skips this time, and the next hook invocation (there's always another one along shortly) picks it up. No dedicated consumer process needed.
+   This checks out to me, yeah. Still, why do we need the list of pending actions in the first place if we immediatly process them anyways? Oh, it it to make sure the order is correct? So if the first pending event is not what we're here for, we terminate and hope someone else process them? That can't be right? Surely we'd call a tool which would process all of those events until empty, so we can continue with our actual tool call we are the hoof of? What if there's a queued update already parsable, but the hook which would write a message is to slow, and now the non-log content is missing?
+
