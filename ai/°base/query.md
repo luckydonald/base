@@ -6399,3 +6399,34 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 > - [Raw log (`962760` chars, `942 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/79264368-c813-40f8-8ecc-326f444f9aaa/tasks/a066c66ce341eaa14.output)
 > - `72` tools, `143107` tokens, `12.8539 s`
 
+❯ For the subproject sync script `scripts/link_subproject.sh`, have it symlink `any/subdir/path/ai/.env` to `ai/.env` (and have it touch that destination `.env` file if it does not exist yet).
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. How should I handle the `ai: referenced file for task added.` commit that added `ai/.env` with what looks like a real Bugsink token?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Stray commit** (1/1) <kbd>Single Select</kbd><br>
+>> How should I handle the `ai: referenced file for task added.` commit that added `ai/.env` with what looks like a real Bugsink token?
+> - [ ] 1\. Leave it, just fold the prompt commit
+>   - _Fold only `d45bcad3 ai: updated prompt` into my new commit as usual; leave `f0d4e90a` (the ai/.env add) exactly where it is in history._
+> - [ ] 2\. Fold both into my commit
+>   - _Treat it like the other known auto-commit patterns and squash both `d45bcad3` and `f0d4e90a` into my `ai/.env` symlink commit._
+> - [ ] 3\. Stop — that token needs rotating first
+>   - _The BUGSINK_TOKEN value looks real and is now in git history; pause the cleanup so you can rotate/revoke it before I touch this further._
+> - [x] 4\. _Type something:_
+>   - > un-commit that, did you read the value yet (do not)?
+>
+> </details>
+>
+
+❯ Don't delete it though obviously.
+
+❯ Make sure no backup tag of that failed commit exist.
+
+❯ Now run git gc to purge the unreferenced object
+

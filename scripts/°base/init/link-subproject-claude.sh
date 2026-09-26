@@ -5,10 +5,12 @@
 # symlinks at <cwd>/.claude, <cwd>/.codex, <cwd>/ai/settings,
 # <cwd>/ai/references, <cwd>/ai/skills and <cwd>/.mcp.json pointing at their
 # monorepo-root counterparts, each <cwd>/.run/*.run.xml pointing at its
-# monorepo-root counterpart, an <cwd>/AGENTS.md -> CLAUDE.md symlink (moving
-# any pre-existing AGENTS.md into CLAUDE.md first, mirroring the root
-# layout), an empty `.gitkeep` in each of the ai/{errors,output/{agents,
-# explore},plans} scratch dirs, and seeds <cwd>/ai/query.md and
+# monorepo-root counterpart, an <cwd>/ai/.env -> <git_root>/ai/.env symlink
+# (touching the monorepo-root ai/.env first if it doesn't exist yet, since
+# it's gitignored and not seeded any other way), an <cwd>/AGENTS.md ->
+# CLAUDE.md symlink (moving any pre-existing AGENTS.md into CLAUDE.md first,
+# mirroring the root layout), an empty `.gitkeep` in each of the ai/{errors,
+# output/{agents, explore},plans} scratch dirs, and seeds <cwd>/ai/query.md and
 # <cwd>/CLAUDE.md from templates when they don't exist yet (copied, not
 # symlinked, since they're meant to diverge per subproject). This lets
 # Claude Code and Codex find the shared hooks/perms/MCP config when launched
@@ -194,6 +196,44 @@ touch_scratch_gitkeeps() {
   done
 }
 
+# link_env — symlinks <sub_dir>/ai/.env -> <git_root>/ai/.env, touching the
+# monorepo-root ai/.env first if it doesn't exist yet (it's gitignored, so
+# link_path's usual "no source — skipping" behavior would otherwise leave
+# this permanently unlinked). Not `git add`ed — ai/.env is gitignored and
+# meant to hold per-machine secrets.
+link_env() {
+  local rel="ai/.env"
+  local source="$git_root/$rel"
+
+  if [ ! -e "$source" ]; then
+    mkdir -p "$(dirname "$source")"
+    touch "$source"
+    echo "touched $source"
+  fi
+
+  local target="$sub_dir/$rel"
+  local target_dir
+  target_dir="$(dirname "$target")"
+  mkdir -p "$target_dir"
+
+  if [ -L "$target" ]; then
+    if [ "$(realpath_of "$target")" = "$(realpath_of "$source")" ]; then
+      echo "$target already linked to $source"
+      return
+    fi
+    echo "$target is a symlink but points elsewhere ($(readlink "$target")) — backing up." >&2
+    backup_path "$rel"
+  elif [ -e "$target" ]; then
+    echo "$target exists and is not a symlink — backing up." >&2
+    backup_path "$rel"
+  fi
+
+  local rel_link
+  rel_link="$(relpath_of "$source" "$target_dir")"
+  ln -s "$rel_link" "$target"
+  echo "linked $target -> $rel_link"
+}
+
 # link_agents_claude — ensures <sub_dir>/AGENTS.md -> CLAUDE.md, moving a
 # pre-existing real AGENTS.md into CLAUDE.md first (like the repo root).
 link_agents_claude() {
@@ -288,6 +328,7 @@ link_shared "ai/settings"
 link_shared "ai/references"
 link_shared "ai/skills"
 link_shared ".mcp.json"
+link_env
 link_run_configs
 touch_scratch_gitkeeps
 copy_if_missing "ai/query.md" "query.md"
