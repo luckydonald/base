@@ -18,11 +18,28 @@ Investigation (`scripts/°base/ai/hooks/save-command-decision/hook.py:78-115`) f
 Since these transcripts are append-only for the life of a session, the right fix is a small **incremental, disk-backed cache** inside `load_transcript_tool_events()` itself (transparent to all existing callers — no call-site changes needed for the caching benefit):
 
 - Cache file per transcript: `$TMPDIR/transcript-scan-cache-<sha1(transcript_path)[:16]>.json`, storing `{"offset": <bytes consumed>, "size": <file size at last read>, "pending_tool_uses": {id: [name, input]}, "events": {id: event}}`.
-- On each call: stat the transcript file. If current size < cached `size` (truncated/rotated — shouldn't normally happen but be defensive), discard the cache and rescan from 0. Otherwise seek to `offset`, read only the newly appended bytes, parse complete lines only (keep any trailing partial line unconsumed — a writer may be mid-flush), merge new `tool_use`/`tool_result` pairs into `pending_tool_uses`/`events` using the exact same pairing logic already in `load_transcript_tool_events`, update `offset` to the end of the last fully-consumed line, and write the cache back atomically (write to a temp file + `os.replace`).
-- On any cache read/parse failure (corrupt JSON, race with a concurrent hook process), silently fall back to a full rescan and rewrite the cache — self-healing, never a hard failure.
+- On each call: stat the transcript file. If current size < cached `size` (truncated/rotated — shouldn't normally happen but be defensive), discard the cache and rescan from 0. Otherwise seek to `offset`, read only the newly appended bytes, parse complete lines only (keep any trailing partial line unconsumed — a writer may be mid-flush), merge new `tool_use`/`tool_result` pairs into `pending_tool_uses`/`events` using the exact same pairing logic already in `load_transcript_tool_events`, update `offset` to the end of the last fully-consumed line, and write the cache back via a plain atomic replace (temp file + `os.replace`) — **no lock**.
+- **Why no lock here is fine, not just fast**: this cache is a pure memoization of a deterministic function over an immutable, append-only byte prefix. If two concurrent hook processes race and one's write clobbers the other's, the only possible outcome is the next reader's cached `offset` is a little behind where it could be — it just reparses a few extra already-seen lines next time. There is no path to *wrong* data, only occasionally-redundant work. Adding locking or read-recheck-and-reslice reconciliation here would spend complexity solving a problem that doesn't exist.
+- On any cache read/parse failure (corrupt JSON, torn read), silently fall back to a full rescan and rewrite the cache — self-healing, never a hard failure.
 - Return the merged `events` dict, exactly as today.
 
 This turns "N git-committing hooks × full re-parse" into "first hook this turn pays for a full parse (or the incremental delta since the last turn), every later hook this turn/session reads a small cache file and typically parses zero or a few new lines."
+
+### Where the real race is, and how it's already solved elsewhere in this codebase
+
+The cache isn't the dangerous part — **the actual commit step is**: `flush_pending_rejections` doing load-recorded-ids → find-new-rejections → commit → save-recorded-ids. If two hook processes run concurrently for the same event (multiple hooks matched to one `PostToolUse`, for example) and both read the same "not yet recorded" state before either commits, both will try to commit the *same* rejection — a real duplicate-commit bug, unrelated to the cache.
+
+`scripts/°base/ai/hooks/record-codex-memory/hook.py:600-606` already solves exactly this class of problem for its own state-sync work, and its approach is the right model here too:
+```python
+lock_path = repository / ".record-codex-memory.lock"
+with lock_path.open("a", encoding="utf-8") as lock:
+    try:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return 0
+    ...
+```
+Non-blocking (`LOCK_NB`): a process that can't get the lock immediately doesn't wait — it just skips its own flush attempt this time and returns. No queue, no dedicated consumer process, no big serializing lock that would slow concurrent hooks down. The next hook invocation (there's always one along shortly — that's the whole point of checking on every git-committing hook instead of just one) will pick up any rejection that got missed this round. `flush_pending_rejections` will reuse this exact pattern: one non-blocking `flock` per rejection-spec state file (e.g. `$TMPDIR/save-plan-rejections-state.json.lock`), held only around "read recorded ids → commit any new rejections one at a time → write recorded ids back" — never around the transcript parse, which (per above) doesn't need it.
 
 ## Design
 
@@ -33,7 +50,7 @@ This turns "N git-committing hooks × full re-parse" into "first hook this turn 
   - `PLAN_REJECTION_SPEC` — `{"ExitPlanMode"}`, `save-plan-rejections-state.json`, a renderer matching today's `_render_claude_plan_rejection` (`"Plan denied:"` / `"Plan denied."`), `"ai: save plan decision"`.
   - `COMMAND_REJECTION_SPEC` — `CLAUDE_COMMAND_TOOLS` (`{"Bash", "shell", "unified_exec", "Write", "Edit", "Read", "apply_patch"}`), `save-command-decision-state.json`, a renderer matching today's command-denied label, `"ai: save command decision"`.
   - Centralizing both specs in `_lib.py` (rather than having hooks import from each other's hyphenated directories, which isn't a valid plain `import`) keeps every hook's call site to a single import.
-- Add `flush_pending_rejections(payload: dict) -> None`: resolves `payload["transcript_path"]` (no-op if missing/empty, matching today's early return), calls `load_transcript_tool_events` once, then for **both** specs: filter unrecorded rejections from that single parsed map (reusing `find_tool_rejections`'s filtering logic, refactored to accept an already-parsed events dict so it doesn't reparse), and `append_and_commit` **one rejection at a time** (not batched — this is the actual ordering fix), saving that spec's state file after each individual commit so a mid-loop crash doesn't lose already-committed progress.
+- Add `flush_pending_rejections(payload: dict) -> None`: resolves `payload["transcript_path"]` (no-op if missing/empty, matching today's early return), calls `load_transcript_tool_events` once, then for **both** specs: try a non-blocking `fcntl.flock(LOCK_EX | LOCK_NB)` on that spec's own `<state_file>.lock`; on `BlockingIOError`, skip that spec this call (another process is already flushing it — no wait, no queue). Once the lock is held: filter unrecorded rejections from the already-parsed events map (reusing `find_tool_rejections`'s filtering logic, refactored to accept a parsed events dict so it doesn't reparse), and `append_and_commit` **one rejection at a time** (not batched — this is the actual ordering fix), saving that spec's state file after each individual commit so a mid-loop crash doesn't lose already-committed progress. Release the lock (context manager / `finally`) before returning.
 
 ### 2. Call-site changes (one line each, at the top of `main()`, right after the existing `is_cross_tool_duplicate` guard and before the hook's own work)
 Add `flush_pending_rejections(payload)` to:
@@ -45,6 +62,7 @@ Add `flush_pending_rejections(payload)` to:
 - `scripts/°base/tests/test_save_plan_decisions.py`: update the existing `test_two_pending_denials_get_two_separate_commits` test to invoke `save-plan`'s own hook (e.g. a `TodoWrite` or `Write` plan-revision event) between the two denials instead of `save-prompt`, asserting the denial commit lands *before* that hook's own commit — this is the actual regression test for the ordering fix, replacing the current save-prompt-only coverage.
 - Add an equivalent test in a `save-command-decision` test file for the same batching bug there (two unrecorded command denials → two separate commits).
 - Add a `_lib.py`-level test for the incremental cache: write a transcript, call `load_transcript_tool_events` twice with no new content (confirm identical result, ideally via a monkeypatched read-counter or by checking the cache file's `offset` doesn't change), then append more content and call again (confirm the new event is picked up).
+- Add a `_lib.py`-level test for `flush_pending_rejections`'s lock-skip behavior: pre-acquire the spec's lock file in the test (simulating a concurrent hook process already flushing it), call `flush_pending_rejections` with a pending unrecorded rejection present, and assert it returns without committing (no exception, no duplicate/attempted commit) — then release the lock and call again, asserting it now does commit.
 
 ## Verification
 - `python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py"` — full suite green (already reconfirmed once after the first, narrower fix).
