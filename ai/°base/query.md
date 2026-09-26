@@ -6539,3 +6539,71 @@ but (1) run (the task description should automatically fit both plan and code ch
 > - [Answer (`2494` chars, `2.45 KB`)](output/agents/076.bsdn4vu6e/result.md)
 > - [Raw log (`2494` chars, `2.45 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/3737d5d1-f383-41c8-b5a8-a419af01bb1e/tasks/bsdn4vu6e.output)
 
+❯ /plan Actually, the `.env` file of a subproject shall be gitignored again.
+Instead the `link_subproject.py` script (follow symlink) should:
+- gracefully fail that symlinking the <code>.env</code> file if it exists (and is a regular file OR symlink pointing somewhere else)
+  - and with it skip the full commit logic
+- in one swoosh:
+   1. assert again that the file is _indeed_ a symlink
+      - aka. was not a textfile before, and we never symlinked.
+   2. force-add it
+   3. commit it with whitelisting just that file to commit
+   4. check again if it is still _really_ the expected symlink
+      - otherwise you need to restore the file to be untracked.
+        - and drop the commit from all histories, including any tags and branches referencing it or later commit parents.
+        - also if the file/content is no longer referenced, clean it from that git internal file tree thingy, too.
+          - the weird corner case where that exact file (-contents) are commited somewere else in the repo and hence can't be fully purged from the git file content thing should still be considered and tested as well.
+        - Do not use `git gc` as it could remove unrelated stuff we might need to recover somehow still for unrelated reasons.
+      - without ever outputting it
+- write automated tests for those, creating a throwaway git repo in `/tmp/` with `git init`, and the commands in `docs/README.md#all-code-for-c-as-a-single-copy-pastable-one` and playing through those corner cases mentioned above.
+
+❯ Task Notification:
+> - Task `a69357c49859bea50` <kbd>completed</kbd>
+> - Tool `toolu_01YLUNoKwVHFfUzJ5DE4ahfw`
+> - > Agent "Explore git internals patterns in repo" finished
+> - [Query (`1630` chars, `1.6 KB`)](output/agents/077.a69357c49859bea50/prompt.md)
+> - [Answer (`11660` chars, `11.5 KB`)](output/agents/077.a69357c49859bea50/result.md)
+> - [Raw log (`385784` chars, `378 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/8afdf7b5-9953-47a8-beff-4f97d004f2fb/tasks/a69357c49859bea50.output)
+> - `13` tools, `63894` tokens, `1.42803 s`
+
+❯ Task Notification:
+> - Task `ab275981aeb3eee5a` <kbd>completed</kbd>
+> - Tool `toolu_0118zUnahfCs1BfNVpyJTT5A`
+> - > Agent "Explore link-subproject scripts and .env handling" finished
+> - [Query (`1985` chars, `1.95 KB`)](output/agents/078.ab275981aeb3eee5a/prompt.md)
+> - [Answer (`11923` chars, `11.7 KB`)](output/agents/078.ab275981aeb3eee5a/result.md)
+> - [Raw log (`306309` chars, `300 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/8afdf7b5-9953-47a8-beff-4f97d004f2fb/tasks/ab275981aeb3eee5a.output)
+> - `16` tools, `56046` tokens, `1.54638 s`
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The .env-linking logic currently lives inside the single bash file scripts/°base/init/link-subproject-claude.sh (link_env function, ~40 lines). The new logic (symlink assertions, git commit, history-purge with blob-dedup checks) is much easier to write and unit-test in Python, matching the existing test suite style (scripts/°base/tests/*.py, unittest + _git_test_helpers.py). Where should this live?
+>> 2. The request references `docs/README.md#all-code-for-c-as-a-single-copy-pastable-one` for the test commands. I read that section — it's actually the repo-merge onboarding flow (`git remote add empty/base`, `git merge --allow-unrelated-histories`, etc.) for adopting the base repo into a new project. It has nothing to do with link_subproject.sh or .env linking. Did you mean a different anchor, or should the new tests just be built around the actual link_env behavior (init throwaway repo, run link-subproject-claude.sh / new script, assert on .env state) without pulling in that onboarding section?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Implementation language** (1/2) <kbd>Single Select</kbd><br>
+>> The .env-linking logic currently lives inside the single bash file scripts/°base/init/link-subproject-claude.sh (link_env function, ~40 lines). The new logic (symlink assertions, git commit, history-purge with blob-dedup checks) is much easier to write and unit-test in Python, matching the existing test suite style (scripts/°base/tests/*.py, unittest + _git_test_helpers.py). Where should this live?
+> - [ ] 1\. New Python helper, called from bash (Recommended)
+>   - _Add scripts/°base/init/link_env.py containing just the .env symlink+commit+history-purge logic; link-subproject-claude.sh calls it via `python3 link_env.py` instead of its own link_env() function. Rest of the bash script stays as-is._
+> - [x] 2\. Port the whole script to Python
+>   - _Rewrite scripts/°base/init/link-subproject-claude.sh entirely as a Python script (matching the literal 'link_subproject.py' name from your request), replacing all bash logic (link_path, link_shared, copy_if_missing, etc.), not just the .env piece._
+> - [ ] 3\. Keep it all in bash
+>   - _Implement the symlink assertions, git add -f/commit, and history-purge logic as bash/git-plumbing inside the existing link_env() function. Tests would then have to shell out to the bash function rather than using Python's unittest directly._
+> - [ ] 4\. _Type something._
+>
+>> **Test basis** (2/2) <kbd>Single Select</kbd><br>
+>> The request references `docs/README.md#all-code-for-c-as-a-single-copy-pastable-one` for the test commands. I read that section — it's actually the repo-merge onboarding flow (`git remote add empty/base`, `git merge --allow-unrelated-histories`, etc.) for adopting the base repo into a new project. It has nothing to do with link_subproject.sh or .env linking. Did you mean a different anchor, or should the new tests just be built around the actual link_env behavior (init throwaway repo, run link-subproject-claude.sh / new script, assert on .env state) without pulling in that onboarding section?
+> - [ ] 1\. Ignore that anchor, test link_env directly (Recommended)
+>   - _Write tests that init a throwaway /tmp git repo, simulate a 'subproject' directory inside it, run the .env-linking logic, and assert on symlink/commit/history state for each corner case. Don't reference docs/README.md's merge section at all._
+> - [ ] 2\. That anchor was a mistake, let me clarify
+>   - _Stop and let me specify what test setup/commands you actually meant._
+> - [x] 3\. _Type something:_
+>   - > No, that is for the unittests, how to set up a repo from scratch with us. Obviously this can be simplified to pull from "this" directly, and doesnt need all those git author checks etc.; but at least `git lfs install`. So look at that in case I forgot some important command.
+>
+> </details>
+>
+
