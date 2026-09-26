@@ -13,7 +13,6 @@ and Explore results to ai/output/explore/NNN.task-id/ (or °base equivalents).
 from __future__ import annotations
 
 import html
-import importlib
 import importlib.util
 import json
 import re
@@ -32,10 +31,7 @@ from _lib import (  # noqa: E402
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
-    _subproject_root,
 )
-
-reffiles_lib = importlib.import_module("°reffiles_lib")
 
 PREFIXES = {"claude": "❯", "codex": "›", "copilot": "◆"}
 DEFAULT_PREFIX = "⩼"
@@ -1005,7 +1001,6 @@ def main() -> int:
         prompt = payload["tool_input"].get("prompt") or ""
     if not prompt.strip():
         return 0
-    raw_prompt = prompt
     log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
     if ai_tool == "codex":
         _capture_codex_commands(payload, prompt, prefix, log_path)
@@ -1064,7 +1059,6 @@ def main() -> int:
         default_commit_msg="ai: updated prompt",
         extra_paths=entry.extra_paths,
     )
-    reffiles_lib.handle_referenced_files(raw_prompt, _subproject_root())
     return 0
 
 

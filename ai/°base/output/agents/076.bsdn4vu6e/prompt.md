@@ -1,0 +1,1 @@
+Background command "python3 -m pytest "scripts/°base/tests/" -q 2>&1 | tail -30" completed (exit code 0)

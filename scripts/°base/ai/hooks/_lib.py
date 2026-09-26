@@ -490,10 +490,19 @@ def append_and_commit(
     extra_paths: tuple[Path, ...] = (),
 ) -> None:
     """Append ``content`` to ``log_path``, commit only those AI artifact files,
-    then re-apply any user-staged edits to the log on top of the new HEAD."""
+    then re-apply any user-staged edits to the log on top of the new HEAD.
+
+    Files mentioned in ``content`` (``@path`` or backtick-quoted) that exist on
+    disk get a markdown-link summary appended and are auto-staged/committed --
+    see ``°reffiles_lib``."""
     relpath = str(log_path.relative_to(Path.cwd()))
     extra_relpaths = [str(path.relative_to(Path.cwd())) for path in extra_paths]
     snap = _staged_snapshot(relpath)
+
+    reffiles_lib = import_module("°reffiles_lib")
+    content, resolved_mentions = reffiles_lib.process_referenced_files(
+        content, _subproject_root(), log_path
+    )
 
     with log_path.open("a", encoding="utf-8") as f:
         f.write(content)
@@ -509,3 +518,5 @@ def append_and_commit(
 
     if snap is not None:
         _restore_staged(snap, relpath)
+
+    reffiles_lib.stage_and_commit_mentions(resolved_mentions)

@@ -2346,7 +2346,10 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             staged = run_git(repo, "diff", "--cached", "--name-only").stdout.strip().splitlines()
             self.assertIn("sub/file.txt", staged)
 
-    def test_referenced_file_mention_gitignored_ai_path_force_added(self):
+    def test_referenced_file_mention_gitignored_ai_path_not_committed(self):
+        """Regression test: an `ai/`-prefixed mention used to be force-added
+        (`git add -f`) past `.gitignore`; it must now be respected like any
+        other gitignored path, with no `ai/`-prefix exception."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "base"
             init_repo(repo, "https://github.com/luckydonald/base.git")
@@ -2358,11 +2361,11 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": "see @ai/°base/scratch/notes.md"}, "claude")
 
-            self.assertEqual(last_subject(repo), "[base] ai: referenced file for task added.")
+            self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
             tracked = run_git(
                 repo, "-c", "core.quotepath=false", "ls-files", "--", "ai/°base/scratch/notes.md"
             ).stdout.strip()
-            self.assertEqual(tracked, "ai/°base/scratch/notes.md")
+            self.assertEqual(tracked, "")
 
     def test_referenced_file_mention_missing_file_ignored(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2372,6 +2375,79 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "see @sub/does-not-exist.txt"}, "claude")
 
             self.assertEqual(last_subject(repo), "ai: updated prompt")
+
+    def test_referenced_file_mention_appends_summary_block_and_links(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "myproject"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            (repo / "sub").mkdir(parents=True, exist_ok=True)
+            (repo / "sub" / "file.txt").write_text("hello\n", encoding="utf-8")
+
+            run_hook(repo, PROMPT_HOOK, {"prompt": "please check @sub/file.txt for bugs"}, "claude")
+
+            query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            self.assertIn("❯ please check @sub/file.txt for bugs\n\n", query_md)
+            self.assertIn(
+                "> _Mentioned file at line `1`:_ [@sub/file.txt](../sub/file.txt)",
+                query_md,
+            )
+
+    def test_referenced_file_mention_inside_fenced_code_block_is_not_committed(self):
+        """An example mention inside a fenced code block (like this very /plan
+        request's own diff example) must not be treated as a real mention."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "myproject"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            (repo / "sub").mkdir(parents=True, exist_ok=True)
+            (repo / "sub" / "file.txt").write_text("hello\n", encoding="utf-8")
+            prompt = "before\n```diff\nsee @sub/file.txt\n```\nafter"
+
+            run_hook(repo, PROMPT_HOOK, {"prompt": prompt}, "claude")
+
+            query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            self.assertNotIn("Mentioned file", query_md)
+            self.assertEqual(last_subject(repo), "ai: updated prompt")
+            tracked = run_git(repo, "ls-files", "--", "sub/file.txt").stdout.strip()
+            self.assertEqual(tracked, "")
+
+    def test_ask_user_question_answer_mention_gets_summary_and_commit(self):
+        """Mentions inside an AskUserQuestion answer -- not just typed prompts --
+        now also trigger the summary + auto-commit mechanism, since it's
+        centralized in append_and_commit()."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            (repo / "sub").mkdir(parents=True, exist_ok=True)
+            (repo / "sub" / "file.txt").write_text("hello\n", encoding="utf-8")
+
+            run_hook(
+                repo,
+                DECISION_HOOK,
+                {
+                    "hook_event_name": "PostToolUse",
+                    "session_id": "session-mention",
+                    "tool_name": "AskUserQuestion",
+                    "tool_use_id": "toolu_mention_1",
+                    "tool_input": {"questions": [
+                        {
+                            "question": "Pick one?",
+                            "header": "Test",
+                            "multiSelect": False,
+                            "options": [
+                                {"label": "A", "description": "first"},
+                                {"label": "B", "description": "second"},
+                            ],
+                        }
+                    ]},
+                    "tool_response": {"answers": {"Pick one?": "please check @sub/file.txt"}},
+                },
+                "claude",
+            )
+
+            query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            self.assertIn("[@sub/file.txt](../sub/file.txt)", query_md)
+            tracked = run_git(repo, "ls-files", "--", "sub/file.txt").stdout.strip()
+            self.assertEqual(tracked, "sub/file.txt")
 
     def test_copilot_plan_marker_prompt_rendered_as_slash_plan(self):
         """Copilot CLI's `/plan` mode prepends a literal `[[PLAN]] ` marker to the
@@ -2497,6 +2573,99 @@ class ReffilesLibMentionsTests(unittest.TestCase):
     def test_dedupes_repeated_mentions(self):
         prompt = "see @sub/file.txt and again `sub/file.txt`"
         self.assertEqual(self.mentions.extract_candidate_paths(prompt), ["sub/file.txt"])
+
+    def test_find_mentions_reports_display_and_line(self):
+        content = "line one\nsee `sub/file.txt` here\n"
+        mentions = self.mentions.find_mentions(content)
+        self.assertEqual(len(mentions), 1)
+        self.assertEqual(mentions[0].line, 2)
+        self.assertEqual(mentions[0].display, "`sub/file.txt`")
+        self.assertEqual(mentions[0].path, "sub/file.txt")
+
+    def test_find_mentions_skips_fenced_code_block(self):
+        content = (
+            "Implement `ai/some_file.md`,\n"
+            "```diff\n"
+            "- Implement `ai/some_file.md`,\n"
+            "+ Implement [`ai/some_file.md`](./some_file.md),\n"
+            "```\n"
+            "and @src/other_file.py!\n"
+        )
+        mentions = self.mentions.find_mentions(content)
+        self.assertEqual(
+            [(m.line, m.path) for m in mentions],
+            [(1, "ai/some_file.md"), (6, "src/other_file.py")],
+        )
+
+    def test_find_mentions_skips_indented_fence_under_list_item(self):
+        content = (
+            "- Example:\n"
+            "  ```diff\n"
+            "  - Implement `ai/some_file.md`,\n"
+            "  ```\n"
+            "see @sub/file.txt\n"
+        )
+        mentions = self.mentions.find_mentions(content)
+        self.assertEqual([(m.line, m.path) for m in mentions], [(5, "sub/file.txt")])
+
+
+class ReffilesLibCommitTests(unittest.TestCase):
+    """Unit tests for °reffiles_lib.commit's summary-block formatting -- pure
+    path/string logic, no git or filesystem access involved."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        import importlib
+
+        lib_root = Path(__file__).resolve().parents[1] / "ai" / "hooks"
+        sys.path.insert(0, str(lib_root))
+        cls.commit_mod = importlib.import_module("°reffiles_lib.commit")
+
+    def _resolved(self, line: int, display: str, path: str, abspath: str):
+        return self.commit_mod.ResolvedMention(
+            line=line, display=display, path=path,
+            abspath=Path(abspath), relpath=path,
+        )
+
+    def test_single_mention_uses_one_liner(self):
+        log_path = Path("/repo/ai/query.md")
+        resolved = [self._resolved(124, "`path/foo/bar/foo.py`", "path/foo/bar/foo.py", "/repo/path/foo/bar/foo.py")]
+        block = self.commit_mod.build_summary_block(resolved, log_path, "x\n" * 130)
+        self.assertEqual(
+            block,
+            "> _Mentioned file at line `124`:_ [`path/foo/bar/foo.py`](../path/foo/bar/foo.py)",
+        )
+
+    def test_multiple_mentions_uses_details_block(self):
+        log_path = Path("/repo/ai/query.md")
+        resolved = [
+            self._resolved(2, "`./some/path/file`", "./some/path/file", "/repo/ai/some/path/file"),
+            self._resolved(12, "@ai/query.md", "ai/query.md", "/repo/ai/query.md"),
+        ]
+        block = self.commit_mod.build_summary_block(resolved, log_path, "\n" * 11 + "x\n")
+        expected = (
+            "> <details><summary><i>Mentioned files:</i></summary>\n"
+            ">\n"
+            "> - line `02`: [`./some/path/file`](./some/path/file)\n"
+            "> - line `12`: [@ai/query.md](./query.md)\n"
+            ">\n"
+            "> </details>"
+        )
+        self.assertEqual(block, expected)
+
+    def test_no_resolved_mentions_returns_none(self):
+        self.assertIsNone(self.commit_mod.build_summary_block([], Path("/repo/ai/query.md"), "hi\n"))
+
+    def test_padding_width_scales_with_entry_line_count(self):
+        log_path = Path("/repo/ai/query.md")
+        resolved = [self._resolved(3, "@x/y", "x/y", "/repo/x/y")]
+
+        short_block = self.commit_mod.build_summary_block(resolved, log_path, "a\nb\nc\n")
+        self.assertIn("line `3`", short_block)
+
+        long_content = "\n".join(str(i) for i in range(500)) + "\n"
+        long_block = self.commit_mod.build_summary_block(resolved, log_path, long_content)
+        self.assertIn("line `003`", long_block)
 
 
 if __name__ == "__main__":

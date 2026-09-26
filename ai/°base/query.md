@@ -6525,3 +6525,17 @@ but (1) run (the task description should automatically fit both plan and code ch
 
 ❯ Ah `<details><i>Mentioned files:</i></summary>` to make HTML vs Markdown work.
 
+❯ Plan denied.
+
+❯ And notice the intelligent `0` padding for the line numbers, respecting max line length of that codeblock.
+
+❯ Plan accepted, auto mode.
+
+❯ Task Notification:
+> - Task `bsdn4vu6e` <kbd>completed</kbd>
+> - Tool `toolu_01A2XvDuMdKbnBEdu96kzyED`
+> - > Background command "python3 -m pytest "scripts/°base/tests/" -q 2>&1 | tail -30" completed (exit code 0)
+> - [Query (`104` chars, `105 B`)](output/agents/076.bsdn4vu6e/prompt.md)
+> - [Answer (`2494` chars, `2.45 KB`)](output/agents/076.bsdn4vu6e/result.md)
+> - [Raw log (`2494` chars, `2.45 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/3737d5d1-f383-41c8-b5a8-a419af01bb1e/tasks/bsdn4vu6e.output)
+
