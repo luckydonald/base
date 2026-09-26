@@ -6448,3 +6448,61 @@ but (1) run (the task description should automatically fit both plan and code ch
 
 ❯ Plan accepted, auto mode.
 
+❯ /plan improve the file mention = commit script ai hook:
+1. Question answers and other interactions should also trigger that mechanism, currently only text queries do.
+2. It should replace the `query.md` log entry with a local link, 
+   - Example:
+     ```diff
+     @@@ query.md @@@
+
+     - Implement `ai/some_file.md`,
+     + Implement [`ai/some_file.md`](./some_file.md),
+     - and @src/other_file.py!
+     + and [@src/other_file.py](../src/other_file.py)!
+     ```
+   - Note, it should check for the file's existence, otherwise not link it.
+   - Obviously "replace" means while writing initally, not after the fact or something weird re-parsing the file.
+3. Only add & commit it if it is not `.gitignore`d.
+   - In the past we accidentially could mention `<root>/.env`, and have it commited accidentially.
+   - Notice that I specifically made this an invalid path, otherwise this would happen to that file too.
+   - A better file to test it with is `ai/.debug`, as that one is not containing secrets.
+     - Fun fact, that file is gonna be autocommited now.
+
+❯ Task Notification:
+> - Task `a86a97b18e35f41c5` <kbd>completed</kbd>
+> - Tool `toolu_01Nzrse4ywUr8wzQ1v7Mf1q1`
+> - > Agent "Read plan 034 and related context" finished
+> - [Query (`2324` chars, `2.29 KB`)](output/agents/074.a86a97b18e35f41c5/prompt.md)
+> - [Answer (`10675` chars, `10.5 KB`)](output/agents/074.a86a97b18e35f41c5/result.md)
+> - [Raw log (`234802` chars, `230 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/3737d5d1-f383-41c8-b5a8-a419af01bb1e/tasks/a86a97b18e35f41c5.output)
+> - `10` tools, `42462` tokens, `1.253 s`
+
+❯ Task Notification:
+> - Task `a4b72cf286f82ed95` <kbd>completed</kbd>
+> - Tool `toolu_01JBGaheSJJNvfcyGFVYhNBU`
+> - > Agent "Read save-prompt hook implementation" finished
+> - [Query (`2723` chars, `2.68 KB`)](output/agents/075.a4b72cf286f82ed95/prompt.md)
+> - [Answer (`18282` chars, `18 KB`)](output/agents/075.a4b72cf286f82ed95/result.md)
+> - [Raw log (`436841` chars, `428 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/3737d5d1-f383-41c8-b5a8-a419af01bb1e/tasks/a4b72cf286f82ed95.output)
+> - `21` tools, `71851` tokens, `2.33413 s`
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Requirement 1 says the mechanism should also fire for "question answers and other interactions," not just text queries. The cleanest place to wire this in is `append_and_commit()` in `_lib.py` — the single shared function every logging hook calls to write into an ai/ log file. How broad should the fix be?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Fix scope** (1/1) <kbd>Single Select</kbd><br>
+>> Requirement 1 says the mechanism should also fire for "question answers and other interactions," not just text queries. The cleanest place to wire this in is `append_and_commit()` in `_lib.py` — the single shared function every logging hook calls to write into an ai/ log file. How broad should the fix be?
+> - [x] 1\. Centralize in append_and_commit (Recommended)
+>   - _Move mention-linkify + auto-commit into append_and_commit itself, so every current and future caller gets it automatically: save-prompt (queries, queued commands, compact prompts), save-decision (AskUserQuestion Q&A), save-plan, save-command-decision, compact_result.py. Matches "other interactions" literally and means no hook can forget to wire it in later._
+> - [ ] 2\. Only add to save-decision
+>   - _Leave append_and_commit alone; just add an explicit handle_referenced_files() call to save-decision/hook.py (mirroring save-prompt's existing tail call) so AskUserQuestion answers are covered, but plan/command-decision/compact logs stay uncovered unless someone remembers to add it there too._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
