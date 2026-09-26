@@ -36,7 +36,32 @@ script (not just `link_env`) from bash to Python, matching the existing
 
 ## Design
 
-### 1. Port to Python
+### Two-commit sequencing (required)
+
+This lands as **two separate commits**, in this order — not interleaved,
+not squashed:
+
+1. **Commit 1 — clean port, no behavior change.** Translate
+   `init/link-subproject-claude.sh` to `init/link_subproject.py` as a
+   literal, mechanical port: same functions, same state machine, same
+   `link_env()` (including its current unconditional `git add`, no force-add,
+   no commit dance, no purge logic yet), same call order, same symlink
+   repointing, same `.gitignore` untouched. The only naming deviation from a
+   1:1 port is the no-leading-underscore rule (below) — nothing else about
+   behavior changes in this commit. This commit should be reviewable purely
+   as "same script, new language."
+2. **Commit 2 — the actual feature work.** On top of commit 1, make every
+   behavioral change described in the rest of this plan: the `.gitignore`
+   negation removal, the new `link_env()` state machine (force-add + commit
+   + verify + purge-on-failure), `purge_commit_everywhere`, and the new test
+   module.
+
+Do not fold these together and do not write commit 2's logic into the same
+diff as commit 1 "for convenience" — the whole point is a clean, reviewable
+move (per lplp style rule 8: land a pure code move/rename before changing
+that code further) followed by an isolated behavior diff.
+
+### 1. Port to Python (commit 1)
 
 - New file `scripts/°base/init/link_subproject.py`, executable
   (`#!/usr/bin/env python3`), replacing `init/link-subproject-claude.sh`.
@@ -45,7 +70,8 @@ script (not just `link_env`) from bash to Python, matching the existing
   `.gitkeep` seeding, `copy_if_missing`, `.run/*.run.xml` fan-out,
   `AGENTS.md`/`CLAUDE.md` swap, `.claude-project.rc` seeding, slug
   generation). Same call order at the bottom as the current script
-  (lines 328–340).
+  (lines 328–340). `link_env()` is ported as-is in this commit — still a
+  plain `git add`, no force-add/commit/purge — those land in commit 2.
 - Delete `init/link-subproject-claude.sh`; repoint the two existing
   symlinks (`scripts/link_subproject.sh`, `scripts/°base/link_subproject.sh`)
   at `init/link_subproject.py` (symlink names don't need to match the
@@ -55,14 +81,14 @@ script (not just `link_env`) from bash to Python, matching the existing
   `.claude-project.rc` is named `.rc` and why the project-dir-name override
   is needed).
 
-### 2. `.gitignore`
+### 2. `.gitignore` (commit 2)
 
 Remove the `!*/**/ai/.env` line (~line 781). `ai/.env` (root and every
 subfolder) goes back to blanket-ignored by `**/*.env*`. Tracking the
 subfolder symlink now happens purely via `git add -f` in the script, not via
 a gitignore exception.
 
-### 3. New `link_env()` state machine
+### 3. New `link_env()` state machine (commit 2)
 
 Target = `<sub_dir>/ai/.env`. Behavior branches on what's currently there:
 
@@ -93,7 +119,7 @@ technically be tracked at that path). Check both before treating it as done.
    (`git rm --cached -- ai/.env`) and exit non-zero — do not raise/print any
    file content anywhere in this path.
 
-### 4. Purge routine (only reached on verification failure)
+### 4. Purge routine (commit 2, only reached on verification failure)
 
 Isolate this in its own function, `purge_commit_everywhere(repo_root, bad_sha)`,
 so it's independently unit-testable:

@@ -1,1 +1,1 @@
-init/link-subproject-claude.sh
+init/link_subproject.py
