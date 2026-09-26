@@ -1,5 +1,7 @@
 # Flush pending plan/command denials before every git-committing hook
 
+**Commit style:** Skill `/commit-with-lplp-style` is active — auto-commit following it for this implementation.
+
 ## Context
 
 The `dd2c4bfe` bug (two "Plan denied" blocks bundled into one commit) happened because `record_claude_plan_rejections()` in `scripts/°base/ai/hooks/save-plan/hook.py` only runs from `save-prompt`'s `UserPromptSubmit` handler — the *next user message* — not from whatever hook fires in between. If the agent edits the plan and gets denied a second time before the user types anything, two denials pile up unrecorded and get flushed together.
@@ -67,6 +69,17 @@ Add `flush_pending_rejections(payload)` to:
 - Add an equivalent test in a `save-command-decision` test file for the same batching bug there (two unrecorded command denials → two separate commits).
 - Add a `_lib.py`-level test for the incremental cache: write a transcript, call `load_transcript_tool_events` twice with no new content (confirm identical result, ideally via a monkeypatched read-counter or by checking the cache file's `offset` doesn't change), then append more content and call again (confirm the new event is picked up).
 - Add a `_lib.py`-level test for `flush_pending_rejections`'s lock-skip behavior: pre-acquire the spec's lock file in the test (simulating a concurrent hook process already flushing it), call `flush_pending_rejections` with a pending unrecorded rejection present, and assert it returns without committing (no exception, no duplicate/attempted commit) — then release the lock and call again, asserting it now does commit.
+
+## Upstream drift (root `base` branch, as of `116c7dc3`)
+
+Root's `base` branch has moved on since this worktree branched (merge-base `dc3dbe2c`). Relevant to this plan:
+
+- **`_lib.py`'s `append_and_commit`** now also runs `°reffiles_lib.process_referenced_files(content, ...)` before writing and `°reffiles_lib.stage_and_commit_mentions(...)` after committing (auto-links/commits files mentioned via `@path`/backticks in the appended content). Every `append_and_commit` call is now a bit heavier than assumed above — doesn't change the design, but the per-rejection commit loop in `flush_pending_rejections` will pay this cost once per rejection instead of once per batch, same tradeoff already accepted for correctness.
+- **`save-prompt/hook.py` no longer imports `record_claude_plan_rejections` directly.** It now reaches it via `_load_save_plan_hook()` (`importlib.util.spec_from_file_location` on save-plan's hook file path) since `save-plan` isn't a normal importable module name (hyphenated dir). This is exactly the awkward cross-hook-import pattern this plan's design avoids by centralizing `flush_pending_rejections`/`RejectionSpec`/etc. in `_lib.py`, which every hook already imports normally — confirms that's the right call, and `save-prompt` should drop `_load_save_plan_hook` entirely once it switches to `from _lib import flush_pending_rejections`.
+- `test_ai_hooks_base_routing.py` (shared test helpers `save-plan`'s and other hook tests import from) grew substantially upstream — worth a fresh read of its current shape before writing the new tests in this plan, rather than assuming it still matches what was read earlier in this session.
+- Also unrelated to this plan but touching the same directory tree: `link-subproject-claude.sh` → `link_subproject.py` port landed, and `°reffiles_lib` gained anchor/line-fragment support and a `mentions.py` module — no overlap with the hook files this plan touches otherwise.
+
+Not folding these into the implementation yet since the rebase hasn't happened — flagging so the eventual rebase's conflict spots are known in advance (mainly `_lib.py` and `save-plan/hook.py`'s import list) and so the implementation step re-reads `_lib.py`'s current `append_and_commit` and `test_ai_hooks_base_routing.py` fresh rather than off older reads from earlier in this session.
 
 ## Verification
 - `python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py"` — full suite green (already reconfirmed once after the first, narrower fix).
