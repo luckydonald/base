@@ -171,3 +171,103 @@ git-surgery only, no code changes:
    `ai/git/rebase-todo.sh` / `rebase-msg-*.md` afterward per the lplp skill,
    and re-audit once more (`git log --oneline 88d2771..HEAD`) to confirm a
    single clean commit remains.
+
+
+## Leftover task 2 — `_is_inside_base_repo` breaks under `git worktree` (needs its own `/plan`)
+
+**Root cause, already confirmed from this session:** every routing decision
+in this repo's own hooks (`ai/query.md` vs `ai/°base/query.md`, `ai/plans/`
+vs `ai/°base/plans/`, `ai/output/debug/` vs `ai/°base/output/debug/`, the
+`[base]` commit-subject prefix, ...) goes through
+`_is_inside_base_repo(subproject_root)` in
+`scripts/°base/ai/hooks/°commit_style_lib/__init__.py:34-45`:
+
+```python
+def _is_inside_base_repo(subproject_root: Path) -> bool:
+    if subproject_root.name != "base":
+        return False
+    origin = _git_text("remote", "get-url", "origin")
+    return bool(re.search(r"(^|[:/])luckydonald/base(\.git)?/?$", origin, re.I))
+```
+
+It's called (see `_lib.py`'s `_ai_prefix_root()` and
+`°commit_style_lib.py`'s `base_ai_commit_subject()`) as
+`_is_inside_base_repo(subproject) or _is_inside_base_repo(git_root)`, where
+`subproject = _subproject_root()` (`$CLAUDE_PROJECT_DIR` or `cwd`) and
+`git_root` is `git rev-parse --show-toplevel`. **Both of those are the
+worktree's own directory when running inside a linked `git worktree`**, and
+a worktree's directory is named after the worktree/branch
+(`claude-loop-messages`), never `base` — so the basename check fails for
+every linked worktree of this repo, even though it plainly *is* the base
+repo. Confirmed from this exact worktree:
+
+```
+$ git rev-parse --show-toplevel
+/home/user/git/luckydonald/base/.claude/worktrees/claude-loop-messages
+$ git rev-parse --git-common-dir
+/home/user/git/luckydonald/base/.git
+$ git rev-parse --absolute-git-dir
+/home/user/git/luckydonald/base/.git/worktrees/claude-loop-messages
+$ git remote get-url origin
+https://luckydonald@github.com/luckydonald/base.git
+$ echo "$CLAUDE_PROJECT_DIR"   # empty for a plain manual shell; hooks get it set, this worktree's is the worktree path
+```
+
+**Promising fix direction (verify, don't just apply blind):**
+`git rev-parse --git-common-dir` always resolves to the *original*
+checkout's `.git` directory, identically from the main checkout and from
+every one of its linked worktrees (verified above — same absolute path from
+this worktree as from `/home/user/git/luckydonald/base` itself). Its
+resolved parent directory's basename (`Path(common_dir).resolve().parent.name`)
+should be a worktree-proof stand-in for "the checkout directory is literally
+named `base`" — check that basename instead of (or in addition to)
+`subproject_root.name`. Needs a real `/plan` because:
+- Confirm this holds for a *bare* main checkout too (`git worktree add` from
+  a bare repo has no non-`.git` "original" directory at all).
+- Decide whether the existing `subproject_root.name != "base"` check should
+  be replaced outright or kept as a fast-path with the common-dir check as a
+  fallback.
+- Audit every caller of `_is_inside_base_repo` (`_lib.py`'s
+  `_ai_prefix_root()`/`base_ai_commit_subject()` in
+  `°commit_style_lib/__init__.py`, and anywhere else it's imported) — a
+  behavior change here reroutes `query.md`/plans/output/debug paths and the
+  `[base]` commit prefix for every hook, repo-wide.
+- Decide the fate of this session's already-misrouted files: `ai/query.md`
+  (this whole session's entries — see leftover task 1, item 2), and whether
+  other already-existing linked worktrees
+  (`claude-split-impl`, `claude-split-improvement`, `fix-plan-decision`,
+  per `git worktree list`) have the same misrouted `ai/query.md`/`ai/plans/`
+  drift that should be swept up in the same pass.
+- Add/extend `scripts/°base/tests/test_commit_style_lib.py` with a
+  worktree-shaped fixture (a real `git worktree add`, not just a
+  differently-named directory) so this regression can't silently return.
+
+## Continuation query (paste into the repo-root Claude session)
+
+```
+Continue work from worktree /home/user/git/luckydonald/base/.claude/worktrees/claude-loop-messages
+(branch worktree-claude-loop-messages), per
+ai/°base/plans/001_condense-autonomous-loop-tick-boilerplate-in-query-md.md
+in that worktree (it may still be at ai/plans/... — that's leftover task 1,
+item 2, below).
+
+Do "Leftover task 1" now, immediately (git-surgery only, no code changes):
+fold this conversation's stray `ai: updated prompt`/`ai: save plan` commits
+into commit bee8c85, git-mv the plan file into ai/°base/plans/, and
+`git add -f` this session's debug fixtures (session_id
+67305175-8399-4d68-994c-af848a182963) from ai/output/debug/*.json — full
+recipe is in that section, including the exact commands and the rebase todo
+shape. Work directly in the worktree directory above (cd into it; this is a
+normal multi-worktree git operation, not something to route around).
+
+Then start a fresh `/plan` for "Leftover task 2": `_is_inside_base_repo()`
+in scripts/°base/ai/hooks/°commit_style_lib/__init__.py (lines 34-45)
+misdetects every linked git worktree of this repo as *not* being the base
+repo (checked via directory-basename == "base", which is never true for a
+worktree's own directory), silently misrouting ai/query.md, ai/plans/,
+ai/output/debug/, and the [base] commit prefix for the whole session. All
+the diagnostic groundwork (confirmed root cause, a promising fix direction
+using `git rev-parse --git-common-dir`, and the open questions to resolve)
+is already written up in that plan section — turn it into a proper
+implementation plan, don't just patch the regex.
+```
