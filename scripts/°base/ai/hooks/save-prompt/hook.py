@@ -31,6 +31,7 @@ from _lib import (  # noqa: E402
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
+    slugify,
 )
 
 PREFIXES = {"claude": "❯", "codex": "›", "copilot": "◆"}
@@ -57,6 +58,12 @@ COPILOT_PLAN_MARKER = "[[PLAN]] "
 HARNESS_TASK_COMPLETE_REMINDER_PREFIX = (
     "You have not yet marked the task as complete using the task_complete tool."
 )
+# Harness-injected `/loop` autonomous-tick boilerplate (ScheduleWakeup's
+# `<<autonomous-loop-dynamic>>` sentinel, or CronCreate's `<<autonomous-loop>>`
+# equivalent): fixed instructional text re-sent verbatim on every tick, not
+# something the user typed. Matched by header only, not the full body, since
+# the trailing wording differs between the dynamic-pacing and cron variants.
+LOOP_TICK_HEADER_RE = re.compile(r"\A#\s+Autonomous loop tick\b[^\n]*")
 
 
 def _strip_copilot_plan_prompt(prompt: str) -> str:
@@ -760,6 +767,52 @@ def _markdown_file_link(label: str, chars: int, size: str, target: str) -> str:
     return f"[{label} (`{chars}` chars, `{size}`)]({target})"
 
 
+def _next_loop_tick_number(loop_dir: Path) -> int:
+    if not loop_dir.exists():
+        return 1
+    numbers = [
+        int(m.group(1))
+        for path in loop_dir.iterdir()
+        if path.is_file() and (m := re.match(r"^(\d+)_", path.name))
+    ]
+    return max(numbers, default=0) + 1
+
+
+def _reserve_loop_tick_file(log_path: Path, text: str) -> Path:
+    """Return the file holding this exact tick's boilerplate text, reusing an
+    existing byte-identical file instead of writing a new one on every tick
+    (the harness normally resends the same text unchanged each time)."""
+    loop_dir = log_path.parent / "output" / "loop"
+    if loop_dir.exists():
+        for existing in sorted(loop_dir.glob("*.md")):
+            try:
+                if existing.read_text(encoding="utf-8") == text:
+                    return existing
+            except OSError:
+                continue
+    loop_dir.mkdir(parents=True, exist_ok=True)
+    number = _next_loop_tick_number(loop_dir)
+    target = loop_dir / f"{number:03d}_{slugify(text, fallback='tick')}.md"
+    target.write_text(text, encoding="utf-8")
+    return target
+
+
+def _render_loop_tick_entry(prefix: str, text: str, log_path: Path) -> tuple[str, Path] | None:
+    """If ``text`` is the harness's autonomous-/loop-tick boilerplate, write it
+    (or reuse a prior byte-identical copy) under output/loop/ and return a
+    short linked entry instead of logging the full text again. Returns
+    ``None`` for any other prompt text."""
+    stripped = text.strip()
+    if not LOOP_TICK_HEADER_RE.match(stripped):
+        return None
+    target = _reserve_loop_tick_file(log_path, stripped)
+    header_line = next((line.strip() for line in stripped.splitlines() if line.strip()), "")
+    label = header_line.lstrip("#").strip() or "Loop tick"
+    rel_target = target.relative_to(log_path.parent).as_posix()
+    link = _markdown_file_link(label, len(stripped), _human_size(str(target)), rel_target)
+    return f"{prefix} {link}\n\n", target
+
+
 def _usage_summary(info: dict) -> str:
     tool_uses = info.get("tool_uses", "")
     tokens = info.get("subagent_tokens", "")
@@ -1043,21 +1096,32 @@ def main() -> int:
 
     if _handle_task_notification(prefix, prompt, log_path):
         if remaining_after_task:
+            loop_tick = _render_loop_tick_entry(prefix, remaining_after_task, log_path)
+            trailing_content, trailing_extra_paths = (
+                loop_tick if loop_tick else (f"{prefix} {remaining_after_task}\n\n", None)
+            )
             append_and_commit(
                 log_path,
-                f"{prefix} {remaining_after_task}\n\n",
+                trailing_content,
                 commit_template_relpath="ai/commit-templates/prompt",
                 default_commit_msg="ai: updated prompt",
+                extra_paths=(trailing_extra_paths,) if trailing_extra_paths else (),
             )
         return 0
 
-    content = f"{prompt}\n\n" if preformatted_prompt else f"{prefix} {prompt}\n\n"
+    loop_tick = None if preformatted_prompt else _render_loop_tick_entry(prefix, prompt, log_path)
+    if loop_tick:
+        content, loop_extra_path = loop_tick
+        extra_paths = entry.extra_paths + (loop_extra_path,)
+    else:
+        content = f"{prompt}\n\n" if preformatted_prompt else f"{prefix} {prompt}\n\n"
+        extra_paths = entry.extra_paths
     append_and_commit(
         log_path,
         content,
         commit_template_relpath="ai/commit-templates/prompt",
         default_commit_msg="ai: updated prompt",
-        extra_paths=entry.extra_paths,
+        extra_paths=extra_paths,
     )
     return 0
 

@@ -1,0 +1,10 @@
+{
+  "session_id": "8afdf7b5-9953-47a8-beff-4f97d004f2fb",
+  "transcript_path": "/home/user/.confuig/claude/accounts/private/projects/-home-user-git-luckydonald-base/8afdf7b5-9953-47a8-beff-4f97d004f2fb.jsonl",
+  "cwd": "/home/user/git/luckydonald/base",
+  "scratchpad_dir": "/tmp/claude-1000/-home-user-git-luckydonald-base/8afdf7b5-9953-47a8-beff-4f97d004f2fb/scratchpad",
+  "prompt_id": "23779f61-1f4c-463d-ae83-b45d21054c5e",
+  "permission_mode": "auto",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "# Autonomous loop tick (dynamic pacing)\n\nRun the autonomous check using the loop instructions established earlier in this conversation. If you cannot find them, treat this as a no-op tick.\n\nYou scheduled this tick via the ScheduleWakeup tool (not a recurring cron). To keep the loop alive, call ScheduleWakeup again at the end of this turn with `prompt` set to the literal sentinel `<<autonomous-loop-dynamic>>` and `noop` set to `true` if this tick changed nothing (or `false` if it did) — otherwise the loop ends after this tick.\n\nIf a Monitor is armed (check TaskList), keep `delaySeconds` at 1200–1800s — the Monitor is the wake signal and this is only the fallback heartbeat. If you were woken by a `<task-notification>`, handle the event before deciding whether to re-arm. To stop the loop, call ScheduleWakeup with `stop: true` and TaskStop the monitor (use TaskList to find its task ID if no longer in context).\n\nUse PushNotification when the loop can't move further without the user, or when something landed that they'd want to act on now: newly blocked on a decision you won't make alone, third straight tick with nothing to do, you're ending the loop, or a major update arrived (CI went red, a review changes the plan). Progress you made yourself isn't a trigger — the transcript covers that. One ping per state, not per tick."
+}
