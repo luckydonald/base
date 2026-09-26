@@ -154,3 +154,31 @@ For that you should think a bit about how we can make the scanning of the log as
 > - [Answer (`1210` chars, `1.18 KB`)](output/agents/011.bnf1b9tz9/result.md)
 > - [Raw log (`1210` chars, `1.18 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/bnf1b9tz9.output)
 
+❯ Plan denied.
+
+❯ - The _write the cache back atomically_ will not fix any race condition, as between read and write there's quite the processing happening, and the log file could been already read and replaced before we go ahead and replace it atomically.
+So the actual replacement after parsing what values we need to add needs to either have a diff-like concept, where a action is bound to it's line, and hence we can engage some kind of lock (file?), read the file again, see if stuff was added (line count & size increased) and already thow away any updates we calculated for lines before that (as they likely (a) are added to the list by the quicker task, or (b) were already processed and hence removed again).
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. You're right that atomic rename alone doesn't fix the read→compute→write race — the cache (and separately, each rejection spec's already-recorded-id state file) can be clobbered or double-processed if two hook processes overlap. Two ways to actually fix that:
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Race fix approach** (1/1) <kbd>Single Select</kbd><br>
+>> You're right that atomic rename alone doesn't fix the read→compute→write race — the cache (and separately, each rejection spec's already-recorded-id state file) can be clobbered or double-processed if two hook processes overlap. Two ways to actually fix that:
+> - [ ] 1\. File lock around the whole update (Recommended)
+>   - _Hold an flock (exclusive) on a per-transcript lock file for the entire read-cache → parse-new-bytes → write-cache step, and reuse it (or a second lock) around load-recorded-ids → find-new-rejections → commit → save-recorded-ids in flush_pending_rejections. Fully serializes concurrent hooks; simple to verify correct. The critical section is cheap (parse a few KB, run 0-2 small git commits), so brief blocking is not a real cost._
+> - [ ] 2\. Optimistic merge/reconciliation (your sketch)
+>   - _Parse the new delta without holding a lock, then briefly lock only to compare the cache's current offset against what we assumed when we started: if it already advanced past our delta, discard our work; if it advanced partway, re-slice our already-read buffer to only append the truly-new remainder on top of the newer cached state. No blocking during the actual parse, but meaningfully more code and edge cases (partial re-slice, pending-tool-use merge across two writers) to get right and test._
+> - [x] 3\. _Type something:_
+>   - > Yeah, my thought was, if we have multiple hooks possibly launched concurrently and async from claude, a big lock makes it very slow, probably worse then 3 processes calculating the same result.
+It's however getting expensive where you need to remove pending tasks from the list, as those might also again take time, or?
+Where is the actual processing of those queued events supposed to happen?
+>
+> </details>
+>
+
