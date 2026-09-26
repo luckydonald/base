@@ -97,12 +97,12 @@ def backup_split_refs(
 # end def
 
 
-def _full_ref(ref: str) -> str:
+def full_ref(ref: str) -> str:
     return ref if ref.startswith("refs/") else f"refs/heads/{ref}"
 
 
-def _undo_command(ref: str, old_sha: str | None) -> str:
-    full = _full_ref(ref)
+def undo_command(ref: str, old_sha: str | None) -> str:
+    full = full_ref(ref)
     if old_sha is None:
         return f"git update-ref -d '{full}' || true"
     return f"git update-ref '{full}' '{old_sha}'"
@@ -120,7 +120,7 @@ def format_recovery_entry(invocation: str, before: dict[str, str | None], timest
     lines.append("```shell")
     lines.extend(ABORT_COMMANDS)
     for ref, sha in before.items():
-        lines.append(_undo_command(ref, sha))
+        lines.append(undo_command(ref, sha))
     lines.append("```")
 
     return "\n".join(lines)

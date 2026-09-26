@@ -167,7 +167,7 @@ def merge_base(sha_a: str, sha_b: str, cwd: Path) -> str | None:
     return result.stdout.strip()
 
 
-def _full_ref(ref: str) -> str:
+def full_ref(ref: str) -> str:
     """`git update-ref` does not resolve short branch names the way most git
     commands do -- a bare name like "feature-x" creates a loose ref straight
     under .git/ instead of a real branch. Normalize anything that isn't
@@ -178,7 +178,7 @@ def _full_ref(ref: str) -> str:
 
 
 def create_branch(ref: str, at_sha: str, cwd: Path) -> None:
-    subprocess.run(["git", "update-ref", _full_ref(ref), at_sha], cwd=cwd, check=True)
+    subprocess.run(["git", "update-ref", full_ref(ref), at_sha], cwd=cwd, check=True)
 
 
 def create_refs(refs: dict[str, str], cwd: Path) -> None:
@@ -205,7 +205,7 @@ def create_refs(refs: dict[str, str], cwd: Path) -> None:
 
 def move_ref(ref: str, new_sha: str, old_sha: str | None, cwd: Path) -> None:
     """Update a ref, optionally asserting its current value first (race guard)."""
-    args = ["git", "update-ref", _full_ref(ref), new_sha]
+    args = ["git", "update-ref", full_ref(ref), new_sha]
     if old_sha is not None:
         args.append(old_sha)
     subprocess.run(args, cwd=cwd, check=True)
@@ -325,7 +325,7 @@ def checkout_branch(ref: str, cwd: Path) -> None:
     subprocess.run(["git", "checkout", ref], cwd=cwd, check=True, capture_output=True)
 
 
-def _with_index_env(index_file: Path) -> dict[str, str]:
+def with_index_env(index_file: Path) -> dict[str, str]:
     env = os.environ.copy()
     env["GIT_INDEX_FILE"] = str(index_file)
     return env
@@ -335,7 +335,7 @@ def read_tree_into_index(tree_sha: str, index_file: Path, cwd: Path) -> None:
     subprocess.run(
         ["git", "read-tree", tree_sha],
         cwd=cwd,
-        env=_with_index_env(index_file),
+        env=with_index_env(index_file),
         check=True,
         capture_output=True,
     )
@@ -345,7 +345,7 @@ def update_index_add(index_file: Path, mode: str, blob_sha: str, path: str, cwd:
     subprocess.run(
         ["git", "update-index", "--add", "--cacheinfo", f"{mode},{blob_sha},{path}"],
         cwd=cwd,
-        env=_with_index_env(index_file),
+        env=with_index_env(index_file),
         check=True,
         capture_output=True,
     )
@@ -355,7 +355,7 @@ def update_index_remove(index_file: Path, path: str, cwd: Path) -> None:
     subprocess.run(
         ["git", "update-index", "--force-remove", path],
         cwd=cwd,
-        env=_with_index_env(index_file),
+        env=with_index_env(index_file),
         check=True,
         capture_output=True,
     )
@@ -365,7 +365,7 @@ def write_tree_from_index(index_file: Path, cwd: Path) -> str:
     result = subprocess.run(
         ["git", "write-tree"],
         cwd=cwd,
-        env=_with_index_env(index_file),
+        env=with_index_env(index_file),
         capture_output=True,
         text=True,
         check=True,
