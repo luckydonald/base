@@ -102,7 +102,7 @@ Adopt these rules for every commit made this session:
 
 9. **Activating this skill while a plan is still being drafted means noting it in the plan file, not just this conversation.** A plan's implementation frequently happens somewhere this chat history isn't visible — a fresh session picking the plan back up later, or a subagent (e.g. via the `Agent`/`Task` tool) that only ever receives the plan document itself and "writes back" a finished result, never this conversation's context. If the activation only lives in the chat, that implementer has no way to know the style is expected and will default to plain commits. So once the skill is turned on during planning, add one short line to the plan file itself before it's saved (or as a small follow-up edit if the skill was turned on right after saving), e.g. right after the title:
    ```md
-   **Commit style:** `commit-with-lplp-style` is active — follow it for this implementation.
+   **Commit style:** Skill `/commit-with-lplp-style` is active — auto-commit following it for this implementation.
    ```
    This is in addition to, not instead of, keeping the style active for the rest of the current session.
 
