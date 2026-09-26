@@ -6506,3 +6506,22 @@ but (1) run (the task description should automatically fit both plan and code ch
 > </details>
 >
 
+❯ Plan denied.
+
+❯ Ah, make sure that a code block <code>```</code> would not be affected.
+
+❯ Maybe the codeblock could be having a list appended (be careful with indent) with the linked files:
+- For single mention:
+  - > _Mentioned file at line `124`:_ [`path/foo/bar/foo.py`](../path/foo/bar/foo.py)
+- For multiple:
+  - > <details><summary>_Mentioned files:_</summary>
+    >
+    > - line `002`: [`./some/path/file`](../some/path/file)
+    > - line `012`: [/home/user/git/luckydonald/base/ai/errors/example.txt](errors/example.txt)
+    > - line `123`: [@ai/query.md](query.md)
+    >
+    > </details>
+- Yes, with the blockquote.
+
+❯ Ah `<details><i>Mentioned files:</i></summary>` to make HTML vs Markdown work.
+
