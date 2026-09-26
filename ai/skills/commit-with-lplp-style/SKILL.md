@@ -100,6 +100,12 @@ Adopt these rules for every commit made this session:
 
 8. **Land a pure code move/rename as its own commit before changing that code further.** When relocating code (e.g. splitting a function into its own module), commit the move with identical content first — so git's diff/rename detection shows it as a move, not a rewrite — then commit the actual behavioral or style change on top. Keeps both diffs small and independently reviewable instead of one large tangle of "what moved" and "what changed."
 
+9. **Activating this skill while a plan is still being drafted means noting it in the plan file, not just this conversation.** A plan's implementation frequently happens somewhere this chat history isn't visible — a fresh session picking the plan back up later, or a subagent (e.g. via the `Agent`/`Task` tool) that only ever receives the plan document itself and "writes back" a finished result, never this conversation's context. If the activation only lives in the chat, that implementer has no way to know the style is expected and will default to plain commits. So once the skill is turned on during planning, add one short line to the plan file itself before it's saved (or as a small follow-up edit if the skill was turned on right after saving), e.g. right after the title:
+   ```md
+   **Commit style:** `commit-with-lplp-style` is active — follow it for this implementation.
+   ```
+   This is in addition to, not instead of, keeping the style active for the rest of the current session.
+
 ## Cleaning up stray `ai:` auto-commits
 
 Run this procedure after every commit as rule 2, step 3, to fold that commit's immediately preceding `ai:` auto-commits. It also works standalone before merging or review when a branch has stray prompt/decision commits mixed further back into its history (rule 7).

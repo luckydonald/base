@@ -6432,3 +6432,5 @@ You shall drop the `ai: Run:` prefix for this one commit, as I hand-authored it.
 
 ❯ Add an autocommit unless `--no-git-commit` is given, and split `--no-git` to imply both `--no-git-add` and `--no-git-commit`.
 
+❯ Enhance the /commit-with-lplp-style style: Notice that agents often write back, and that calling `/commit-with-lplo-style` (activating the skill) during `/plan` session means it should be executed in the implementation, and hence briefly called out in the plan file.
+
