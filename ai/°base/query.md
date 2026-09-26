@@ -6679,3 +6679,85 @@ Use PushNotification when the loop can't move further without the user, or when 
 > - [Answer (`1909` chars, `1.87 KB`)](output/agents/079.b8s102dtu/result.md)
 > - [Raw log (`1909` chars, `1.87 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/8afdf7b5-9953-47a8-beff-4f97d004f2fb/tasks/b8s102dtu.output)
 
+❯ # Autonomous loop tick (dynamic pacing)
+
+Run the autonomous check using the loop instructions established earlier in this conversation. If you cannot find them, treat this as a no-op tick.
+
+You scheduled this tick via the ScheduleWakeup tool (not a recurring cron). To keep the loop alive, call ScheduleWakeup again at the end of this turn with `prompt` set to the literal sentinel `<<autonomous-loop-dynamic>>` and `noop` set to `true` if this tick changed nothing (or `false` if it did) — otherwise the loop ends after this tick.
+
+If a Monitor is armed (check TaskList), keep `delaySeconds` at 1200–1800s — the Monitor is the wake signal and this is only the fallback heartbeat. If you were woken by a `<task-notification>`, handle the event before deciding whether to re-arm. To stop the loop, call ScheduleWakeup with `stop: true` and TaskStop the monitor (use TaskList to find its task ID if no longer in context).
+
+Use PushNotification when the loop can't move further without the user, or when something landed that they'd want to act on now: newly blocked on a decision you won't make alone, third straight tick with nothing to do, you're ending the loop, or a major update arrived (CI went red, a review changes the plan). Progress you made yourself isn't a trigger — the transcript covers that. One ping per state, not per tick.
+
+❯ /plan Make sure the file-mention auto-commit hook a few commits back does also supports 
+1. sections/title/a name/a id links:
+   ```diff
+   @@@ query.md @@@
+   - Taking about `docs/README.md#some-title` or `@query.md#top`
+   + Talking about [`docs/README.md`](../docs/README.md)[#some-title](../docs/README.md#some-title) or [@`query.md`](./query.md)[#top](./query.md#top)   
+   ```
+2. line (selections):
+   ```diff
+   - Wow, look at `docs/README.md#L123` it's so interesting,
+   + Wow, look at [`docs/README.md`](../docs/README.md)[#L123](../docs/README.md#L123)` it's so interesting,
+
+   - and also @docs/README.md#L123-456, which is like also very … uh … text!
+   + and also [@`docs/README.md`](../docs/README.md)[#L123-456](../docs/README.md#L123-456), which is like also very … uh … text!
+
+   - And then also look at @docs/README.md:345 and the following lines `docs/README.md:346-400`, for ultimate fun, too!
+   + And then also look at [@`ai/query.md`](./query.md)[:345](./query.md#L345) and the following lines [`ai/query.md`](./query.md)[:346-400](./query.md), for ultimate fun, too!
+   ```
+- Yes the new format for `@` being outside the code block is intentional.
+- Use @ai/skills/code-style/references/py.md
+
+> _Mentioned file at line `20`:_ [@ai/skills/code-style/references/py.md](../skills/code-style/references/py.md)
+
+❯ Task Notification:
+> - Task `ad86ffe1b2de5c767` <kbd>completed</kbd>
+> - Tool `toolu_01Gt2shxTjNwia1eYuuaYV4Q`
+> - > Agent "Explore reffiles_lib mention hook" finished
+> - [Query (`1622` chars, `1.59 KB`)](output/agents/081.ad86ffe1b2de5c767/prompt.md)
+> - [Answer (`15000` chars, `14.8 KB`)](output/agents/081.ad86ffe1b2de5c767/result.md)
+> - [Raw log (`280109` chars, `274 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/3312649e-2d21-49d7-b544-d7b821c36f5d/tasks/ad86ffe1b2de5c767.output)
+> - `16` tools, `46790` tokens, `1.82868 s`
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Your diff examples show the raw mention text rewritten in-place inside the log entry itself (e.g. `docs/README.md#L123` inline becomes `[docs/README.md](...)[#L123](...)`). But commit e778a13 deliberately moved away from inline rewriting to an appended summary block below the entry, specifically to leave the original prose/formatting untouched. Which behavior do you want for these new anchor/line mentions?
+>> 2. For a line-range fragment like `:346-400` or `#L123-456`, what should the generated link target be? Your two examples disagreed: one turned `:345` into `#L345` on the target, but `:346-400` dropped the range entirely and just linked to the bare file.
+>> 3. For title/anchor mentions like `#some-title` (not a line number), should the tool verify the heading actually exists in the target file before linking?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Rewrite scope** (1/3) <kbd>Single Select</kbd><br>
+>> Your diff examples show the raw mention text rewritten in-place inside the log entry itself (e.g. `docs/README.md#L123` inline becomes `[docs/README.md](...)[#L123](...)`). But commit e778a13 deliberately moved away from inline rewriting to an appended summary block below the entry, specifically to leave the original prose/formatting untouched. Which behavior do you want for these new anchor/line mentions?
+> - [ ] 1\. Inline rewrite (Recommended)
+>   - _Reverse the append-only decision for these two-part mentions: replace the raw `@path#frag` / `` `path#frag` `` text directly in the log entry with the two-link markdown form shown in your examples. Plain (no-fragment) mentions keep going through the existing append-only summary block._
+> - [ ] 2\. Append-only, formatted display
+>   - _Keep the current append-only design entirely. Leave the original entry text untouched, but change the *display* text used in the appended summary block/link to the new two-link format for mentions that have a fragment._
+> - [x] 3\. _Type something:_
+>   - > Yes, inline was ment to be how it's done. Commit e778a13 was supposed to be only for multiline code blocks, and not to apply to all mentions.
+>
+>> **Range anchors** (2/3) <kbd>Single Select</kbd><br>
+>> For a line-range fragment like `:346-400` or `#L123-456`, what should the generated link target be? Your two examples disagreed: one turned `:345` into `#L345` on the target, but `:346-400` dropped the range entirely and just linked to the bare file.
+> - [ ] 1\. GitHub-style range anchor (Recommended)
+>   - _`:346-400` / `#L123-456` → link target gets `#L346-L400` (GitHub's multi-line anchor syntax), consistent with the single-line case._
+> - [ ] 2\. Bare file link for ranges
+>   - _Single line refs (`:345`, `#L123`) get a `#L123`-style anchor; ranges (`:346-400`, `#L123-456`) link to the file with no anchor, matching your third example exactly._
+> - [x] 3\. _Type something:_
+>   - > I tent towards GitHub-style, the bare file link was an example. I want the most supported one, especially in PyCharm or other JetBrain products, and bonus for VS Code(ium), even though I don't use that. If nothing of those have any differing support, stay with GitHub-style.
+>
+>> **Anchor validation** (3/3) <kbd>Single Select</kbd><br>
+>> For title/anchor mentions like `#some-title` (not a line number), should the tool verify the heading actually exists in the target file before linking?
+> - [x] 1\. No validation (Recommended)
+>   - _Purely mechanical: append `#some-title` to the resolved path as-is, same as today's file-existence-only check. Simpler, no markdown-heading parsing needed._
+> - [ ] 2\. Validate against headings
+>   - _Parse the target file's headings and only treat `#some-title` as a valid anchor mention if a matching heading/slug exists; otherwise skip it like an unresolved mention._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
