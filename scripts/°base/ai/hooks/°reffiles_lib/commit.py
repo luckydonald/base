@@ -1,5 +1,5 @@
-"""Git side effects for files mentioned in a prompt, and a markdown summary
-of the existing files that were mentioned."""
+"""Git side effects for files mentioned in a prompt, and the markdown link
+each mention that resolves to a real file gets rendered as."""
 from __future__ import annotations
 
 import os
@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 base_ai_commit_subject = import_module("°commit_style_lib").base_ai_commit_subject  # noqa: E402
 
-from .mentions import Mention, find_mentions  # noqa: E402
+from .mentions import Mention, anchor_target, find_mentions  # noqa: E402
 
 
 def is_tracked(relpath: str) -> bool:
@@ -23,6 +23,7 @@ def is_tracked(relpath: str) -> bool:
         capture_output=True,
     )
     return result.returncode == 0
+# end def
 
 
 def is_gitignored(relpath: str) -> bool:
@@ -31,78 +32,147 @@ def is_gitignored(relpath: str) -> bool:
         capture_output=True,
     )
     return result.returncode == 0
+# end def
 
 
 @dataclass
-class ResolvedMention(Mention):
+class ResolvedMention:
+    line: int
+    start: int
+    end: int
+    at: bool
+    suffix: str
+    in_fence: bool
+    fence_end_line: int | None
+    fence_prefix: str | None
+    path: str
+    fragment: str | None
     abspath: Path
     relpath: str
+# end class
 
 
 def resolve_existing(mentions: list[Mention], subproject: Path) -> list[ResolvedMention]:
-    """Keep only the mentions that resolve to a real file, with its git-root-relative path."""
+    """Keep only the mentions with at least one candidate that resolves to a
+    real file, picking the first (most conservative) candidate that does."""
     resolved: list[ResolvedMention] = []
     for mention in mentions:
-        abspath = (subproject / mention.path).resolve()
-        if not abspath.is_file():
-            continue
-        try:
-            relpath = str(abspath.relative_to(Path.cwd()))
-        except ValueError:
-            continue  # outside the repo -- skip
-        resolved.append(
-            ResolvedMention(
-                line=mention.line, display=mention.display, path=mention.path,
-                abspath=abspath, relpath=relpath,
+        for path, fragment in mention.candidates:
+            abspath = (subproject / path).resolve()
+            if not abspath.is_file():
+                continue
+            # end if
+            try:
+                relpath = str(abspath.relative_to(Path.cwd()))
+            except ValueError:
+                continue  # outside the repo -- try the next candidate
+            # end try
+            resolved.append(
+                ResolvedMention(
+                    line=mention.line, start=mention.start, end=mention.end, at=mention.at,
+                    suffix=mention.suffix, in_fence=mention.in_fence,
+                    fence_end_line=mention.fence_end_line, fence_prefix=mention.fence_prefix,
+                    path=path, fragment=fragment, abspath=abspath, relpath=relpath,
+                )
             )
-        )
+            break
+        # end for
+    # end for
     return resolved
+# end def
 
 
 def link_target(abspath: Path, log_path: Path) -> str:
     target = os.path.relpath(abspath, log_path.parent)
     return target if target.startswith("..") else f"./{target}"
+# end def
 
 
-def build_summary_block(resolved: list[ResolvedMention], log_path: Path, content: str) -> str | None:
-    """A blockquote note to append after a log entry, linking to each existing
-    mentioned file. `None` when there's nothing to mention."""
-    if not resolved:
-        return None
+def mention_link(mention: ResolvedMention, log_path: Path) -> str:
+    """The markdown for one resolved mention: a bare-path link, plus a
+    second link for its fragment (if any) whose target anchor is
+    GitHub-style-normalized while its label stays exactly as typed."""
+    target = link_target(mention.abspath, log_path)
+    prefix = "@" if mention.at else ""
+    text = f"[{prefix}`{mention.path}`]({target})"
+    if mention.fragment is not None:
+        text += f"[{mention.fragment}]({target}{anchor_target(mention.fragment)})"
+    # end if
+    return text
+# end def
 
-    width = len(str(content.count("\n") + 1))
 
-    if len(resolved) == 1:
-        mention = resolved[0]
-        target = link_target(mention.abspath, log_path)
+def fence_summary_lines(mentions: list[ResolvedMention], log_path: Path, width: int) -> list[str]:
+    """Bare (unprefixed) lines listing the mentions found inside one fenced
+    code block, in the same one-liner/`<details>` shape the whole-entry
+    summary block used before inline rewriting was introduced."""
+    if len(mentions) == 1:
+        mention = mentions[0]
         line_no = f"{mention.line:0{width}d}"
-        return f"> _Mentioned file at line `{line_no}`:_ [{mention.display}]({target})"
+        return [f"> _Mentioned file at line `{line_no}`:_ {mention_link(mention, log_path)}"]
+    # end if
 
     lines = ["> <details><summary><i>Mentioned files:</i></summary>", ">"]
-    for mention in resolved:
-        target = link_target(mention.abspath, log_path)
+    for mention in mentions:
         line_no = f"{mention.line:0{width}d}"
-        lines.append(f"> - line `{line_no}`: [{mention.display}]({target})")
+        lines.append(f"> - line `{line_no}`: {mention_link(mention, log_path)}")
+    # end for
     lines.append(">")
     lines.append("> </details>")
-    return "\n".join(lines)
+    return lines
+# end def
 
 
 def process_referenced_files(
     content: str, subproject: Path, log_path: Path
 ) -> tuple[str, list[ResolvedMention]]:
-    """Append a summary of existing mentioned files to `content` (never
-    rewriting it inline, so fenced code blocks and other formatting are left
-    untouched) and return the resolved mentions to stage/commit.
+    """Rewrite every mention that resolves to a real file into a markdown
+    link. A non-fenced mention is rewritten in place. A mention found inside
+    a fenced code block is left untouched where it is, and instead listed in
+    a summary block inserted right after that fence's closing delimiter,
+    every line prefixed with that fence's own leading indent/blockquote
+    prefix so it stays nested the same way the fence itself was.
 
     Assumes cwd is already the git root (as `resolve_log_path` leaves it).
     """
     mentions = find_mentions(content)
     resolved = resolve_existing(mentions, subproject)
-    block = build_summary_block(resolved, log_path, content)
-    if block is None:
+    if not resolved:
         return content, []
-    return content.rstrip("\n") + "\n\n" + block + "\n\n", resolved
+    # end if
+
+    lines = content.split("\n")
+    width = len(str(len(lines)))
+
+    inline_by_line: dict[int, list[ResolvedMention]] = {}
+    fenced_by_fence: dict[tuple[int, str], list[ResolvedMention]] = {}
+    for mention in resolved:
+        if mention.in_fence:
+            key = (mention.fence_end_line, mention.fence_prefix)
+            fenced_by_fence.setdefault(key, []).append(mention)
+        else:
+            inline_by_line.setdefault(mention.line, []).append(mention)
+        # end if
+    # end for
+
+    for lineno, line_group in inline_by_line.items():
+        line = lines[lineno - 1]
+        for mention in sorted(line_group, key=lambda m: m.start, reverse=True):
+            line = line[:mention.start] + mention_link(mention, log_path) + mention.suffix + line[mention.end:]
+        # end for
+        lines[lineno - 1] = line
+    # end for
+
+    for fence_end_line, fence_prefix in sorted(fenced_by_fence, key=lambda key: key[0], reverse=True):
+        fence_group = fenced_by_fence[(fence_end_line, fence_prefix)]
+        body = fence_summary_lines(fence_group, log_path, width)
+        blank = fence_prefix.rstrip()
+        block = [blank, *(f"{fence_prefix}{body_line}" for body_line in body), blank]
+        lines[fence_end_line:fence_end_line] = block
+    # end for
+
+    return "\n".join(lines), resolved
+# end def
 
 
 def stage_and_commit_mentions(resolved: list[ResolvedMention]) -> None:
@@ -111,14 +181,17 @@ def stage_and_commit_mentions(resolved: list[ResolvedMention]) -> None:
     for mention in resolved:
         if mention.relpath in seen:
             continue
+        # end if
         seen.add(mention.relpath)
 
         if is_tracked(mention.relpath):
             subprocess.run(["git", "add", "--", mention.relpath], capture_output=True)
             continue
+        # end if
 
         if is_gitignored(mention.relpath):
             continue
+        # end if
 
         subprocess.run(["git", "add", "--", mention.relpath], capture_output=True)
         subprocess.run(
@@ -126,3 +199,5 @@ def stage_and_commit_mentions(resolved: list[ResolvedMention]) -> None:
              "-m", base_ai_commit_subject("ai: referenced file for task added.")],
             capture_output=True,
         )
+    # end for
+# end def

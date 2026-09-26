@@ -14,6 +14,11 @@ Gaps, all confirmed with the user:
 
 **Explicitly out of scope (separate future change, per user):** fence *detection* becoming aware of fence-delimiter length/character consistency (e.g. a 4-backtick fence escaping literal triple-backticks inside). Detection stays as permissive as today.
 
+## Style & workflow
+
+- Implementation runs under `/commit-with-lplp-style` and the `code-style` skill's Python guide (this plan document itself follows the Markdown guide — prose isn't hard-wrapped at a fixed column).
+- No function name in the touched files may start with `_`. New functions introduced by this plan are named without a leading underscore from the start (`split_candidates`, `mention_link`, `fence_summary_lines`, below). The two pre-existing underscore-prefixed functions in the files this plan touches — `commit.py`'s `_link_target` and `mentions.py`'s `_line_mentions` — get renamed to `link_target` and `line_mentions` too, each as its **own dedicated commit** covering every call site of that one function, kept separate from the feature commits, so each rename is easy to spot/revert independently. (Module-level regex constants like `_FENCE_RE` are left alone — this only applies to function names, and only within the files already being touched here, not a codebase-wide sweep.)
+
 ## Design
 
 ### Path/fragment splitting: try the most conservative interpretation first
@@ -26,7 +31,7 @@ Given a mention's raw text (after stripping trailing punctuation), build an **or
    - A `:` position is only a plausible split point if everything from `:` onward matches a line/line-range shape (`:\d+` or `:\d+-\d+`) — otherwise it's left alone (protects things like `https://...`-shaped tokens from ever being split there).
 3. Any candidate whose `path` half doesn't contain `/` is discarded (keeps the existing "must look like a path" gate, just applied per-candidate instead of once).
 
-`commit.py::resolve_existing` walks a mention's candidates **in that order** and keeps the first whose `path` resolves to a real file — this is the only place doing filesystem I/O, so it's the natural home for "does this shorter interpretation actually exist" logic. If none of a mention's candidates resolve, the mention is dropped entirely, same as an unresolved mention is today.
+`commit.py`'s `resolve_existing` walks a mention's candidates **in that order** and keeps the first whose `path` resolves to a real file — this is the only place doing filesystem I/O, so it's the natural home for "does this shorter interpretation actually exist" logic. If none of a mention's candidates resolve, the mention is dropped entirely, same as an unresolved mention is today.
 
 Example: `foo.ext:1234#245:123` → candidates tried in order: `("foo.ext:1234#245:123", None)`, `("foo.ext:1234#245", ":123")` (rightmost `:` — matches the line-shape), `("foo.ext:1234", "#245:123")` (the `#`) — the `:` right after `foo.ext` is *not* a candidate split point, since `:1234#245:123` doesn't match the line/line-range shape.
 
@@ -51,9 +56,9 @@ GitHub-style range anchors were chosen because neither PyCharm nor VS Code resol
 
 - Add `_LINE_FRAGMENT_RE = re.compile(r"^#L?(\d+)(?:-L?(\d+))?$")` and `_COLON_FRAGMENT_RE = re.compile(r"^:(\d+)(?:-(\d+))?$")`.
 - Add `anchor_target(fragment: str) -> str`: matches `_COLON_FRAGMENT_RE` then `_LINE_FRAGMENT_RE`, returns `#L{n}` / `#L{n}-L{m}`; otherwise returns `fragment` unchanged (heading passthrough).
-- Add `_split_candidates(raw: str) -> list[tuple[str, str | None]]`:
+- Add `split_candidates(raw: str) -> list[tuple[str, str | None]]`:
   ```python
-  def _split_candidates(raw: str) -> list[tuple[str, str | None]]:
+  def split_candidates(raw: str) -> list[tuple[str, str | None]]:
       positions = [i for i, ch in enumerate(raw) if ch == "#"]
       positions += [i for i, ch in enumerate(raw) if ch == ":" and _COLON_FRAGMENT_RE.match(raw[i:])]
       candidates = [(raw, None)]
@@ -76,7 +81,7 @@ GitHub-style range anchors were chosen because neither PyCharm nor VS Code resol
       fence_end_line: int | None = None     # that fence's closing delimiter line (set only when in_fence)
       fence_prefix: str | None = None       # that fence's leading prefix string, verbatim (set only when in_fence)
   ```
-- Rework `_line_mentions(line) -> list[tuple[int, int, bool, list[tuple[str, str | None]], str]]`: for each `_AT_MENTION_RE`/`_BACKTICK_MENTION_RE` match, `raw = m.group(1)`, `trimmed = raw.rstrip(_TRAILING_PUNCT)`, `suffix = raw[len(trimmed):]`, `candidates = _split_candidates(trimmed)`; keep the match only if `candidates` is non-empty. Span is `m.start()`/`m.end()` (the whole match, including `@`/backticks).
+- Rework `line_mentions(line) -> list[tuple[int, int, bool, list[tuple[str, str | None]], str]]` (renamed from `_line_mentions`, see Style & workflow above): for each `_AT_MENTION_RE`/`_BACKTICK_MENTION_RE` match, `raw = m.group(1)`, `trimmed = raw.rstrip(_TRAILING_PUNCT)`, `suffix = raw[len(trimmed):]`, `candidates = split_candidates(trimmed)`; keep the match only if `candidates` is non-empty. Span is `m.start()`/`m.end()` (the whole match, including `@`/backticks).
 - Rework `find_mentions` to **not** skip fenced lines when scanning — it still toggles fence state via `_FENCE_RE`, but now collects matches found while a fence is open into a `fence_pending` list; when that fence's closing delimiter is hit, stamps every pending mention with `fence_end_line` (the closing line's number) and `fence_prefix` (captured when that fence opened), then flushes them into the result list. An unterminated trailing fence's pending mentions are simply dropped (no closing line to anchor them to).
 - Leave `extract_candidate_paths` as-is (unused by any real caller today; out of scope).
 
@@ -120,23 +125,23 @@ GitHub-style range anchors were chosen because neither PyCharm nor VS Code resol
       return resolved
   ```
   (`ResolvedMention` no longer subclasses `Mention` via inherited `path`/`fragment` fields, since those are now single resolved values rather than a list — it's defined standalone with the fields above.)
-- Add `_mention_link(mention: ResolvedMention, log_path: Path) -> str` — the pure "what does this mention's markdown look like" builder, used by both rendering paths:
+- Add `mention_link(mention: ResolvedMention, log_path: Path) -> str` — the pure "what does this mention's markdown look like" builder, used by both rendering paths:
   ```python
-  def _mention_link(mention: ResolvedMention, log_path: Path) -> str:
-      target = _link_target(mention.abspath, log_path)
+  def mention_link(mention: ResolvedMention, log_path: Path) -> str:
+      target = link_target(mention.abspath, log_path)
       prefix = "@" if mention.at else ""
       text = f"[{prefix}`{mention.path}`]({target})"
       if mention.fragment is not None:
           text += f"[{mention.fragment}]({target}{anchor_target(mention.fragment)})"
       return text
   ```
-- Replace `build_summary_block` with `_fence_summary_lines(mentions: list[ResolvedMention], log_path: Path, width: int) -> list[str]`, reusing today's single-vs-multiple template (one-liner `> _Mentioned file at line \`NNN\`:_ [...]` for exactly one; `<details><summary>` block for more than one), `[...]` built via `_mention_link`. Returns bare (unprefixed) lines — the fence's `fence_prefix` is applied by the caller, keeping this function about content, not placement.
+- Replace `build_summary_block` with `fence_summary_lines(mentions: list[ResolvedMention], log_path: Path, width: int) -> list[str]`, reusing today's single-vs-multiple template (one-liner `> _Mentioned file at line \`NNN\`:_ [...]` for exactly one; `<details><summary>` block for more than one), `[...]` built via `mention_link`. Returns bare (unprefixed) lines — the fence's `fence_prefix` is applied by the caller, keeping this function about content, not placement.
 - Replace `process_referenced_files`:
   1. `mentions = find_mentions(content)`; `resolved = resolve_existing(mentions, subproject)`; if empty, return `(content, [])` unchanged.
   2. Split into `inline = [m for m in resolved if not m.in_fence]` and `fenced = [m for m in resolved if m.in_fence]`.
-  3. `lines = content.split("\n")`. For `inline`, group by `line`; for each line, splice mentions **rightmost `start` first** (keeps earlier offsets on that line valid): `line[:m.start] + _mention_link(m, log_path) + m.suffix + line[m.end:]`.
+  3. `lines = content.split("\n")`. For `inline`, group by `line`; for each line, splice mentions **rightmost `start` first** (keeps earlier offsets on that line valid): `line[:m.start] + mention_link(m, log_path) + m.suffix + line[m.end:]`.
   4. `width = len(str(len(lines)))` (computed once, from the original line count, reused by every fenced summary block for consistent padding).
-  5. For `fenced`, group by `(fence_end_line, fence_prefix)`. For each group, build the template body via `_fence_summary_lines`, prefix every line (including its blank separator lines) with that group's `fence_prefix` verbatim, and insert via `lines[fence_end_line:fence_end_line] = new_lines`. Process fence groups **in descending order of `fence_end_line`** so earlier insertions don't shift the target index of a group still to be processed.
+  5. For `fenced`, group by `(fence_end_line, fence_prefix)`. For each group, build the template body via `fence_summary_lines`, prefix every line (including its blank separator lines) with that group's `fence_prefix` verbatim, and insert via `lines[fence_end_line:fence_end_line] = new_lines`. Process fence groups **in descending order of `fence_end_line`** so earlier insertions don't shift the target index of a group still to be processed.
   6. Return `("\n".join(lines), resolved)`.
 - `stage_and_commit_mentions` unchanged.
 
@@ -148,7 +153,7 @@ GitHub-style range anchors were chosen because neither PyCharm nor VS Code resol
 ### Tests: `scripts/°base/tests/test_ai_hooks_base_routing.py`
 
 - **`ReffilesLibMentionsTests`**: update existing assertions to the new `Mention`/candidates shape. Add:
-  - `_split_candidates`: whole-string-first ordering; rightmost-delimiter-first fallback order; a non-numeric colon suffix never becomes a split point; the `foo.ext:1234#245` and `foo.ext:1234#245:123` examples from the plan, asserting the exact candidate list and order.
+  - `split_candidates`: whole-string-first ordering; rightmost-delimiter-first fallback order; a non-numeric colon suffix never becomes a split point; the `foo.ext:1234#245` and `foo.ext:1234#245:123` examples from the plan, asserting the exact candidate list and order.
   - hash line fragment / hash line-range fragment / colon line fragment / colon line-range fragment / heading anchor fragment, each as the *chosen* resolved fragment once combined with `resolve_existing` in a fixture where only one candidate's path exists on disk.
   - `find_mentions` now finds mentions inside a fenced block (reversing "skipped entirely") and stamps `fence_end_line`/`fence_prefix` correctly; non-fenced mentions have `in_fence=False`.
   - a fence indented under a list item asserts `fence_prefix` equals that indentation; a fence nested inside a blockquote asserts `fence_prefix` captures the `>`/`> >` prefix.
@@ -156,7 +161,7 @@ GitHub-style range anchors were chosen because neither PyCharm nor VS Code resol
   - `anchor_target` unit tests covering every row of the fragment table above.
 - **`ReffilesLibCommitTests`**: replace the `build_summary_block` tests with:
   - `resolve_existing` picks the most-conservative candidate that exists: a fixture with a literal file named `foo.ext:1234` (no such file needed for the `#245`-fragment interpretation) proves the "try whole string first" behavior; a fixture where only the split interpretation's path exists proves the fallback.
-  - `_mention_link` for a plain mention, a hash-anchor mention, and a colon/hash line-range mention — correct two-link form and GitHub-style target anchors.
+  - `mention_link` for a plain mention, a hash-anchor mention, and a colon/hash line-range mention — correct two-link form and GitHub-style target anchors.
   - `process_referenced_files`: a non-fenced mention is rewritten in place; trailing punctuation ends up after the link; two mentions on the same line both rewrite correctly (proves reverse-order splicing doesn't corrupt offsets); no resolved mentions → content unchanged.
   - `process_referenced_files`: a mention inside a fenced block is not rewritten in place, but a summary block appears immediately after that fence's closing delimiter, lines prefixed by the fence's indent; same again nested in a blockquote (stacked `>` prefix); two separate fenced blocks each get their own trailing summary in the right place.
 - **End-to-end tests**: update `test_referenced_file_mention_appends_summary_block_and_links` and `test_ask_user_question_answer_mention_gets_summary_and_commit` to assert the inline link form appears directly in `query.md`'s entry text. Update `test_referenced_file_mention_inside_fenced_code_block_is_not_committed` — the fenced text itself must still be untouched, but now assert a trailing summary block *does* appear right after that fence, linking to the file, and that the file still gets staged/committed.

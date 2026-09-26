@@ -7,7 +7,9 @@ from dataclasses import dataclass
 _AT_MENTION_RE = re.compile(r"(?<!\S)@([^\s`]+)")
 _BACKTICK_MENTION_RE = re.compile(r"`([^`\n]+)`")
 _TRAILING_PUNCT = ".,;:!?)]}\"'"
-_FENCE_RE = re.compile(r"^(```|~~~)")
+_FENCE_RE = re.compile(r"^([ \t>]*)(```|~~~)")
+_LINE_FRAGMENT_RE = re.compile(r"^#L?(\d+)(?:-L?(\d+))?$")
+_COLON_FRAGMENT_RE = re.compile(r"^:(\d+)(?:-(\d+))?$")
 
 
 def extract_candidate_paths(prompt: str) -> list[str]:
@@ -20,49 +22,133 @@ def extract_candidate_paths(prompt: str) -> list[str]:
             if "/" in candidate and candidate not in seen:
                 seen.add(candidate)
                 out.append(candidate)
+            # end if
+        # end for
+    # end for
     return out
+# end def
+
+
+def anchor_target(fragment: str) -> str:
+    """The GitHub-style link-target anchor for a raw `#...`/`:...` fragment
+    suffix, exactly as it was typed. Line and line-range fragments (however
+    written) normalize to `#Lxx` / `#Lxx-Lyy`; anything else starting with
+    `#` is treated as a heading anchor and passed through verbatim, with no
+    validation against real headings in the target file."""
+    match = _COLON_FRAGMENT_RE.match(fragment) or _LINE_FRAGMENT_RE.match(fragment)
+    if match is None:
+        return fragment
+    # end if
+    start, end = match.group(1), match.group(2)
+    if end is None:
+        return f"#L{start}"
+    # end if
+    return f"#L{start}-L{end}"
+# end def
+
+
+def split_candidates(raw: str) -> list[tuple[str, str | None]]:
+    """Ordered `(path, fragment)` candidates for a mention's raw text, most
+    conservative first: the whole string as a literal path, then
+    progressively shorter prefixes cut at each `#`/`:` position, rightmost
+    first -- so a real file whose name happens to contain `#` or `:` is
+    preferred over interpreting the tail as a fragment. A `:` position only
+    counts as a possible cut when everything from there on looks like a
+    line/line-range fragment; otherwise it's left alone, so tokens shaped
+    like `https://...` never get split there. Any candidate whose `path`
+    half has no `/` is dropped."""
+    positions = [i for i, ch in enumerate(raw) if ch == "#"]
+    positions += [i for i, ch in enumerate(raw) if ch == ":" and _COLON_FRAGMENT_RE.match(raw[i:])]
+    candidates: list[tuple[str, str | None]] = [(raw, None)]
+    for i in sorted(positions, reverse=True):
+        candidates.append((raw[:i], raw[i:]))
+    # end for
+    return [(path, fragment) for path, fragment in candidates if "/" in path]
+# end def
 
 
 @dataclass
 class Mention:
-    line: int       # 1-indexed line number within the scanned text
-    display: str    # original text to show as the link label, e.g. "@src/other_file.py" or "`ai/some_file.md`"
-    path: str       # candidate path used for filesystem resolution
+    line: int                                  # 1-indexed line number of the match
+    start: int                                 # start offset of the full raw match within that line
+    end: int                                   # end offset of the full raw match within that line
+    at: bool                                   # True for @mention, False for backtick mention
+    candidates: list[tuple[str, str | None]]   # ordered (path, fragment) options, most-conservative first
+    suffix: str                                # trailing punctuation stripped off the match, restored after the rendered link
+    in_fence: bool                             # True if found inside a fenced code block
+    fence_end_line: int | None = None          # that fence's closing delimiter line (set only when in_fence)
+    fence_prefix: str | None = None            # that fence's leading prefix string, verbatim (set only when in_fence)
+# end class
 
 
-def _line_mentions(line: str) -> list[tuple[str, str]]:
-    """(display, path) pairs for @mentions and backtick mentions on a single line."""
-    found: list[tuple[str, str]] = []
+def line_mentions(line: str) -> list[tuple[int, int, bool, list[tuple[str, str | None]], str]]:
+    """(start, end, at, candidates, suffix) tuples for @mentions and backtick mentions on a single line."""
+    found: list[tuple[int, int, bool, list[tuple[str, str | None]], str]] = []
     for m in _AT_MENTION_RE.finditer(line):
-        path = m.group(1).strip().rstrip(_TRAILING_PUNCT)
-        if "/" in path:
-            found.append((f"@{path}", path))
+        raw = m.group(1)
+        trimmed = raw.rstrip(_TRAILING_PUNCT)
+        suffix = raw[len(trimmed):]
+        candidates = split_candidates(trimmed)
+        if candidates:
+            found.append((m.start(), m.end(), True, candidates, suffix))
+        # end if
+    # end for
     for m in _BACKTICK_MENTION_RE.finditer(line):
         raw = m.group(1)
-        path = raw.strip().rstrip(_TRAILING_PUNCT)
-        if "/" in path:
-            found.append((f"`{raw}`", path))
+        trimmed = raw.rstrip(_TRAILING_PUNCT)
+        suffix = raw[len(trimmed):]
+        candidates = split_candidates(trimmed)
+        if candidates:
+            found.append((m.start(), m.end(), False, candidates, suffix))
+        # end if
+    # end for
     return found
+# end def
 
 
 def find_mentions(content: str) -> list[Mention]:
-    """Like `extract_candidate_paths`, but per-line and fence-aware: skips any
-    line inside a ``` or ~~~ fenced code block (including the fence delimiter
-    lines themselves), so example diffs/snippets are never mistaken for real
-    mentions.
+    """Line-aware, fence-aware mention scan. Mentions found inside a ``` or
+    ~~~ fenced block (including one indented under a list item, or nested in
+    a `>` blockquote) are still returned, stamped with `in_fence=True`,
+    `fence_end_line` (that fence's closing delimiter line), and
+    `fence_prefix` (that fence's leading indent/blockquote prefix, verbatim)
+    -- so a caller can list them in a summary after the fence instead of
+    rewriting the fenced text itself. A fence left unterminated at the end
+    of `content` contributes no mentions.
 
-    Unlike `extract_candidate_paths`, matches are not deduplicated -- each
-    occurrence becomes its own `Mention` so a summary can list every line a
-    file was referenced on.
+    Matches are not deduplicated -- each occurrence becomes its own `Mention`.
     """
     mentions: list[Mention] = []
+    fence_pending: list[Mention] = []
     in_fence = False
+    fence_prefix = ""
     for lineno, line in enumerate(content.split("\n"), start=1):
-        if _FENCE_RE.match(line.lstrip()):
-            in_fence = not in_fence
+        fence_match = _FENCE_RE.match(line)
+        if fence_match:
+            if not in_fence:
+                in_fence = True
+                fence_prefix = fence_match.group(1)
+                fence_pending = []
+            else:
+                for pending in fence_pending:
+                    pending.fence_end_line = lineno
+                    pending.fence_prefix = fence_prefix
+                # end for
+                mentions.extend(fence_pending)
+                in_fence = False
+                fence_pending = []
+            # end if
             continue
+        # end if
+        matches = [
+            Mention(line=lineno, start=start, end=end, at=at, candidates=candidates, suffix=suffix, in_fence=in_fence)
+            for start, end, at, candidates, suffix in line_mentions(line)
+        ]
         if in_fence:
-            continue
-        for display, path in _line_mentions(line):
-            mentions.append(Mention(line=lineno, display=display, path=path))
+            fence_pending.extend(matches)
+        else:
+            mentions.extend(matches)
+        # end if
+    # end for
     return mentions
+# end def

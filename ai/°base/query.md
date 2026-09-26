@@ -6794,3 +6794,10 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 
 ❯ Plan denied.
 
+❯ Alright
+- Enable /commit-with-lplp-style (implementation time)
+- Enable the code style skill for py (implementation time) and md (for this plan)
+- Do not use `_` in function names. If you come along more of them, adapt their naming too, but that must be a commit per function name changed, to easily track that change across files. Make sure to find all usages, however you don't need to search the codebase for leading underscore functions now.
+
+❯ Plan accepted, auto mode.
+

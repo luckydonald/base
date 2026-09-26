@@ -2376,7 +2376,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             self.assertEqual(last_subject(repo), "ai: updated prompt")
 
-    def test_referenced_file_mention_appends_summary_block_and_links(self):
+    def test_referenced_file_mention_rewritten_inline(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "myproject"
             init_repo(repo, "https://github.com/example/consumer.git")
@@ -2386,15 +2386,15 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "please check @sub/file.txt for bugs"}, "claude")
 
             query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
-            self.assertIn("❯ please check @sub/file.txt for bugs\n\n", query_md)
             self.assertIn(
-                "> _Mentioned file at line `1`:_ [@sub/file.txt](../sub/file.txt)",
+                "❯ please check [@`sub/file.txt`](../sub/file.txt) for bugs\n\n",
                 query_md,
             )
 
-    def test_referenced_file_mention_inside_fenced_code_block_is_not_committed(self):
+    def test_referenced_file_mention_inside_fenced_code_block_gets_trailing_summary(self):
         """An example mention inside a fenced code block (like this very /plan
-        request's own diff example) must not be treated as a real mention."""
+        request's own diff example) must not have its raw text rewritten, but
+        it still resolves and gets a summary block right after the fence."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "myproject"
             init_repo(repo, "https://github.com/example/consumer.git")
@@ -2405,10 +2405,14 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": prompt}, "claude")
 
             query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
-            self.assertNotIn("Mentioned file", query_md)
-            self.assertEqual(last_subject(repo), "ai: updated prompt")
+            self.assertIn("```diff\nsee @sub/file.txt\n```", query_md)
+            self.assertIn(
+                "> _Mentioned file at line `3`:_ [@`sub/file.txt`](../sub/file.txt)",
+                query_md,
+            )
+            self.assertEqual(last_subject(repo), "ai: referenced file for task added.")
             tracked = run_git(repo, "ls-files", "--", "sub/file.txt").stdout.strip()
-            self.assertEqual(tracked, "")
+            self.assertEqual(tracked, "sub/file.txt")
 
     def test_ask_user_question_answer_mention_gets_summary_and_commit(self):
         """Mentions inside an AskUserQuestion answer -- not just typed prompts --
@@ -2445,7 +2449,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
-            self.assertIn("[@sub/file.txt](../sub/file.txt)", query_md)
+            self.assertIn("[@`sub/file.txt`](../sub/file.txt)", query_md)
             tracked = run_git(repo, "ls-files", "--", "sub/file.txt").stdout.strip()
             self.assertEqual(tracked, "sub/file.txt")
 
@@ -2574,15 +2578,16 @@ class ReffilesLibMentionsTests(unittest.TestCase):
         prompt = "see @sub/file.txt and again `sub/file.txt`"
         self.assertEqual(self.mentions.extract_candidate_paths(prompt), ["sub/file.txt"])
 
-    def test_find_mentions_reports_display_and_line(self):
+    def test_find_mentions_reports_candidates_and_line(self):
         content = "line one\nsee `sub/file.txt` here\n"
         mentions = self.mentions.find_mentions(content)
         self.assertEqual(len(mentions), 1)
         self.assertEqual(mentions[0].line, 2)
-        self.assertEqual(mentions[0].display, "`sub/file.txt`")
-        self.assertEqual(mentions[0].path, "sub/file.txt")
+        self.assertFalse(mentions[0].at)
+        self.assertEqual(mentions[0].candidates, [("sub/file.txt", None)])
+        self.assertFalse(mentions[0].in_fence)
 
-    def test_find_mentions_skips_fenced_code_block(self):
+    def test_find_mentions_finds_mentions_inside_fenced_code_block(self):
         content = (
             "Implement `ai/some_file.md`,\n"
             "```diff\n"
@@ -2593,11 +2598,19 @@ class ReffilesLibMentionsTests(unittest.TestCase):
         )
         mentions = self.mentions.find_mentions(content)
         self.assertEqual(
-            [(m.line, m.path) for m in mentions],
-            [(1, "ai/some_file.md"), (6, "src/other_file.py")],
+            [(m.line, m.candidates[0][0], m.in_fence) for m in mentions],
+            [
+                (1, "ai/some_file.md", False),
+                (3, "ai/some_file.md", True),
+                (4, "ai/some_file.md", True),
+                (6, "src/other_file.py", False),
+            ],
         )
+        fenced = [m for m in mentions if m.in_fence]
+        self.assertTrue(all(m.fence_end_line == 5 for m in fenced))
+        self.assertTrue(all(m.fence_prefix == "" for m in fenced))
 
-    def test_find_mentions_skips_indented_fence_under_list_item(self):
+    def test_find_mentions_captures_indented_fence_prefix(self):
         content = (
             "- Example:\n"
             "  ```diff\n"
@@ -2606,12 +2619,88 @@ class ReffilesLibMentionsTests(unittest.TestCase):
             "see @sub/file.txt\n"
         )
         mentions = self.mentions.find_mentions(content)
-        self.assertEqual([(m.line, m.path) for m in mentions], [(5, "sub/file.txt")])
+        self.assertEqual(
+            [(m.line, m.candidates[0][0], m.in_fence) for m in mentions],
+            [(3, "ai/some_file.md", True), (5, "sub/file.txt", False)],
+        )
+        fenced = [m for m in mentions if m.in_fence]
+        self.assertEqual(fenced[0].fence_end_line, 4)
+        self.assertEqual(fenced[0].fence_prefix, "  ")
+
+    def test_find_mentions_captures_blockquote_fence_prefix(self):
+        content = (
+            "> quoting:\n"
+            "> ```diff\n"
+            "> - see `sub/file.txt`,\n"
+            "> ```\n"
+        )
+        mentions = self.mentions.find_mentions(content)
+        self.assertEqual(len(mentions), 1)
+        self.assertTrue(mentions[0].in_fence)
+        self.assertEqual(mentions[0].fence_end_line, 4)
+        self.assertEqual(mentions[0].fence_prefix, "> ")
+
+    def test_find_mentions_drops_unterminated_fence(self):
+        content = "before\n```diff\nsee @sub/file.txt\n"
+        mentions = self.mentions.find_mentions(content)
+        self.assertEqual(mentions, [])
+
+    def test_split_candidates_prefers_whole_string_first(self):
+        self.assertEqual(
+            self.mentions.split_candidates("foo/bar.ext:1234#245"),
+            [("foo/bar.ext:1234#245", None), ("foo/bar.ext:1234", "#245")],
+        )
+
+    def test_split_candidates_skips_non_numeric_colon_split(self):
+        self.assertEqual(
+            self.mentions.split_candidates("foo/bar.ext:1234#245:123"),
+            [
+                ("foo/bar.ext:1234#245:123", None),
+                ("foo/bar.ext:1234#245", ":123"),
+                ("foo/bar.ext:1234", "#245:123"),
+            ],
+        )
+
+    def test_split_candidates_hash_line_fragment(self):
+        self.assertEqual(
+            self.mentions.split_candidates("docs/README.md#L123"),
+            [("docs/README.md#L123", None), ("docs/README.md", "#L123")],
+        )
+
+    def test_split_candidates_colon_line_range_fragment(self):
+        self.assertEqual(
+            self.mentions.split_candidates("docs/README.md:346-400"),
+            [("docs/README.md:346-400", None), ("docs/README.md", ":346-400")],
+        )
+
+    def test_split_candidates_does_not_split_url_shaped_colon(self):
+        self.assertEqual(
+            self.mentions.split_candidates("https://host/path"),
+            [("https://host/path", None)],
+        )
+
+    def test_anchor_target_normalizes_hash_line(self):
+        self.assertEqual(self.mentions.anchor_target("#L123"), "#L123")
+        self.assertEqual(self.mentions.anchor_target("#123"), "#L123")
+
+    def test_anchor_target_normalizes_hash_line_range(self):
+        self.assertEqual(self.mentions.anchor_target("#123-456"), "#L123-L456")
+        self.assertEqual(self.mentions.anchor_target("#L123-456"), "#L123-L456")
+        self.assertEqual(self.mentions.anchor_target("#L123-L456"), "#L123-L456")
+
+    def test_anchor_target_normalizes_colon_line(self):
+        self.assertEqual(self.mentions.anchor_target(":345"), "#L345")
+
+    def test_anchor_target_normalizes_colon_line_range(self):
+        self.assertEqual(self.mentions.anchor_target(":346-400"), "#L346-L400")
+
+    def test_anchor_target_passes_through_heading_anchor(self):
+        self.assertEqual(self.mentions.anchor_target("#some-title"), "#some-title")
 
 
 class ReffilesLibCommitTests(unittest.TestCase):
-    """Unit tests for °reffiles_lib.commit's summary-block formatting -- pure
-    path/string logic, no git or filesystem access involved."""
+    """Unit tests for °reffiles_lib.commit's mention resolution and
+    rendering."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -2619,53 +2708,273 @@ class ReffilesLibCommitTests(unittest.TestCase):
 
         lib_root = Path(__file__).resolve().parents[1] / "ai" / "hooks"
         sys.path.insert(0, str(lib_root))
+        cls.mentions_mod = importlib.import_module("°reffiles_lib.mentions")
         cls.commit_mod = importlib.import_module("°reffiles_lib.commit")
 
-    def _resolved(self, line: int, display: str, path: str, abspath: str):
+    def _resolved(
+        self, *, line: int = 1, start: int = 0, end: int = 0, at: bool = False, suffix: str = "",
+        in_fence: bool = False, fence_end_line: int | None = None, fence_prefix: str | None = None,
+        path: str, fragment: str | None = None, abspath: str,
+    ):
         return self.commit_mod.ResolvedMention(
-            line=line, display=display, path=path,
-            abspath=Path(abspath), relpath=path,
+            line=line, start=start, end=end, at=at, suffix=suffix, in_fence=in_fence,
+            fence_end_line=fence_end_line, fence_prefix=fence_prefix,
+            path=path, fragment=fragment, abspath=Path(abspath), relpath=path,
         )
 
-    def test_single_mention_uses_one_liner(self):
+    def test_mention_link_plain(self):
         log_path = Path("/repo/ai/query.md")
-        resolved = [self._resolved(124, "`path/foo/bar/foo.py`", "path/foo/bar/foo.py", "/repo/path/foo/bar/foo.py")]
-        block = self.commit_mod.build_summary_block(resolved, log_path, "x\n" * 130)
+        mention = self._resolved(at=True, path="sub/file.txt", abspath="/repo/sub/file.txt")
+        self.assertEqual(self.commit_mod.mention_link(mention, log_path), "[@`sub/file.txt`](../sub/file.txt)")
+
+    def test_mention_link_hash_anchor(self):
+        log_path = Path("/repo/ai/query.md")
+        mention = self._resolved(path="docs/README.md", fragment="#some-title", abspath="/repo/docs/README.md")
         self.assertEqual(
-            block,
-            "> _Mentioned file at line `124`:_ [`path/foo/bar/foo.py`](../path/foo/bar/foo.py)",
+            self.commit_mod.mention_link(mention, log_path),
+            "[`docs/README.md`](../docs/README.md)[#some-title](../docs/README.md#some-title)",
         )
 
-    def test_multiple_mentions_uses_details_block(self):
+    def test_mention_link_colon_line_range(self):
+        log_path = Path("/repo/ai/query.md")
+        mention = self._resolved(at=True, path="docs/README.md", fragment=":346-400", abspath="/repo/docs/README.md")
+        self.assertEqual(
+            self.commit_mod.mention_link(mention, log_path),
+            "[@`docs/README.md`](../docs/README.md)[:346-400](../docs/README.md#L346-L400)",
+        )
+
+    def test_fence_summary_lines_single(self):
+        log_path = Path("/repo/ai/query.md")
+        mention = self._resolved(line=124, path="path/foo/bar/foo.py", abspath="/repo/path/foo/bar/foo.py")
+        lines = self.commit_mod.fence_summary_lines([mention], log_path, width=3)
+        self.assertEqual(
+            lines,
+            ["> _Mentioned file at line `124`:_ [`path/foo/bar/foo.py`](../path/foo/bar/foo.py)"],
+        )
+
+    def test_fence_summary_lines_multiple(self):
         log_path = Path("/repo/ai/query.md")
         resolved = [
-            self._resolved(2, "`./some/path/file`", "./some/path/file", "/repo/ai/some/path/file"),
-            self._resolved(12, "@ai/query.md", "ai/query.md", "/repo/ai/query.md"),
+            self._resolved(line=2, path="./some/path/file", abspath="/repo/ai/some/path/file"),
+            self._resolved(line=12, at=True, path="ai/query.md", abspath="/repo/ai/query.md"),
         ]
-        block = self.commit_mod.build_summary_block(resolved, log_path, "\n" * 11 + "x\n")
-        expected = (
-            "> <details><summary><i>Mentioned files:</i></summary>\n"
-            ">\n"
-            "> - line `02`: [`./some/path/file`](./some/path/file)\n"
-            "> - line `12`: [@ai/query.md](./query.md)\n"
-            ">\n"
-            "> </details>"
+        lines = self.commit_mod.fence_summary_lines(resolved, log_path, width=2)
+        self.assertEqual(
+            lines,
+            [
+                "> <details><summary><i>Mentioned files:</i></summary>",
+                ">",
+                "> - line `02`: [`./some/path/file`](./some/path/file)",
+                "> - line `12`: [@`ai/query.md`](./query.md)",
+                ">",
+                "> </details>",
+            ],
         )
-        self.assertEqual(block, expected)
 
-    def test_no_resolved_mentions_returns_none(self):
-        self.assertIsNone(self.commit_mod.build_summary_block([], Path("/repo/ai/query.md"), "hi\n"))
+    def test_resolve_existing_prefers_whole_string_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "sub").mkdir()
+            (repo / "sub" / "foo.ext:1234#245").write_text("literal\n", encoding="utf-8")
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                mention = self.mentions_mod.Mention(
+                    line=1, start=0, end=0, at=True,
+                    candidates=self.mentions_mod.split_candidates("sub/foo.ext:1234#245"),
+                    suffix="", in_fence=False,
+                )
+                resolved = self.commit_mod.resolve_existing([mention], repo)
+            finally:
+                os.chdir(cwd)
 
-    def test_padding_width_scales_with_entry_line_count(self):
-        log_path = Path("/repo/ai/query.md")
-        resolved = [self._resolved(3, "@x/y", "x/y", "/repo/x/y")]
+        self.assertEqual(len(resolved), 1)
+        self.assertEqual(resolved[0].path, "sub/foo.ext:1234#245")
+        self.assertIsNone(resolved[0].fragment)
 
-        short_block = self.commit_mod.build_summary_block(resolved, log_path, "a\nb\nc\n")
-        self.assertIn("line `3`", short_block)
+    def test_resolve_existing_falls_back_to_split_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "sub").mkdir()
+            (repo / "sub" / "foo.ext:1234").write_text("split\n", encoding="utf-8")
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                mention = self.mentions_mod.Mention(
+                    line=1, start=0, end=0, at=True,
+                    candidates=self.mentions_mod.split_candidates("sub/foo.ext:1234#245"),
+                    suffix="", in_fence=False,
+                )
+                resolved = self.commit_mod.resolve_existing([mention], repo)
+            finally:
+                os.chdir(cwd)
 
-        long_content = "\n".join(str(i) for i in range(500)) + "\n"
-        long_block = self.commit_mod.build_summary_block(resolved, log_path, long_content)
-        self.assertIn("line `003`", long_block)
+        self.assertEqual(len(resolved), 1)
+        self.assertEqual(resolved[0].path, "sub/foo.ext:1234")
+        self.assertEqual(resolved[0].fragment, "#245")
+
+    def test_process_referenced_files_rewrites_inline_plain_mention(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "sub").mkdir()
+            (repo / "sub" / "file.txt").write_text("hi\n", encoding="utf-8")
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, resolved = self.commit_mod.process_referenced_files(
+                    "please check @sub/file.txt for bugs\n", repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(content, "please check [@`sub/file.txt`](../sub/file.txt) for bugs\n")
+        self.assertEqual(len(resolved), 1)
+
+    def test_process_referenced_files_trailing_punctuation_outside_link(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "sub").mkdir()
+            (repo / "sub" / "file.txt").write_text("hi\n", encoding="utf-8")
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, _ = self.commit_mod.process_referenced_files(
+                    "see @sub/file.txt, thanks\n", repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(content, "see [@`sub/file.txt`](../sub/file.txt), thanks\n")
+
+    def test_process_referenced_files_two_mentions_same_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "a").mkdir()
+            (repo / "b").mkdir()
+            (repo / "a" / "one.txt").write_text("1\n", encoding="utf-8")
+            (repo / "b" / "two.txt").write_text("2\n", encoding="utf-8")
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, resolved = self.commit_mod.process_referenced_files(
+                    "see @a/one.txt and @b/two.txt\n", repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(content, "see [@`a/one.txt`](../a/one.txt) and [@`b/two.txt`](../b/two.txt)\n")
+        self.assertEqual(len(resolved), 2)
+
+    def test_process_referenced_files_no_resolved_mentions_returns_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, resolved = self.commit_mod.process_referenced_files(
+                    "see @sub/does-not-exist.txt\n", repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(content, "see @sub/does-not-exist.txt\n")
+        self.assertEqual(resolved, [])
+
+    def test_process_referenced_files_fenced_mention_gets_summary_after_fence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "sub").mkdir()
+            (repo / "sub" / "file.txt").write_text("hi\n", encoding="utf-8")
+            prompt = "\n".join(["before", "```diff", "see @sub/file.txt", "```", "after", ""])
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, resolved = self.commit_mod.process_referenced_files(
+                    prompt, repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        expected = "\n".join([
+            "before",
+            "```diff",
+            "see @sub/file.txt",
+            "```",
+            "",
+            "> _Mentioned file at line `3`:_ [@`sub/file.txt`](../sub/file.txt)",
+            "",
+            "after",
+            "",
+        ])
+        self.assertEqual(content, expected)
+        self.assertEqual(len(resolved), 1)
+
+    def test_process_referenced_files_fenced_mention_in_blockquote_gets_nested_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "sub").mkdir()
+            (repo / "sub" / "file.txt").write_text("hi\n", encoding="utf-8")
+            prompt = "\n".join(["> quoting:", "> ```diff", "> see @sub/file.txt", "> ```", "after", ""])
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, resolved = self.commit_mod.process_referenced_files(
+                    prompt, repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        expected = "\n".join([
+            "> quoting:",
+            "> ```diff",
+            "> see @sub/file.txt",
+            "> ```",
+            ">",
+            "> > _Mentioned file at line `3`:_ [@`sub/file.txt`](../sub/file.txt)",
+            ">",
+            "after",
+            "",
+        ])
+        self.assertEqual(content, expected)
+        self.assertEqual(len(resolved), 1)
+
+    def test_process_referenced_files_two_fenced_blocks_each_get_own_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "a").mkdir()
+            (repo / "b").mkdir()
+            (repo / "a" / "one.txt").write_text("1\n", encoding="utf-8")
+            (repo / "b" / "two.txt").write_text("2\n", encoding="utf-8")
+            prompt = "\n".join([
+                "```diff", "see @a/one.txt", "```", "middle", "```diff", "see @b/two.txt", "```", "",
+            ])
+            cwd = Path.cwd()
+            os.chdir(repo)
+            try:
+                content, resolved = self.commit_mod.process_referenced_files(
+                    prompt, repo, repo / "ai" / "query.md",
+                )
+            finally:
+                os.chdir(cwd)
+
+        expected = "\n".join([
+            "```diff",
+            "see @a/one.txt",
+            "```",
+            "",
+            "> _Mentioned file at line `2`:_ [@`a/one.txt`](../a/one.txt)",
+            "",
+            "middle",
+            "```diff",
+            "see @b/two.txt",
+            "```",
+            "",
+            "> _Mentioned file at line `6`:_ [@`b/two.txt`](../b/two.txt)",
+            "",
+            "",
+        ])
+        self.assertEqual(content, expected)
+        self.assertEqual(len(resolved), 2)
 
 
 if __name__ == "__main__":
