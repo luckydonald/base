@@ -59,7 +59,7 @@ def resolve_existing(mentions: list[Mention], subproject: Path) -> list[Resolved
     return resolved
 
 
-def _link_target(abspath: Path, log_path: Path) -> str:
+def link_target(abspath: Path, log_path: Path) -> str:
     target = os.path.relpath(abspath, log_path.parent)
     return target if target.startswith("..") else f"./{target}"
 
@@ -74,13 +74,13 @@ def build_summary_block(resolved: list[ResolvedMention], log_path: Path, content
 
     if len(resolved) == 1:
         mention = resolved[0]
-        target = _link_target(mention.abspath, log_path)
+        target = link_target(mention.abspath, log_path)
         line_no = f"{mention.line:0{width}d}"
         return f"> _Mentioned file at line `{line_no}`:_ [{mention.display}]({target})"
 
     lines = ["> <details><summary><i>Mentioned files:</i></summary>", ">"]
     for mention in resolved:
-        target = _link_target(mention.abspath, log_path)
+        target = link_target(mention.abspath, log_path)
         line_no = f"{mention.line:0{width}d}"
         lines.append(f"> - line `{line_no}`: [{mention.display}]({target})")
     lines.append(">")
