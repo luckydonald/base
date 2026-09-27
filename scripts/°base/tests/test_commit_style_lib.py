@@ -6,6 +6,7 @@ scripts/°base/ai/hooks/°commit_style_lib/__init__.py).
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 import uuid
@@ -21,6 +22,16 @@ _encode_project_path = _routing._encode_project_path
 init_repo = _routing.init_repo
 last_subject = _routing.last_subject
 run_hook = _routing.run_hook
+run_git = _routing.run_git
+
+# Sibling-module import (this package can't be imported as a real package
+# because parent dirs contain non-ASCII / hyphenated names) -- same pattern
+# `_lib.py` uses to reach `°commit_style_lib`.
+_HOOKS_DIR = _routing.ROOT / "scripts" / "°base" / "ai" / "hooks"
+sys.path.insert(0, str(_HOOKS_DIR))
+_commit_style = importlib.import_module("°commit_style_lib")
+_is_inside_base_repo = _commit_style._is_inside_base_repo
+base_ai_commit_subject = _commit_style.base_ai_commit_subject
 
 
 class CommitStyleLibOverrideTests(unittest.TestCase):
@@ -190,6 +201,70 @@ class CommitStyleLibOverrideTests(unittest.TestCase):
             )
 
             self.assertEqual(last_subject(repo), "🧠 ai: record memory note")
+        # end with
+    # end def
+# end class
+
+
+class IsInsideBaseRepoTests(unittest.TestCase):
+    """Coverage for `_is_inside_base_repo`, including the `True` branch (no
+    prior test exercised it at all) and the linked-`git worktree` regression:
+    a worktree's own directory is never named `base`, even when it belongs to
+    a `base` main checkout, so detection has to look past the directory name.
+    """
+
+    def test_true_from_real_base_named_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "base"
+            init_repo(repo, "git@github.com:luckydonald/base.git")
+
+            self.assertTrue(_is_inside_base_repo(repo))
+            self.assertTrue(base_ai_commit_subject("do a thing").startswith("[base] "))
+        # end with
+    # end def
+
+    def test_true_from_linked_worktree_not_named_base(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "base"
+            init_repo(repo, "git@github.com:luckydonald/base.git")
+            worktree_dir = Path(tmp) / "some-feature-branch"
+            run_git(repo, "worktree", "add", "-b", "some-feature-branch", str(worktree_dir))
+
+            self.assertTrue(_is_inside_base_repo(worktree_dir))
+
+            run_hook(worktree_dir, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
+            self.assertTrue(last_subject(worktree_dir).startswith("[base] "))
+            self.assertTrue((worktree_dir / "ai" / "°base" / "query.md").is_file())
+            self.assertFalse((worktree_dir / "ai" / "query.md").exists())
+        # end with
+    # end def
+
+    def test_false_from_worktree_of_non_base_repo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            worktree_dir = Path(tmp) / "some-feature-branch"
+            run_git(repo, "worktree", "add", "-b", "some-feature-branch", str(worktree_dir))
+
+            self.assertFalse(_is_inside_base_repo(worktree_dir))
+        # end with
+    # end def
+
+    def test_false_from_worktree_of_bare_repo(self):
+        """Deliberate non-goal: a bare `base` repo's `--git-common-dir` points
+        at the bare dir itself (e.g. `base.git`), not a `.git` inside a
+        checkout, so there's no sibling checkout root to resolve -- this must
+        fall back to False rather than crash or misreport, even when the bare
+        dir is itself named to look like `base`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "src"
+            init_repo(src, "git@github.com:luckydonald/base.git")
+            bare_dir = Path(tmp) / "base.git"
+            run_git(Path(tmp), "clone", "--bare", str(src), str(bare_dir))
+            worktree_dir = Path(tmp) / "some-feature-branch"
+            run_git(bare_dir, "worktree", "add", str(worktree_dir), "HEAD")
+
+            self.assertFalse(_is_inside_base_repo(worktree_dir))
         # end with
     # end def
 # end class

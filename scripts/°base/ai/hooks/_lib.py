@@ -312,8 +312,8 @@ def slugify(text: str, *, max_len: int = 60, fallback: str = "untitled") -> str:
     return slug or fallback
 
 
-def _git_text(*args: str) -> str:
-    result = subprocess.run(["git", *args], capture_output=True, text=True)
+def _git_text(*args: str, cwd: Path | str | None = None) -> str:
+    result = subprocess.run(["git", *args], capture_output=True, text=True, cwd=cwd)
     return (result.stdout or "").strip()
 
 

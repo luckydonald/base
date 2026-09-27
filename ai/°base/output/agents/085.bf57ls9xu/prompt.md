@@ -1,0 +1,1 @@
+Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" > /tmp/full_test_run.log 2>&1; echo "EXIT:$?"; tail -30 /tmp/full_test_run.log" completed (exit code 0)

@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 
-def _git_text(*args: str) -> str:
-    result = subprocess.run(["git", *args], capture_output=True, text=True)
+def _git_text(*args: str, cwd: Path | str | None = None) -> str:
+    result = subprocess.run(["git", *args], capture_output=True, text=True, cwd=cwd)
     return (result.stdout or "").strip()
 
 
@@ -31,17 +31,45 @@ def _subproject_root() -> Path:
     return Path(raw).resolve()
 
 
-def _is_inside_base_repo(subproject_root: Path) -> bool:
-    """True iff we are inside the `base` meta-repo: subproject directory named
-    `base`, with origin pointing at luckydonald/base.
+def _main_checkout_root(cwd: Path) -> Path | None:
+    """Resolve the root of the *main* checkout that `cwd` belongs to, even
+    when `cwd` is inside a linked `git worktree` (whose own directory is
+    named after the worktree/branch, never `base`). Returns None if `cwd`
+    isn't inside a git working tree at all, or if the repo is bare (no single
+    "main checkout root" concept applies there -- bare-repo support is out of
+    scope for this repo today)."""
+    common_dir_text = _git_text("rev-parse", "--git-common-dir", cwd=cwd)
+    if not common_dir_text:
+        return None
+    common_dir = Path(common_dir_text)
+    if not common_dir.is_absolute():
+        common_dir = cwd / common_dir
+    common_dir = common_dir.resolve()
+    if common_dir.name != ".git":
+        # Bare repo: --git-common-dir points at the bare dir itself (e.g.
+        # "repo.git"), not a ".git" inside a checkout -- no sibling checkout
+        # root to take .parent of.
+        return None
+    return common_dir.parent
 
-    In a stand-alone consuming repo, subproject_root == git_root and the name
-    won't be `base`, so this returns False. In a monorepo, subproject_root is
-    the per-project directory below the git root and again won't match.
+
+def _is_inside_base_repo(subproject_root: Path) -> bool:
+    """True iff we are inside the `base` meta-repo: main-checkout directory
+    named `base` (checked directly, or -- when `subproject_root` is itself a
+    linked `git worktree` named after its branch -- via the worktree-proof
+    `--git-common-dir` lookup in `_main_checkout_root`), with origin pointing
+    at luckydonald/base.
+
+    Bare repositories (`git init --bare` + `git worktree add`) are treated as
+    "not the base repo" (returns False) -- not a supported way to work with
+    this repo today; see `_main_checkout_root`.
     """
-    if subproject_root.name != "base":
-        return False
-    origin = _git_text("remote", "get-url", "origin")
+    root = subproject_root
+    if root.name != "base":
+        root = _main_checkout_root(subproject_root)
+        if root is None or root.name != "base":
+            return False
+    origin = _git_text("remote", "get-url", "origin", cwd=root)
     return bool(re.search(r"(^|[:/])luckydonald/base(\.git)?/?$", origin, re.I))
 
 

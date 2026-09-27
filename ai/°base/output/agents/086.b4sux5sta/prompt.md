@@ -1,0 +1,1 @@
+Background command "while kill -0 $(pgrep -f "unittest discover -s scripts/°base/tests" | head -1) 2>/dev/null; do sleep 5; done; echo finished" completed (exit code 0)
