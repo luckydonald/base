@@ -1,0 +1,15 @@
+In the repo at /home/user/git/luckydonald/base, I need to understand a bug in the Claude Code hook `save-prompt/hook.py` (likely under `ai/hooks/save-prompt/hook.py` or similar — find the exact path).
+
+Context: This hook writes user prompts to a `query.md` file. There's a repo-specific convention: when working in the base meta-repo itself (this repo), prompts should be logged to `ai/°base/query.md` (note the `°base` unicode-prefixed directory), not to the generic `ai/query.md` (which is meant for consuming/subproject repos). A commit `99098937009ba32beeadb5b8aeced54e80dd1ea7` (message: "Condensed autonomous-`/loop`-tick boilerplate into a linked `query.md` entry") introduced new code paths (`_render_loop_tick_entry`/`_reserve_loop_tick_file`) for handling autonomous `/loop` tick prompts, and in doing so apparently wrote to the WRONG file: `ai/query.md` instead of `ai/°base/query.md`, when running inside the base repo itself.
+
+Please investigate and report back (do not make any edits, this is read-only research):
+
+1. The full path to `save-prompt/hook.py` and any related library files (e.g. under `°reffiles_lib` or similar).
+2. How the hook currently decides which query.md path to use in the NORMAL (non-loop-tick) case — find the function/logic that computes the correct query.md path (likely something checking for `ai/°base/` existing, or `scripts/°base/` existing, or similar, per this repo's AGENTS.md convention "If the primary working directory ends with `/base`, read `ai/°base/AGENTS.md`").
+3. Find the `_render_loop_tick_entry` and `_reserve_loop_tick_file` functions (added in that commit) and show their full source. Identify exactly where they read/write the query.md path or the `output/loop/` directory path, and whether they use the correct base-aware path resolution function or a hardcoded/wrong one.
+4. Show the diff of commit 99098937009ba32beeadb5b8aeced54e80dd1ea7 for `save-prompt/hook.py` specifically (use `git show 99098937009ba32beeadb5b8aeced54e80dd1ea7 -- '<path>'`).
+5. Check git log/blame to see if this bug already caused any bad writes to `ai/query.md` in this repo's history that would need cleanup (e.g. `git log --oneline -- ai/query.md` and check if entries in there look like they belong in `ai/°base/query.md` instead - loop tick entries).
+6. Look for any existing pre-push hook or push-check infrastructure in this repo (search for files like `pre-push`, `push-check`, `.git/hooks`, or config declaring push hooks — check `ai/hooks/` directory structure and any settings.json referencing pre-push).
+7. Look for any existing "repo identity" check pattern used elsewhere in the hooks (how does existing code determine "is this the base/base repo" vs a consuming/linked repo) — cite the exact function and file.
+
+Report back with file paths, line numbers, and relevant code snippets (not just prose descriptions) so a plan can be written from your findings. Keep the report focused and under 500 lines of quoted code total.

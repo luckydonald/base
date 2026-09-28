@@ -1,0 +1,14 @@
+In the repo at /home/user/git/luckydonald/base, I'm planning (read-only, no edits) to add a new pre-push check. Background: this repo has a base-vs-consuming-repo split where `ai/query.md` is for consuming/subproject repos and `ai/°base/query.md` is for this repo (base/base) itself. I want to add a push-time check that runs ONLY when the repo being pushed is identified as `luckydonald/base` itself (using the existing `_is_inside_base_repo` check pattern from `scripts/°base/ai/hooks/°commit_style_lib/__init__.py`), and rejects a push if any commit being pushed touches the file `ai/query.md` (exact root path, not `ai/°base/query.md`).
+
+Please investigate and report (do not edit anything):
+
+1. Full source of `/home/user/git/luckydonald/base/scripts/°base/git/hooks/push/pre_push.sh` — show it in full.
+2. Full source of `/home/user/git/luckydonald/base/scripts/°base/git/split.py`'s `check-push` subcommand handling — how does it parse stdin (the pre-push hook's `<local-ref> <local-sha> <remote-ref> <remote-sha>` lines), and how does it dispatch to `push_checks.py`?
+3. Full source of `/home/user/git/luckydonald/base/scripts/°base/git/°split_lib/push_checks.py` — show all functions, especially `check_content_policy`, `check_name_policy`, `evaluate_ref_update`, and whatever top-level function orchestrates them (what does it return/raise on failure, and how does that surface as a nonzero exit / rejected push?).
+4. How does the existing check enumerate "commits being pushed" (i.e. commits reachable from `local-sha` but not yet on the remote / not already known to be pushed)? Show the exact git plumbing used (e.g. `git rev-list <remote-sha>..<local-sha>` or similar), since a new check would need the same commit range.
+5. Is there an existing pattern for iterating changed files per commit in that range and checking paths (e.g. for `.ai-ignore` classification in `°split_lib/classify.py`)? Show relevant snippets.
+6. Confirm whether `push_checks.py` or `split.py` already imports/uses `_is_inside_base_repo` or any equivalent "is this the base/base repo" check, or if that logic lives only in the `ai/hooks` tree and would need to be newly imported/duplicated for use from `°split_lib`. Check for import cycles or path issues (hooks tree vs split_lib tree — are they siblings under `scripts/°base/`? can one import from the other cleanly?).
+7. Find existing tests for `push_checks.py` (path, and show 1-2 representative test cases) so a new test can follow the same pattern.
+8. Check `ai/°base/todo.md` lines ~155-163 (referenced as documenting push policy) for any related existing notes/TODOs about this exact query.md-on-push concern.
+
+Report with concrete file paths, line numbers, and code snippets so a plan can be written directly from your findings. Keep it focused, under 400 lines of quoted code total.

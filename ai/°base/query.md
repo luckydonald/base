@@ -6801,6 +6801,98 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 
 ❯ Plan accepted, auto mode.
 
+❯ /plan Check b6c5ddf5831014248656696e80bca22df1d2acc7, and find the adjacent debug log file in the base repo (we're in a worktree of).
+It should have a nicer representation, possibly also putting the text into `ai/(base/)output/<something?>/001_<names-are-hard>.md`, so it's a single `/loop call` or similar in the `query.md` instead of the current spammy text.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The spam is the fixed harness boilerplate re-sent every autonomous /loop tick (the "# Autonomous loop tick (dynamic pacing)..." block added by ScheduleWakeup/CronCreate). Should the fix also collapse the historic entries already in ai/°base/query.md, or only apply going forward to new ticks?
+>> 2. Where should the extracted boilerplate text live?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Retroactive scope** (1/2) <kbd>Single Select</kbd><br>
+>> The spam is the fixed harness boilerplate re-sent every autonomous /loop tick (the "# Autonomous loop tick (dynamic pacing)..." block added by ScheduleWakeup/CronCreate). Should the fix also collapse the historic entries already in ai/°base/query.md, or only apply going forward to new ticks?
+> - [x] 1\. Forward-only (Recommended)
+>   - _Only new autonomous-loop-tick prompts get condensed; leave existing query.md history untouched._
+> - [ ] 2\. Also rewrite history
+>   - _Additionally rewrite the existing spammy entries in query.md into the condensed form, moving their text into the new output file(s)._
+> - [ ] 3\. _Type something._
+>
+>> **Output location** (2/2) <kbd>Single Select</kbd><br>
+>> Where should the extracted boilerplate text live?
+> - [ ] 1\. ai[/°base]/output/loop/NNN_<slug>.md (Recommended)
+>   - _Matches the existing convention used for compact autoloads, explore results, agent results, and command output (output/<kind>/NNN...)._
+> - [ ] 2\. Different location
+>   - _Tell me where you'd rather it go._
+> - [x] 3\. _Type something:_
+>   - > Like that. Use it. If the loop message is the same each iteration, it can even reuse the existing file, making that even less spammy.
+>
+> </details>
+>
+
+❯ Plan accepted, auto mode.
+
+❯ /commit-with-lplp-style if not yet, then rebase on non-worktree `base` branch (88d277140ae922b84e451d3bc33d3865ebc5f636).
+
+❯ The needed `.debug` files are commited, too, yes?
+
+❯ Add the relevant `ai/output/debug/*.json` - if needed copying them from non-worktree into this to add, and then squash those with the plan commit.
+
+❯ Also fix the plan file not being in the °base subfolder (amend/rebase/squash), and fix the script which should detect `°base` to also work in this worktree kind of situations (query git?)
+
+❯ Also fix the plan file not being in the °base subfolder (amend/rebase/squash), and fix the script which should detect `°base` to also work in this worktree kind of situations (query git?)
+
+❯ Also fix the plan file not being in the °base subfolder (amend/rebase/squash), and fix the script which should detect `°base` to also work in this worktree kind of situations (query git?)
+
+❯ But first, fix the stuff you were forbidden to do, I'm on manual mode now and should be able to approve the file copy.
+
+❯ But first, fix the stuff you were forbidden to do, I'm on manual mode now and should be able to approve the file copy.
+
+❯ Actually, just give me the bash commands to run.
+
+❯ The copy ones.
+
+❯ Ah, so it would be better if I just continue you from the non-worktree directory.
+
+1. Update the plan file inside the repo with the leftover tasks to do for adding the files to the right commit.
+2. Collect now what you need for fixing the `git worktree` problem, like what the output is from here for commands helping you.
+
+For that I switch you back to auto mode, and expect you to write two new sections to `ai/plan/whatevernumber.md`, for those two things above, and a third with a query I can paste into the repo root claude to continue that, where (1) should be done immediatly, and (2) should then be a new plan to make sure everything is alright.
+
+❯ HOLY SHIT
+
+❯ HOLY SHIT
+
+❯ YOU ADDED **_ALL_** json debug logs, not just the important ones for this bug?
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. How should I fix the commit that now has all 185 session-wide debug JSON files in it?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Fix approach** (1/1) <kbd>Single Select</kbd><br>
+>> How should I fix the commit that now has all 185 session-wide debug JSON files in it?
+> - [ ] 1\. Drop all debug JSONs (Recommended)
+>   - _Remove every ai/output/debug/*.json from the commit entirely — they're gitignored for a reason (raw hook payloads, not curated fixtures), and none of them are actually needed to review/land the loop-tick fix._
+> - [x] 2\. Keep a curated subset
+>   - _I filter down to only files that are genuinely about the loop-tick bug/fix (e.g. the save-prompt/save-plan dumps whose payload mentions the loop-tick work), and drop the rest (memory syncs, permission-checks, unrelated decisions, SubagentStop, etc.)._
+> - [ ] 3\. Stop, let me look first
+>   - _Don't change anything yet — you want to inspect the commit/state yourself before I touch git again._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+❯ There must be one matching b6c5ddf5831014248656696e80bca22df1d2acc7 exactly.
+
 ❯ /plan continue **Leftover task 2** from [@`ai/°base/plans/081_condense-autonomous-loop-tick-boilerplate-in-query-md.md`](./plans/081_condense-autonomous-loop-tick-boilerplate-in-query-md.md)[:175-275](./plans/081_condense-autonomous-loop-tick-boilerplate-in-query-md.md#L175-L275)
 
 ❯ Task Notification:
@@ -6849,6 +6941,112 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 > - [Answer (`31` chars, `31 B`)](output/agents/086.b4sux5sta/result.md)
 > - [Raw log (`31` chars, `31 B`)](/tmp/claude-1000/-home-user-git-luckydonald-base/9facf366-747d-41e9-9785-e6d56d69077e/tasks/b4sux5sta.output)
 
+❯ This is a worktree(-fork) of the base repo.
+In that I just denied a plan with requested changes, where the agent then edited the plan based on those, and reopened it.
+However the commit that the plan was rejected including the given requested changes (commit dd2c4bfe688f8f13dbbff05a6a2cdc489fe96c82) was only commited _after_ the plan was edited (commits c9baa57bdfe706e58581da9f7eef6c878dacd88c, cd6736855bb20699e13a8bde174e2b8a32d80407, a2740868fe3360ff02e25943c641c2ffcda6a132, 135f0fc3f2b5a8e0af9ca7ac8fe546425dbff005, 89c523d8ed2af3056bf1ce5c339d31637765968a) and rejected a second time (!). Then it seems to include both rejections in one commit.
+
+The order of commits how it should have been vs the _actual order_ — newest first, oldest at the botton:
+
+1. _(1.)_ `dd2c4bfe688f8f13dbbff05a6a2cdc489fe96c82` _[base] ai: save plan decision_
+   - Only the _❯ Plan denied._ line
+2. _(2.)_ `89c523d8ed2af3056bf1ce5c339d31637765968a` _[base] ai: save plan 079_port-link-subproject-claude-sh-to-python-and-harden-the-ai-e_
+3. _(3.)_ `135f0fc3f2b5a8e0af9ca7ac8fe546425dbff005` _[base] ai: save plan 079_port-link-subproject-claude-sh-to-python-and-harden-the-ai-e_
+4. _(4.)_ `a2740868fe3360ff02e25943c641c2ffcda6a132` _[base] ai: save plan 079_port-link-subproject-claude-sh-to-python-and-harden-the-ai-e_
+5. _(5.)_ `cd6736855bb20699e13a8bde174e2b8a32d80407` _[base] ai: save plan 079_port-link-subproject-claude-sh-to-python-and-harden-the-ai-e_
+6. _(6.)_ `c9baa57bdfe706e58581da9f7eef6c878dacd88c` _[base] ai: save plan 079_port-link-subproject-claude-sh-to-python-and-harden-the-ai-e_
+7. _(1.)_ `dd2c4bfe688f8f13dbbff05a6a2cdc489fe96c82` _[base] ai: save plan decision_
+   - yes, that should have been two commits, so the first part of that, _❯ Plan denied:_ with the text why, and the links at the bottom, too.
+8. _(7.)_ `edd0b871b2b26475eba8e51188c0368e72f79cee` _[base] ai: save plan 079_port-link-subproject-claude-sh-to-python-and-harden-the-ai-e_
+9. _(8.)_ `ccd5d49d76431df294330d29dcd4c3a36731f74a` _[base] ai: save decision the-env-linking-logic-currently-lives-inside-the-single-bash_
+
+You may inspect `ai/output/debug/*` stuff and the root of this worktree, just note that the root has moved on already, squashing those commits in it's branch.
+If you have matches in the debug stuff, which are relevant, you may copy those over into the worktree to `git add --force` them, and commit them, as they are relevant for research.
+
+**Update:** I meant `ai/°base/output/debug` or whatever.
+
+❯ /plan write a plan for this.
+
+❯ Plan denied.
+
+❯ It should also fire between (aka. before each of) those plan modifications, to be commited as soon as it's found, so they (and probably all other git-committing ai hooks) should run the same check for uncommited denials before doing their own thing.
+For that you should think a bit about how we can make the scanning of the log as efficient as possible, because it will now be shared by almost every tool.
+
+❯ Task Notification:
+> - Task `a55723467cd0d220e` <kbd>completed</kbd>
+> - Tool `toolu_01QFVCMWNmKfCG4H9SA5b76m`
+> - > Agent "Survey hooks and transcript scanning internals" finished
+> - [Query (`3225` chars, `3.17 KB`)](output/agents/010.a55723467cd0d220e/prompt.md)
+> - [Answer (`4332` chars, `4.25 KB`)](output/agents/010.a55723467cd0d220e/result.md)
+> - [Raw log (`228962` chars, `224 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/a55723467cd0d220e.output)
+> - `12` tools, `35837` tokens, `1.09298 s`
+
+❯ Task Notification:
+> - Task `bnf1b9tz9` <kbd>completed</kbd>
+> - Tool `toolu_01Fwa6yC3LTLZVqTaMN9Y4Re`
+> - > Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" 2>&1 | tail -20" completed (exit code 0)
+> - [Query (`129` chars, `130 B`)](output/agents/011.bnf1b9tz9/prompt.md)
+> - [Answer (`1210` chars, `1.18 KB`)](output/agents/011.bnf1b9tz9/result.md)
+> - [Raw log (`1210` chars, `1.18 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/bnf1b9tz9.output)
+
+❯ Plan denied.
+
+❯ - The _write the cache back atomically_ will not fix any race condition, as between read and write there's quite the processing happening, and the log file could been already read and replaced before we go ahead and replace it atomically.
+So the actual replacement after parsing what values we need to add needs to either have a diff-like concept, where a action is bound to it's line, and hence we can engage some kind of lock (file?), read the file again, see if stuff was added (line count & size increased) and already thow away any updates we calculated for lines before that (as they likely (a) are added to the list by the quicker task, or (b) were already processed and hence removed again).
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. You're right that atomic rename alone doesn't fix the read→compute→write race — the cache (and separately, each rejection spec's already-recorded-id state file) can be clobbered or double-processed if two hook processes overlap. Two ways to actually fix that:
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Race fix approach** (1/1) <kbd>Single Select</kbd><br>
+>> You're right that atomic rename alone doesn't fix the read→compute→write race — the cache (and separately, each rejection spec's already-recorded-id state file) can be clobbered or double-processed if two hook processes overlap. Two ways to actually fix that:
+> - [ ] 1\. File lock around the whole update (Recommended)
+>   - _Hold an flock (exclusive) on a per-transcript lock file for the entire read-cache → parse-new-bytes → write-cache step, and reuse it (or a second lock) around load-recorded-ids → find-new-rejections → commit → save-recorded-ids in flush_pending_rejections. Fully serializes concurrent hooks; simple to verify correct. The critical section is cheap (parse a few KB, run 0-2 small git commits), so brief blocking is not a real cost._
+> - [ ] 2\. Optimistic merge/reconciliation (your sketch)
+>   - _Parse the new delta without holding a lock, then briefly lock only to compare the cache's current offset against what we assumed when we started: if it already advanced past our delta, discard our work; if it advanced partway, re-slice our already-read buffer to only append the truly-new remainder on top of the newer cached state. No blocking during the actual parse, but meaningfully more code and edge cases (partial re-slice, pending-tool-use merge across two writers) to get right and test._
+> - [x] 3\. _Type something:_
+>   - > Yeah, my thought was, if we have multiple hooks possibly launched concurrently and async from claude, a big lock makes it very slow, probably worse then 3 processes calculating the same result.
+It's however getting expensive where you need to remove pending tasks from the list, as those might also again take time, or?
+Where is the actual processing of those queued events supposed to happen?
+>
+> </details>
+>
+
+❯ Plan denied.
+
+❯ 1. > Working through it more carefully, there are actually two different races here with different fixes:
+   > - The **transcript-scan cache** doesn't need a lock at all.
+   >   It's a pure memoization of a deterministic function over an append-only byte prefix — if two processes race and one's write clobbers the other's, the only consequence is the next reader recomputes a few extra lines from an earlier offset. Never wrong data, just occasionally redundant parsing. Your reconciliation idea would fix a problem that doesn't actually exist here.
+   No, it may be CPU-paused at a weird moment for way-to-long-TM, and now it would overwrite the list of pending stuff with a shorter list of it's own, removing lines again, possibly while it's already read by the next call. Threefore, I don't think _Never wrong data_ applies.
+2. > - The actual commit step (flush_pending_rejections's check-recorded-ids → commit → save-recorded-ids) is the one place a race is dangerous: two concurrent hooks could both see the same rejection as "not yet recorded" and both commit it. That's exactly what the record-codex-memory lock already guards against for its own state. I'll reuse that same pattern, scoped tightly around just that check-and-commit step (not the parse) — so "where does processing happen" is: inline, in whichever hook's flush_pending_rejections() call wins the non-blocking lock; a loser just skips this time, and the next hook invocation (there's always another one along shortly) picks it up. No dedicated consumer process needed.
+   This checks out to me, yeah. Still, why do we need the list of pending actions in the first place if we immediatly process them anyways? Oh, it it to make sure the order is correct? So if the first pending event is not what we're here for, we terminate and hope someone else process them? That can't be right? Surely we'd call a tool which would process all of those events until empty, so we can continue with our actual tool call we are the hoof of? What if there's a queued update already parsable, but the hook which would write a message is to slow, and now the non-log content is missing?
+
+❯ Plan denied.
+
+❯ The git has changed in the meantime, check diffs up to 116c7dc3429d768ebaa5a50679bb3e01ab084e26, which I'll ask you later to rebase onto.
+
+❯ Your claude.ai usage limit has reset. Continue the task you were working on when the limit was reached; do not repeat work that is already complete.
+
+❯ Task Notification:
+> - Task `br33g31z0` <kbd>completed</kbd>
+> - Tool `toolu_01VCNhFYSCAN7uik1yjYXCgp`
+> - > Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" 2>&1 | tail -100" completed (exit code 0)
+> - [Query (`130` chars, `131 B`)](output/agents/012.br33g31z0/prompt.md)
+> - [Answer (`3002` chars, `2.95 KB`)](output/agents/012.br33g31z0/result.md)
+> - [Raw log (`6849` chars, `6.71 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/br33g31z0.output)
+
+❯ Task Notification:
+> - Task `bqhpm3ftw` <kbd>completed</kbd>
+> - Tool `toolu_01CXtLNLyfHpcyvSyCbxfC7j`
+> - > Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" 2>&1 | tail -150" completed (exit code 0)
+> - [Query (`130` chars, `131 B`)](output/agents/013.bqhpm3ftw/prompt.md)
+> - [Answer (`3002` chars, `2.95 KB`)](output/agents/013.bqhpm3ftw/result.md)
+> - [Raw log (`11277` chars, `11 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/bqhpm3ftw.output)
+
 ❯ Task Notification:
 > - Task `by44mmlmv` <kbd>completed</kbd>
 > - Tool `toolu_01LgTbjjXM7df5hsN3uHyJjy`
@@ -6856,6 +7054,32 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 > - [Query (`129` chars, `130 B`)](output/agents/087.by44mmlmv/prompt.md)
 > - [Answer (`2663` chars, `2.61 KB`)](output/agents/087.by44mmlmv/result.md)
 > - [Raw log (`2663` chars, `2.61 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/by44mmlmv.output)
+
+❯ Rebase this onto `base`.
+Then fix the bug you described:
+> A latent bug in save-plan/hook.py's slug-rename path: git rm --force on the last file in a directory also removes that now-empty directory, breaking the following write. Out of scope here — noted in the commit message and worked around in the test.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. This worktree branch has 2 real code commits plus ~24 `ai:` auto-commits (prompt/plan-decision/plan-revision noise from the planning back-and-forth) since it diverged from `base`. A straight rebase conflicts on nearly every one of those auto-commits against `base`'s own independent `ai/query.md` history. How should I handle it?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Rebase strategy** (1/1) <kbd>Single Select</kbd><br>
+>> This worktree branch has 2 real code commits plus ~24 `ai:` auto-commits (prompt/plan-decision/plan-revision noise from the planning back-and-forth) since it diverged from `base`. A straight rebase conflicts on nearly every one of those auto-commits against `base`'s own independent `ai/query.md` history. How should I handle it?
+> - [x] 1\. Clean up history first, then rebase (Recommended)
+>   - _Fold the auto-commit noise per lplp style (keep genuine plan revisions as labeled `ai: Plan:`/`ai: Plan update:` commits, fold prompt/decision/agent-result noise into them), leaving a small handful of commits, then rebase that onto `base`. Far fewer conflict points, clean resulting history._
+> - [ ] 2\. Squash everything into the 2 code commits, then rebase
+>   - _Fold all ~24 auto-commits into whichever of the two code commits (a9359ab / 8e1313e) they logically precede, discarding the plan-revision trail entirely (it's fully superseded by the final implementation anyway), then rebase just those 2 commits onto `base`. Simplest, fewest conflicts, but loses the plan-drafting history._
+> - [ ] 3\. Preserve everything, resolve conflicts commit-by-commit
+>   - _Keep all 26 commits exactly as-is and resolve the ~20+ ai/query.md conflicts one at a time during the rebase. Slowest and most error-prone, but nothing about this session's history is altered or dropped._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
 
 ❯ Small task: Add `squash ai` and `squash \`ai: \`` (with or without space after `ai:`) to the ignored prompt list.
 
@@ -6867,4 +7091,54 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 Thanks.
 
 ❯ Rename it to be a good commit. For that single commit you may drop the `ai: Run:` part, as it is the query.
+
+❯ /plan Fix 99098937009ba32beeadb5b8aeced54e80dd1ea7 committing to the wrong (non-`°base`) `query.md` file.
+Then add a push check which - only for the `base/base` repo - checks that we don't write to that file in any commit we want to push.
+
+❯ Task Notification:
+> - Task `a4d54a71efb7b8df6` <kbd>completed</kbd>
+> - Tool `toolu_018w6a6BGHijNq4ppgP8K5j4`
+> - > Agent "Explore save-prompt hook query.md path logic" finished
+> - [Query (`2978` chars, `2.92 KB`)](output/agents/088.a4d54a71efb7b8df6/prompt.md)
+> - [Answer (`10636` chars, `10.5 KB`)](output/agents/088.a4d54a71efb7b8df6/result.md)
+> - [Raw log (`555033` chars, `543 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/4251b919-29cd-4f65-b668-85f37e212151/tasks/a4d54a71efb7b8df6.output)
+> - `28` tools, `83254` tokens, `24.4793 s`
+
+❯ Task Notification:
+> - Task `a8864024b42f285fd` <kbd>completed</kbd>
+> - Tool `toolu_019YumArMbrGqsWaGDi8xuev`
+> - > Agent "Explore pre-push check infrastructure for new query.md guard" finished
+> - [Query (`2830` chars, `2.78 KB`)](output/agents/089.a8864024b42f285fd/prompt.md)
+> - [Answer (`13881` chars, `13.6 KB`)](output/agents/089.a8864024b42f285fd/result.md)
+> - [Raw log (`261857` chars, `256 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base/4251b919-29cd-4f65-b668-85f37e212151/tasks/a8864024b42f285fd.output)
+> - `17` tools, `43006` tokens, `1.23512 s`
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The named commit (990989370) wasn't actually the root cause — a `_is_inside_base_repo` bug (already fixed forward in d7d40ef9a on Sep 27) caused several commits from Sep 26–28 to misroute writes into [`ai/query.md`](../query.md). There are two distinct misplaced blocks: an earlier one (plan-081 loop-tick work) and a later, separate one (a worktree rebase/slug-rename session). Currently [`ai/query.md`](../query.md) holds all ~224 lines of leftover content from both. Should the fix cover just commit 990989370's contribution, or all of the misrouted content found?
+>> 2. This is a forward-fix (new commit moving content), not a history rewrite — since 990989370 etc. are already pushed to origin. Does that match what you want, or did you actually want the historical commit(s) themselves rewritten (would require force-push)?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Fix scope** (1/2) <kbd>Single Select</kbd><br>
+>> The named commit (990989370) wasn't actually the root cause — a `_is_inside_base_repo` bug (already fixed forward in d7d40ef9a on Sep 27) caused several commits from Sep 26–28 to misroute writes into [`ai/query.md`](../query.md). There are two distinct misplaced blocks: an earlier one (plan-081 loop-tick work) and a later, separate one (a worktree rebase/slug-rename session). Currently [`ai/query.md`](../query.md) holds all ~224 lines of leftover content from both. Should the fix cover just commit 990989370's contribution, or all of the misrouted content found?
+> - [x] 1\. Fix all misrouted content (Recommended)
+>   - _Move everything currently sitting in ai/query.md (both blocks, ~224 lines from 7 commits) back into ai/°base/query.md at the correct chronological spots, and reset ai/query.md to its clean template. Matches the precedent forward-fix (commit 73a213a9a) and leaves no stray contamination._
+> - [ ] 2\. Fix only 990989370's contribution
+>   - _Move just the loop-tick-plan block that commit 990989370 added, leave the other later block (from f4f2d7196/7a7fb3ad5) in ai/query.md as-is, even though it's the same class of bug._
+> - [ ] 3\. _Type something._
+>
+>> **Fix method** (2/2) <kbd>Single Select</kbd><br>
+>> This is a forward-fix (new commit moving content), not a history rewrite — since 990989370 etc. are already pushed to origin. Does that match what you want, or did you actually want the historical commit(s) themselves rewritten (would require force-push)?
+> - [ ] 1\. Forward-fix with a new commit (Recommended)
+>   - _Add a new commit that moves the misplaced content into ai/°base/query.md and clears it from ai/query.md, leaving the old commits' diffs as historical record — same approach as the Aug 12 precedent (73a213a9a). No force-push needed._
+> - [x] 2\. Rewrite the old commits directly
+>   - _Rebase/filter history so 990989370 (and any other offending commits) write to the correct file from the start. Requires force-pushing already-published commits — more invasive and rewrites shared history._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
 
