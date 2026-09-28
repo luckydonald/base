@@ -7081,3 +7081,5 @@ Then fix the bug you described:
 > </details>
 >
 
+❯ Small task: Add `squash ai` and `squash \`ai: \`` (with or without space after `ai:`) to the ignored prompt list.
+

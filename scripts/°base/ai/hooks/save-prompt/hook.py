@@ -87,6 +87,7 @@ SKIP_PROMPTS = {
     "push", "push it",
     # squashing/cleanup
     "squash", "squash it", "squash it with lplp style",
+    "squash ai", "squash `ai:`", "squash `ai: `",
     "rebase", "rebase it", "rebase it with lplp style",
     # bumping the AI to continue
     "continue", "go on", "bump",
