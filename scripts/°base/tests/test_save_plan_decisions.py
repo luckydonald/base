@@ -424,6 +424,44 @@ class PlanDenialRecordingTests(unittest.TestCase):
             self.assertFalse(_query_md(repo).exists())
 
 
+class PlanSlugRenameTests(unittest.TestCase):
+    """Regression test: `git rm --force` on the sole file left in `ai/plans/`
+    also removes that now-empty directory (confirmed with a standalone repro
+    during this bug's investigation), so a slug-changed revision -- which
+    does `_git_rm(old_relpath)` then `new_path.write_text(...)` -- used to
+    fail with FileNotFoundError whenever the plan title changed between
+    Write calls in the same session."""
+
+    def test_write_with_changed_title_renames_without_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            session_id = f"s-rename-{uuid.uuid4().hex}"
+            plan_file = str(Path(tmp) / ".claude" / "plans" / "plan.md")
+
+            def _write_payload(content: str) -> dict:
+                return {
+                    "hook_event_name": "PostToolUse",
+                    "session_id": session_id,
+                    "tool_name": "Write",
+                    "tool_input": {"file_path": plan_file, "content": content},
+                }
+
+            run_hook(repo, PLAN_HOOK, _write_payload("# Plan A\n\nDo the thing."), "claude")
+            plans_before = sorted((repo / "ai" / "plans").glob("*.md"))
+            self.assertEqual(len(plans_before), 1)
+
+            # Different title -> different slug -> hits the rename path,
+            # which used to fail because ai/plans/ no longer existed after
+            # git rm removed plans_before[0] (the directory's only file).
+            run_hook(repo, PLAN_HOOK, _write_payload("# Plan B\n\nDo a different thing."), "claude")
+
+            plans_after = sorted((repo / "ai" / "plans").glob("*.md"))
+            self.assertEqual(len(plans_after), 1)
+            self.assertNotEqual(plans_before[0].name, plans_after[0].name)
+            self.assertIn("Do a different thing.", plans_after[0].read_text(encoding="utf-8"))
+
+
 class CopilotPlanDecisionRecordingTests(unittest.TestCase):
     def _write_events(self, home: Path, session_id: str, events: list[dict]) -> None:
         path = home / ".copilot" / "session-state" / session_id / "events.jsonl"

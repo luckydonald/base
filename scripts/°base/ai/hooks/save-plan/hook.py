@@ -677,6 +677,9 @@ def main() -> int:
         if old_relpath != new_relpath:
             # Slug changed → rename: remove old, write new, commit both paths.
             _git_rm(old_relpath)
+            # `git rm --force` also removes `plans_dir` itself if `old_relpath`
+            # was its only remaining file -- recreate it before writing.
+            plans_dir.mkdir(parents=True, exist_ok=True)
             new_path.write_text(body, encoding="utf-8")
             _commit([old_relpath, new_relpath], f"ai: save plan {prefix}_{new_slug}")
         else:

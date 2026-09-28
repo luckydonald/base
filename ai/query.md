@@ -213,3 +213,29 @@ Where is the actual processing of those queued events supposed to happen?
 > - [Answer (`3002` chars, `2.95 KB`)](output/agents/013.bqhpm3ftw/result.md)
 > - [Raw log (`11277` chars, `11 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/bqhpm3ftw.output)
 
+❯ Rebase this onto `base`.
+Then fix the bug you described:
+> A latent bug in save-plan/hook.py's slug-rename path: git rm --force on the last file in a directory also removes that now-empty directory, breaking the following write. Out of scope here — noted in the commit message and worked around in the test.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. This worktree branch has 2 real code commits plus ~24 `ai:` auto-commits (prompt/plan-decision/plan-revision noise from the planning back-and-forth) since it diverged from `base`. A straight rebase conflicts on nearly every one of those auto-commits against `base`'s own independent `ai/query.md` history. How should I handle it?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Rebase strategy** (1/1) <kbd>Single Select</kbd><br>
+>> This worktree branch has 2 real code commits plus ~24 `ai:` auto-commits (prompt/plan-decision/plan-revision noise from the planning back-and-forth) since it diverged from `base`. A straight rebase conflicts on nearly every one of those auto-commits against `base`'s own independent `ai/query.md` history. How should I handle it?
+> - [x] 1\. Clean up history first, then rebase (Recommended)
+>   - _Fold the auto-commit noise per lplp style (keep genuine plan revisions as labeled `ai: Plan:`/`ai: Plan update:` commits, fold prompt/decision/agent-result noise into them), leaving a small handful of commits, then rebase that onto `base`. Far fewer conflict points, clean resulting history._
+> - [ ] 2\. Squash everything into the 2 code commits, then rebase
+>   - _Fold all ~24 auto-commits into whichever of the two code commits (a9359ab / 8e1313e) they logically precede, discarding the plan-revision trail entirely (it's fully superseded by the final implementation anyway), then rebase just those 2 commits onto `base`. Simplest, fewest conflicts, but loses the plan-drafting history._
+> - [ ] 3\. Preserve everything, resolve conflicts commit-by-commit
+>   - _Keep all 26 commits exactly as-is and resolve the ~20+ ai/query.md conflicts one at a time during the rebase. Slowest and most error-prone, but nothing about this session's history is altered or dropped._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
