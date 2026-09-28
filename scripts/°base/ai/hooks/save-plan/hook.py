@@ -334,7 +334,15 @@ def record_claude_plan_rejections(payload: dict) -> None:
     calls not yet recorded, and append a `query.md` entry for each. Intended
     to be called from `save-prompt/hook.py`'s `UserPromptSubmit` handler --
     see the module comment above for why no hook can call this directly on
-    denial itself."""
+    denial itself.
+
+    Multiple unrecorded denials can pile up before this ever runs (e.g. the
+    agent edits the plan and gets denied again without any `UserPromptSubmit`
+    in between -- there's nothing to flush the first denial on). Each denial
+    still gets its own `append_and_commit` call/commit here, so the resulting
+    commits interleave with the plan-edit commits made between the denials
+    instead of being squashed into one commit covering all of them.
+    """
     transcript_path = payload.get("transcript_path") or ""
     if not transcript_path:
         return
@@ -344,17 +352,16 @@ def record_claude_plan_rejections(payload: dict) -> None:
     if not rejections:
         return
 
-    blocks = [_render_claude_plan_rejection(rejection) for rejection in rejections]
-    already_recorded.update(rejection["tool_use_id"] for rejection in rejections)
-
     log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
-    append_and_commit(
-        log_path,
-        "".join(blocks),
-        commit_template_relpath="ai/commit-templates/decision",
-        default_commit_msg="ai: save plan decision",
-    )
-    _save_recorded_rejection_ids(already_recorded)
+    for rejection in rejections:
+        append_and_commit(
+            log_path,
+            _render_claude_plan_rejection(rejection),
+            commit_template_relpath="ai/commit-templates/decision",
+            default_commit_msg="ai: save plan decision",
+        )
+        already_recorded.add(rejection["tool_use_id"])
+        _save_recorded_rejection_ids(already_recorded)
 
 
 def _load_recorded_copilot_decision_ids() -> set[str]:
