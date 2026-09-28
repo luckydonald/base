@@ -28,6 +28,12 @@ The user confirmed (via `AskUserQuestion`):
 
 Second part of the request: since worktree checkouts can still run stale (pre-fix) hook code and reintroduce this exact mistake, add a push-time guard (defense in depth) that rejects any push to `origin` when a commit being pushed touches `ai/query.md` **and** the repo being pushed is `luckydonald/base` itself.
 
+Investigating where to wire this in surfaced two more findings, both confirmed with the user:
+- The tracked `scripts/°base/git/hooks/push/pre_push.sh` → `split.py check-push` → `push_checks.py` chain (existing branch name/content policy) is **not currently active** in this checkout — `.git/hooks/pre-push` here is an unrelated git-lfs-only script with no marker from `scripts/°base/git/hooks/install`, so that installer was never (re-)run locally. It's real, tracked code, just currently dead.
+- pre-commit's `pre-push` stage (used for every other local check here — commit-msg, settings-sync, yarn-4, all via `.pre-commit-config.yaml`) has a materially different execution model than `push_checks.py` assumes: it drains stdin itself and exposes only a single computed `PRE_COMMIT_FROM_REF`/`PRE_COMMIT_TO_REF` range (picking the *first* ref-update line), not the full multi-ref-update/branch-name list `push_checks.py`'s branch-format policy needs. Migrating that whole module onto pre-commit's model would mean redesigning it around a single-range view and losing multi-branch-push handling — out of scope here.
+
+Decision: keep the new `ai/query.md` guard small and put it on pre-commit's `pre-push` stage (consistent with how every other local hook here runs), and separately restore the existing custom installer so `push_checks.py`'s branch policy is active again — the two are made to coexist via pre-commit's legacy-hook chaining (see below), not left to clobber each other.
+
 ## Part 1 — Rewrite the 7 commits (and everything after them)
 
 **Approach: direct tree reconstruction via git plumbing, not `git rebase`/patch application.** A normal interactive rebase would re-apply each commit's *patch*, and since content shifts, patches for commits that touch either query file later in the range would very likely conflict against each other. Instead, walk the commit range in order and build each new commit's tree directly from the original tree with just the two query-file blobs replaced — no patch application, so no conflicts are possible.

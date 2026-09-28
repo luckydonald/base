@@ -7142,3 +7142,48 @@ Then add a push check which - only for the `base/base` repo - checks that we don
 > </details>
 >
 
+❯ Plan denied:
+> Isnt the "existing infrastructure" using that python pre-commit tool?
+>
+> Note: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Given `push_checks.py`'s content lives outside the `pre-commit` framework and its hook currently isn't wired up in this checkout, how should the new [`ai/query.md`](../query.md) guard actually run on push?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Wiring approach** (1/1) <kbd>Single Select</kbd><br>
+>> Given `push_checks.py`'s content lives outside the `pre-commit` framework and its hook currently isn't wired up in this checkout, how should the new [`ai/query.md`](../query.md) guard actually run on push?
+> - [ ] 1\. Fix the existing custom installer (Recommended)
+>   - _Add the check to push_checks.py as planned, and also fix the root cause: re-run/repair scripts/°base/git/hooks/install so .git/hooks/pre-push actually execs pre_push.sh → split.py check-push again in this checkout (and note why it went stale)._
+> - [x] 2\. Move push-time checks into the pre-commit framework
+>   - _Add a `stages: [pre-push]` entry to .pre-commit-config.yaml that runs a script wrapping split.py check-push (or just the new query.md check), matching how every other local hook here is wired — pre-commit already manages hook install/re-install reliably via `pre-commit install --hook-types`._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Checked how pre-commit's `pre-push` stage actually works: it reads stdin itself, then only exposes a single computed `from_ref`/`to_ref` range (picking just the first ref-update line) to hook entries — raw stdin is already consumed by the time hooks run, and there's no native "list of all ref updates" or branch-name access. `push_checks.py` currently needs the full stdin (multiple ref updates, branch names for its unclean/history/clean policy) via `split.py check-push`. Migrating that whole thing to pre-commit's pre-push stage would mean rewriting it around a single-range model and dropping multi-branch-push support. How do you want to scope this?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Push-check scope** (1/1) <kbd>Single Select</kbd><br>
+>> Checked how pre-commit's `pre-push` stage actually works: it reads stdin itself, then only exposes a single computed `from_ref`/`to_ref` range (picking just the first ref-update line) to hook entries — raw stdin is already consumed by the time hooks run, and there's no native "list of all ref updates" or branch-name access. `push_checks.py` currently needs the full stdin (multiple ref updates, branch names for its unclean/history/clean policy) via `split.py check-push`. Migrating that whole thing to pre-commit's pre-push stage would mean rewriting it around a single-range model and dropping multi-branch-push support. How do you want to scope this?
+> - [x] 1\. Only the new query.md guard via pre-commit (Recommended)
+>   - _Add a small, separate pre-commit-managed pre-push hook (stages: [pre-push]) just for the ai/query.md check — it only needs "is this repo base/base" + "did HEAD (or the single from/to range) touch ai/query.md", which fits pre-commit's single-range model fine. Leave push_checks.py/split.py's existing branch-policy checks on their current custom installer, and separately fix that installer so it's actually active again in this checkout._
+> - [ ] 2\. Migrate everything, accept the limitation
+>   - _Move all push-time checks (branch name/content policy + the new query.md guard) into pre-commit's pre-push stage, rewriting push_checks.py's multi-ref/branch-classification logic around pre-commit's single from-ref/to-ref model. Larger, riskier change; some existing multi-branch-push policy behavior would need to be redesigned or dropped._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
