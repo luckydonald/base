@@ -16,18 +16,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _lib import (  # noqa: E402
+    CLAUDE_COMMAND_TOOLS,
     append_and_commit,
+    command_label,
     dump_debug_payload,
-    find_tool_rejections,
+    flush_pending_rejections,
     is_cross_tool_duplicate,
     load_transcript_tool_events,
     read_payload,
+    render_decision_block,
     resolve_log_path,
 )
 
 
 STATE_FILE = Path(tempfile.gettempdir()) / "save-command-decision-state.json"
-CLAUDE_COMMAND_TOOLS = {"Bash", "shell", "unified_exec", "Write", "Edit", "Read", "apply_patch"}
 
 
 def load_recorded_ids() -> set[str]:
@@ -45,23 +47,6 @@ def save_recorded_ids(ids: set[str]) -> None:
 # end def
 
 
-def command_label(tool_name: str) -> str:
-    return f"`{tool_name}`" if tool_name else "a tool"
-# end def
-
-
-def render_decision(label: str, detail: str | None = None) -> str:
-    lines = [f"❯ {label}\n"]
-    if detail:
-        for line in detail.splitlines():
-            lines.append(f"> {line}\n" if line else ">\n")
-        # end for
-    # end if
-    lines.append("\n")
-    return "".join(lines)
-# end def
-
-
 def append_decisions(blocks: list[str]) -> None:
     if not blocks:
         return
@@ -76,13 +61,16 @@ def append_decisions(blocks: list[str]) -> None:
 
 
 def record_claude_decisions(payload: dict) -> None:
-    """Record denied command calls on a later hook and completed instructions.
+    """Record completed instructions for an in-flight command call.
 
-    A denial never reaches PostToolUse, so every invocation scans for new
-    transcript rejections. A completed call can be recorded immediately when
-    its sibling transcript text carries user instructions. The latter is
-    deliberately labelled as tool instructions, not a proven permission
-    approval: Claude uses the same transcript shape for any in-flight tool.
+    Denied command calls are handled up front by `_lib.flush_pending_rejections`
+    (`COMMAND_REJECTION_SPEC`), called from `main()` below, so this only
+    covers a completed call whose sibling transcript text carries user
+    instructions. That's deliberately labelled as tool instructions, not a
+    proven permission approval: Claude uses the same transcript shape for any
+    in-flight tool. `STATE_FILE`'s recorded-id set is shared with the
+    rejection spec's own bookkeeping (same file, same dedupe purpose) so a
+    tool_use_id already recorded as a denial is never also recorded here.
     """
     transcript_path = payload.get("transcript_path")
     if not isinstance(transcript_path, str) or not transcript_path:
@@ -90,27 +78,15 @@ def record_claude_decisions(payload: dict) -> None:
     # end if
 
     recorded = load_recorded_ids()
-    blocks: list[str] = []
-    rejections = find_tool_rejections(transcript_path, CLAUDE_COMMAND_TOOLS, recorded)
-    for rejection in rejections:
-        reason = rejection["reason"]
-        label = f"Command denied: {command_label(rejection['tool_name'])}"
-        blocks.append(render_decision(label, reason))
-        recorded.add(rejection["tool_use_id"])
-    # end for
-
     tool_use_id = payload.get("tool_use_id")
     if isinstance(tool_use_id, str) and tool_use_id and tool_use_id not in recorded:
         event = load_transcript_tool_events(transcript_path).get(tool_use_id)
         if event and event["tool_name"] in CLAUDE_COMMAND_TOOLS and not event["is_error"] and event["note"]:
-            blocks.append(render_decision(f"Instructions for {command_label(event['tool_name'])}:", event["note"]))
+            label = f"Instructions for {command_label(event['tool_name'])}:"
+            append_decisions([render_decision_block(label, event["note"])])
             recorded.add(tool_use_id)
+            save_recorded_ids(recorded)
         # end if
-    # end if
-
-    append_decisions(blocks)
-    if blocks:
-        save_recorded_ids(recorded)
     # end if
 # end def
 
@@ -179,7 +155,7 @@ def record_copilot_decisions(payload: dict) -> None:
     recorded = load_recorded_ids()
     denials = copilot_denials(copilot_events(session_id), recorded)
     blocks = [
-        render_decision(f"Command denied: `{command}`" if command else "Command denied:", feedback or None)
+        render_decision_block(f"Command denied: `{command}`" if command else "Command denied:", feedback or None)
         for _, command, feedback in denials
     ]
     append_decisions(blocks)
@@ -196,6 +172,7 @@ def main() -> int:
     if is_cross_tool_duplicate(ai_tool):
         return 0
     # end if
+    flush_pending_rejections(payload)
     dump_debug_payload(payload, "save-command-decision")
     if ai_tool == "claude":
         record_claude_decisions(payload)

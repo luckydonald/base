@@ -231,9 +231,12 @@ class PlanDecisionRecordingTests(unittest.TestCase):
 
 
 class PlanDenialRecordingTests(unittest.TestCase):
-    """save-prompt/hook.py's UserPromptSubmit handler scans the transcript
-    for denied ExitPlanMode calls via `_lib.find_tool_rejections`, since no
-    hook fires directly on denial -- see Phase 4 in plan 067."""
+    """Every git-committing hook's `main()` calls `_lib.flush_pending_rejections`
+    up front, which scans the transcript for denied ExitPlanMode calls (via
+    `PLAN_REJECTION_SPEC`), since no hook fires directly on denial -- see
+    Phase 4 in plan 067 for the original discovery, and this repo's
+    `001_flush-pending-plan-command-denials...` plan for why it moved from a
+    save-prompt-only check to every hook."""
 
     def test_deny_with_reason_records_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -291,7 +294,7 @@ class PlanDenialRecordingTests(unittest.TestCase):
         (no `UserPromptSubmit` fired between them, e.g. the plan was edited
         and resubmitted right after the first denial), each must land in its
         own commit instead of being joined into a single commit covering
-        both -- see `record_claude_plan_rejections`'s docstring."""
+        both -- see `_lib.flush_pending_rejections`'s docstring."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "consumer"
             init_repo(repo, "https://github.com/example/consumer.git")
@@ -329,6 +332,81 @@ class PlanDenialRecordingTests(unittest.TestCase):
             ]
             self.assertIn("+❯ Plan denied.", added_lines)
             self.assertFalse(any("change the approach" in line for line in added_lines))
+
+    def test_denials_interleave_with_plan_revision_commits(self):
+        """The real ordering bug (`dd2c4bfe`): a denial must commit *before*
+        the next plan-revision commit made by `save-plan` itself, not get
+        batched up and flushed later by `save-prompt`. Simulates the actual
+        timeline -- deny plan v1, edit to v2 (denial-1 must flush first), deny
+        v2, edit to v3 (denial-2 must flush first) -- using only `save-plan`'s
+        own `Write` hook as the trigger, never `save-prompt`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            session_id = f"s-order-{uuid.uuid4().hex}"
+            plan_file = str(Path(tmp) / ".claude" / "plans" / "plan.md")
+            transcript_path = str(Path(tmp) / "transcript.jsonl")
+            Path(transcript_path).write_text("", encoding="utf-8")
+
+            def _write_payload(content: str) -> dict:
+                return {
+                    "hook_event_name": "PostToolUse",
+                    "session_id": session_id,
+                    "tool_name": "Write",
+                    "tool_input": {"file_path": plan_file, "content": content},
+                    "transcript_path": transcript_path,
+                }
+
+            def _append_denial(tool_use_id: str, reason: str | None) -> None:
+                if reason:
+                    content = (
+                        "The user doesn't want to proceed with this tool use. The tool use was "
+                        "rejected (eg. if it was a file edit, the new_string was NOT written to "
+                        f"the file). To tell you how to proceed, the user said:\n{reason}"
+                    )
+                else:
+                    content = (
+                        "The user doesn't want to proceed with this tool use. The tool use was "
+                        "rejected (eg. if it was a file edit, the new_string was NOT written to "
+                        "the file). STOP what you are doing and wait for the user to tell you how "
+                        "to proceed."
+                    )
+                lines = [
+                    {"type": "assistant", "message": {"role": "assistant", "content": [
+                        {"type": "tool_use", "id": tool_use_id, "name": "ExitPlanMode", "input": {"plan": "# Plan\n"}},
+                    ]}},
+                    {"type": "user", "message": {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": tool_use_id, "content": content, "is_error": True},
+                    ]}},
+                ]
+                with open(transcript_path, "a", encoding="utf-8") as f:
+                    for line in lines:
+                        f.write(json.dumps(line) + "\n")
+
+            # Same title/slug across revisions (matching real plan-revision
+            # history -- only the body changes), so each Write hits the
+            # "same filename, updated content" path rather than the
+            # slug-changed rename path.
+            # Plan v1: no denial pending yet -- establishes the session.
+            run_hook(repo, PLAN_HOOK, _write_payload("# Plan\n\nDo the thing."), "claude")
+
+            # Denied, then edited to v2: denial-1 must flush before v2's commit.
+            _append_denial(f"toolu_{uuid.uuid4().hex}", "change the approach")
+            run_hook(repo, PLAN_HOOK, _write_payload("# Plan\n\nDo the other thing."), "claude")
+
+            # Denied again, then edited to v3: denial-2 must flush before v3's commit.
+            _append_denial(f"toolu_{uuid.uuid4().hex}", None)
+            run_hook(repo, PLAN_HOOK, _write_payload("# Plan\n\nDo the final thing."), "claude")
+
+            subjects = run_git(repo, "log", "-5", "--pretty=%s").stdout.strip().splitlines()
+            # Newest first: v3, denial-2, v2, denial-1, v1.
+            self.assertTrue(subjects[0].startswith("ai: save plan "))
+            self.assertEqual(subjects[1], "ai: save plan decision")
+            self.assertTrue(subjects[2].startswith("ai: save plan "))
+            self.assertEqual(subjects[3], "ai: save plan decision")
+            self.assertTrue(subjects[4].startswith("ai: save plan "))
+
+            self.assertIn("change the approach", run_git(repo, "show", "HEAD~3:ai/query.md").stdout)
 
     def test_accepted_call_is_not_recorded_as_denied(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -16,6 +16,7 @@ from _lib import (  # noqa: E402
     append_and_commit,
     base_ai_commit_subject,
     dump_debug_payload,
+    flush_pending_rejections,
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
@@ -54,6 +55,7 @@ def main() -> int:
     if is_cross_tool_duplicate(ai_tool):
         return 0
     # end if
+    flush_pending_rejections(payload)
     dump_debug_payload(payload, "save-compact-prompt")
 
     if payload.get("hook_event_name") == "PostCompact":

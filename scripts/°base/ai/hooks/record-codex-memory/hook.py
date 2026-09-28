@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _lib import read_payload  # noqa: E402
+from _lib import flush_pending_rejections, read_payload  # noqa: E402
 
 memory_lib = importlib.import_module("°memory_lib")
 
@@ -595,6 +595,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     # end if
     payload = read_payload()
+    flush_pending_rejections(payload)
     event = str(payload.get("hook_event_name") or "")
     try:
         lock_path = repository / ".record-codex-memory.lock"

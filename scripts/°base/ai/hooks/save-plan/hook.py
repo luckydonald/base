@@ -30,9 +30,10 @@ from _lib import (  # noqa: E402
     append_and_commit,
     dump_debug_payload,
     find_interjected_text,
-    find_tool_rejections,
+    flush_pending_rejections,
     is_cross_tool_duplicate,
     read_payload,
+    render_decision_block,
     resolve_log_path,
     slugify,
 )
@@ -254,35 +255,13 @@ def _plan_from_codex_sources(payload: dict) -> str:
 #
 # Denial recording (Deny / Deny with reason) has no hook of its own -- no
 # `PreToolUse`/`PostToolUse`/`Stop` ever fires for a rejected `ExitPlanMode`
-# call -- so `record_claude_plan_rejections` below is instead called from
-# `save-prompt/hook.py`'s `UserPromptSubmit` handler (found more reliable
-# than `Stop` in testing), which fires soon after almost any denial. It scans
-# the transcript via `_lib.find_tool_rejections`, tracking already-recorded
-# `tool_use_id`s in `_REJECTIONS_STATE_FILE` to avoid double-recording across
-# calls.
+# call -- so it's handled by `_lib.flush_pending_rejections`, called from the
+# top of every git-committing hook's `main()` (including this one's), rather
+# than from any single hook here. See `_lib.PLAN_REJECTION_SPEC` and the
+# module docstring on `_lib.flush_pending_rejections` for the full design.
 # ---------------------------------------------------------------------------
 
-_REJECTIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-rejections-state.json"
 _COPILOT_DECISIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-copilot-decisions-state.json"
-
-
-def _load_recorded_rejection_ids() -> set[str]:
-    try:
-        return set(json.loads(_REJECTIONS_STATE_FILE.read_text(encoding="utf-8")))
-    except Exception:
-        return set()
-
-
-def _save_recorded_rejection_ids(ids: set[str]) -> None:
-    _REJECTIONS_STATE_FILE.write_text(json.dumps(sorted(ids)), encoding="utf-8")
-
-def _render_decision_block(label: str, detail: str | None) -> str:
-    out = [f"❯ {label}\n"]
-    if detail:
-        for line in detail.splitlines():
-            out.append(f"> {line}\n" if line else ">\n")
-    out.append("\n")
-    return "".join(out)
 
 
 def _record_claude_plan_acceptance(payload: dict) -> None:
@@ -312,56 +291,10 @@ def _record_claude_plan_acceptance(payload: dict) -> None:
     log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
     append_and_commit(
         log_path,
-        _render_decision_block(label, detail),
+        render_decision_block(label, detail),
         commit_template_relpath="ai/commit-templates/decision",
         default_commit_msg="ai: save plan decision",
     )
-
-
-def _render_claude_plan_rejection(rejection: dict) -> str:
-    """Render a denied `ExitPlanMode` call, matching the accept side's
-    plain/with-detail shape. Both deny variants get the exact same generic
-    rejection wrapper in the transcript (see `_lib.is_rejection`) --
-    `rejection["reason"]` is `None` for a denial without one."""
-    reason = rejection.get("reason")
-    if reason:
-        return _render_decision_block("Plan denied:", reason)
-    return _render_decision_block("Plan denied.", None)
-
-
-def record_claude_plan_rejections(payload: dict) -> None:
-    """Scan ``payload["transcript_path"]`` for denied Claude `ExitPlanMode`
-    calls not yet recorded, and append a `query.md` entry for each. Intended
-    to be called from `save-prompt/hook.py`'s `UserPromptSubmit` handler --
-    see the module comment above for why no hook can call this directly on
-    denial itself.
-
-    Multiple unrecorded denials can pile up before this ever runs (e.g. the
-    agent edits the plan and gets denied again without any `UserPromptSubmit`
-    in between -- there's nothing to flush the first denial on). Each denial
-    still gets its own `append_and_commit` call/commit here, so the resulting
-    commits interleave with the plan-edit commits made between the denials
-    instead of being squashed into one commit covering all of them.
-    """
-    transcript_path = payload.get("transcript_path") or ""
-    if not transcript_path:
-        return
-
-    already_recorded = _load_recorded_rejection_ids()
-    rejections = find_tool_rejections(transcript_path, {"ExitPlanMode"}, already_recorded)
-    if not rejections:
-        return
-
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
-    for rejection in rejections:
-        append_and_commit(
-            log_path,
-            _render_claude_plan_rejection(rejection),
-            commit_template_relpath="ai/commit-templates/decision",
-            default_commit_msg="ai: save plan decision",
-        )
-        already_recorded.add(rejection["tool_use_id"])
-        _save_recorded_rejection_ids(already_recorded)
 
 
 def _load_recorded_copilot_decision_ids() -> set[str]:
@@ -422,7 +355,7 @@ def _record_copilot_plan_acceptances(payload: dict) -> None:
         if decision_id in recorded:
             continue
         label = "Plan accepted, autopilot." if new_mode == "autopilot" else "Plan accepted."
-        blocks.append(_render_decision_block(label, None))
+        blocks.append(render_decision_block(label, None))
         recorded.add(decision_id)
 
     _record_copilot_plan_blocks(blocks)
@@ -447,7 +380,7 @@ def _record_copilot_exit_only(payload: dict) -> None:
     recorded = _load_recorded_copilot_decision_ids()
     if decision_id in recorded:
         return
-    _record_copilot_plan_blocks([_render_decision_block("Plan exited.", None)])
+    _record_copilot_plan_blocks([render_decision_block("Plan exited.", None)])
     recorded.add(decision_id)
     for index, event in enumerate(_copilot_session_events(session_id)):
         data = event.get("data") if isinstance(event, dict) else None
@@ -666,6 +599,7 @@ def main() -> int:
     payload = read_payload()
     if is_cross_tool_duplicate(ai_tool):
         return 0
+    flush_pending_rejections(payload)
     dump_debug_payload(payload, "save-plan")
     session_id = payload.get("session_id", "")
     tool_name = payload.get("tool_name", "")

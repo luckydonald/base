@@ -197,3 +197,19 @@ Where is the actual processing of those queued events supposed to happen?
 
 ❯ Your claude.ai usage limit has reset. Continue the task you were working on when the limit was reached; do not repeat work that is already complete.
 
+❯ Task Notification:
+> - Task `br33g31z0` <kbd>completed</kbd>
+> - Tool `toolu_01VCNhFYSCAN7uik1yjYXCgp`
+> - > Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" 2>&1 | tail -100" completed (exit code 0)
+> - [Query (`130` chars, `131 B`)](output/agents/012.br33g31z0/prompt.md)
+> - [Answer (`3002` chars, `2.95 KB`)](output/agents/012.br33g31z0/result.md)
+> - [Raw log (`6849` chars, `6.71 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/br33g31z0.output)
+
+❯ Task Notification:
+> - Task `bqhpm3ftw` <kbd>completed</kbd>
+> - Tool `toolu_01CXtLNLyfHpcyvSyCbxfC7j`
+> - > Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" 2>&1 | tail -150" completed (exit code 0)
+> - [Query (`130` chars, `131 B`)](output/agents/013.bqhpm3ftw/prompt.md)
+> - [Answer (`3002` chars, `2.95 KB`)](output/agents/013.bqhpm3ftw/result.md)
+> - [Raw log (`11277` chars, `11 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/bqhpm3ftw.output)
+

@@ -188,5 +188,95 @@ class FindToolRejectionsTests(unittest.TestCase):
         self.assertEqual({f["tool_use_id"] for f in found}, {"p6", "p7"})
 
 
+class TranscriptCacheTests(unittest.TestCase):
+    """`load_transcript_tool_events` is now backed by an incremental,
+    disk-backed cache (see the plan doc's "Efficiency" section) since it gets
+    called from nearly every git-committing hook instead of just one."""
+
+    def test_repeated_calls_with_no_new_content_return_identical_result(self):
+        path = _write_transcript([
+            _assistant_tool_use("c1", "Bash", {"command": "echo hi"}),
+            _user_tool_result("c1", "hi"),
+        ])
+        first = _lib.load_transcript_tool_events(path)
+        second = _lib.load_transcript_tool_events(path)
+        self.assertEqual(first, second)
+        cache = _lib._load_transcript_cache(_lib._transcript_cache_path(path))
+        offset_after_first = cache["offset"]
+        # A third call shouldn't need to reparse anything new -- offset stays put.
+        _lib.load_transcript_tool_events(path)
+        cache_again = _lib._load_transcript_cache(_lib._transcript_cache_path(path))
+        self.assertEqual(cache_again["offset"], offset_after_first)
+
+    def test_appended_content_is_picked_up_on_next_call(self):
+        path = _write_transcript([
+            _assistant_tool_use("c2", "Bash", {"command": "echo one"}),
+            _user_tool_result("c2", "one"),
+        ])
+        first = _lib.load_transcript_tool_events(path)
+        self.assertIn("c2", first)
+        self.assertNotIn("c3", first)
+
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(_assistant_tool_use("c3", "Bash", {"command": "echo two"})) + "\n")
+            f.write(json.dumps(_user_tool_result("c3", "two")) + "\n")
+
+        second = _lib.load_transcript_tool_events(path)
+        self.assertIn("c2", second)
+        self.assertIn("c3", second)
+
+
+class FlushPendingRejectionsLockTests(unittest.TestCase):
+    """`flush_pending_rejections`'s commit step is guarded by a non-blocking
+    per-spec lock so two concurrent hook processes can't both commit the same
+    rejection -- see the plan doc's "where the real race is" section."""
+
+    def test_skips_when_spec_lock_is_already_held(self):
+        import fcntl
+        import subprocess
+        import uuid
+
+        path = _write_transcript([
+            _assistant_tool_use("plan-lock-1", "ExitPlanMode", {}),
+            _user_tool_result(
+                "plan-lock-1",
+                "The user doesn't want to proceed with this tool use. the user said:\nno",
+                is_error=True,
+            ),
+        ])
+        payload = {"transcript_path": path}
+
+        # Isolate this test's state file from any other test/run.
+        state_file = Path(tempfile.gettempdir()) / f"test-lock-state-{uuid.uuid4().hex}.json"
+        spec = _lib.PLAN_REJECTION_SPEC._replace(state_file=state_file)
+        lock_path = state_file.with_name(state_file.name + ".lock")
+
+        with tempfile.TemporaryDirectory() as repo_tmp:
+            subprocess.run(["git", "init", "-q"], cwd=repo_tmp, check=True)
+            subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=repo_tmp, check=True)
+            subprocess.run(["git", "config", "user.name", "t"], cwd=repo_tmp, check=True)
+            Path(repo_tmp, "README.md").write_text("x\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=repo_tmp, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo_tmp, check=True)
+
+            import os
+            old_cwd = os.getcwd()
+            os.chdir(repo_tmp)
+            try:
+                events = _lib.load_transcript_tool_events(path)
+                with open(lock_path, "a") as held:
+                    fcntl.flock(held.fileno(), fcntl.LOCK_EX)
+                    try:
+                        _lib._flush_rejection_spec(spec, events)  # should skip, lock busy
+                    finally:
+                        fcntl.flock(held.fileno(), fcntl.LOCK_UN)
+                self.assertEqual(_lib._load_id_set(state_file), set())
+
+                _lib._flush_rejection_spec(spec, events)  # lock free now -- should commit
+                self.assertIn("plan-lock-1", _lib._load_id_set(state_file))
+            finally:
+                os.chdir(old_cwd)
+
+
 if __name__ == "__main__":
     unittest.main()
