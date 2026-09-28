@@ -20,6 +20,7 @@ from _lib import (  # noqa: E402
     append_and_commit,
     delete_pending_decision,
     dump_debug_payload,
+    flush_pending_rejections,
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
@@ -590,6 +591,7 @@ def main() -> int:
     if is_cross_tool_duplicate(args.tool_name):
         return 0
 
+    flush_pending_rejections(payload)
     session_id = payload.get("session_id", "")
 
     event = payload.get("hook_event_name", "PostToolUse")

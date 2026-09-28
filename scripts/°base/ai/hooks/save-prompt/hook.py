@@ -13,7 +13,6 @@ and Explore results to ai/output/explore/NNN.task-id/ (or °base equivalents).
 from __future__ import annotations
 
 import html
-import importlib.util
 import json
 import re
 import subprocess
@@ -28,6 +27,7 @@ from _lib import (  # noqa: E402
     append_and_commit,
     base_ai_commit_subject,
     dump_debug_payload,
+    flush_pending_rejections,
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
@@ -1020,25 +1020,6 @@ def _handle_task_notification(
     return True
 
 
-def _load_save_plan_hook():
-    """Load `save-plan/hook.py` by path (its dir name has a hyphen, so it
-    can't be a normal package import) to reuse its Claude plan-decision
-    recording without duplicating it here."""
-    hook_path = Path(__file__).resolve().parent.parent / "save-plan" / "hook.py"
-    spec = importlib.util.spec_from_file_location("save_plan_hook", hook_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _record_claude_plan_rejections(payload: dict) -> None:
-    """No hook fires for a denied `ExitPlanMode` call (see
-    save-plan/hook.py's module comment), so `UserPromptSubmit` -- the most
-    reliable hook found to fire soon afterward -- scans the transcript for
-    any not-yet-recorded denial each time it fires."""
-    _load_save_plan_hook().record_claude_plan_rejections(payload)
-
-
 def main() -> int:
     ai_tool = sys.argv[1] if len(sys.argv) > 1 else "unknown"
     prefix = PREFIXES.get(ai_tool, DEFAULT_PREFIX)
@@ -1046,9 +1027,8 @@ def main() -> int:
     payload = read_payload()
     if is_cross_tool_duplicate(ai_tool):
         return 0
+    flush_pending_rejections(payload)
     dump_debug_payload(payload, "save-prompt")
-    if ai_tool == "claude":
-        _record_claude_plan_rejections(payload)
     prompt = payload.get("prompt") or payload.get("user_prompt") or ""
     if not prompt and isinstance(payload.get("tool_input"), dict):
         prompt = payload["tool_input"].get("prompt") or ""

@@ -1,0 +1,1 @@
+Background command "python3 -m unittest discover -s "scripts/°base/tests" -p "test_*.py" 2>&1 | tail -150" completed (exit code 0)

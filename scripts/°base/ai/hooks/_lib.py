@@ -7,7 +7,10 @@ edits to the same file via :mod:`merge_staged`.
 """
 from __future__ import annotations
 
+import contextlib
 import datetime
+import fcntl
+import hashlib
 import json
 import os
 import re
@@ -16,6 +19,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable, NamedTuple
 
 # Sibling-module import (this package can't be imported as a real package
 # because parent dirs contain non-ASCII / hyphenated names).
@@ -161,48 +165,14 @@ _REJECTION_PREFIX = "The user doesn't want to proceed with this tool use."
 _REJECTION_REASON_RE = re.compile(r"user said:\n(.*)\Z", re.S)
 
 
-def _iter_transcript_lines(transcript_path: str) -> list[dict]:
-    try:
-        raw = Path(transcript_path).read_text(encoding="utf-8")
-    except (OSError, TypeError):
-        return []
-    records = []
-    for line in raw.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            records.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return records
-
-
-def load_transcript_tool_events(transcript_path: str) -> dict[str, dict]:
-    """Parse a session transcript JSONL into ``{tool_use_id: event}``, one
-    entry per ``tool_use``/``tool_result`` pair found, where ``event`` is::
-
-        {"tool_name": str, "tool_input": dict, "is_error": bool,
-         "content": str, "note": str | None}
-
-    ``content`` is the ``tool_result`` block's own text (only ever a plain
-    string for a denied call -- Claude Code's synthetic rejection message).
-    ``note`` is a sibling ``{"type": "text", ...}`` content entry immediately
-    following the ``tool_result`` block in the same transcript message, when
-    present: confirmed (repeatedly, across `ExitPlanMode`, `Edit`, `Bash`,
-    `Read`) to be how Claude Code delivers *any* message the user sends while
-    a tool call is in flight -- not a field specific to one tool or dialog,
-    and never exposed to any hook directly. Both `note` and a denial's typed
-    reason (see :func:`rejection_reason`) exist only here, in the raw
-    transcript -- there is no hook-visible field for either.
-
-    Every hook payload already carries ``payload["transcript_path"]``, so no
-    extra plumbing is needed to call this.
-    """
-    tool_uses: dict[str, tuple[str, dict]] = {}
-    events: dict[str, dict] = {}
-
-    for obj in _iter_transcript_lines(transcript_path):
+def _merge_transcript_records(
+    records: list[dict], tool_uses: dict[str, tuple[str, dict]], events: dict[str, dict]
+) -> None:
+    """Pair ``tool_use``/``tool_result`` blocks from ``records`` into
+    ``events``, mutating ``tool_uses``/``events`` in place so this can be
+    called incrementally across multiple batches of records (see
+    :func:`load_transcript_tool_events`)."""
+    for obj in records:
         message = obj.get("message")
         if not isinstance(message, dict):
             continue
@@ -240,6 +210,156 @@ def load_transcript_tool_events(transcript_path: str) -> dict[str, dict]:
                 "content": raw_content if isinstance(raw_content, str) else "",
                 "note": note,
             }
+
+
+def _transcript_cache_path(transcript_path: str) -> Path:
+    digest = hashlib.sha1(transcript_path.encode("utf-8")).hexdigest()[:16]
+    return Path(tempfile.gettempdir()) / f"transcript-scan-cache-{digest}.json"
+
+
+def _load_transcript_cache(cache_path: Path) -> dict:
+    try:
+        data = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_transcript_cache_atomic(cache_path: Path, data: dict) -> None:
+    fd, tmp_name = tempfile.mkstemp(dir=str(cache_path.parent), prefix=cache_path.name + ".tmp-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp_name, cache_path)
+    except OSError:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+
+
+def _try_write_transcript_cache(cache_path: Path, data: dict) -> None:
+    """Best-effort, non-blocking persist of a freshly-computed transcript
+    cache. Skips (never blocks, never raises) if another process currently
+    holds the write lock, or if the persisted cache already reflects an
+    offset `>=` ours -- see the plan doc's "efficiency" section for why a
+    plain last-writer-wins overwrite isn't safe here (a long-preempted writer
+    could otherwise regress a newer cache) but a full lock-held-across-parse
+    also isn't needed (only the tiny compare+write step needs it)."""
+    lock_path = cache_path.with_name(cache_path.name + ".lock")
+    try:
+        lock_file = open(lock_path, "a")
+    except OSError:
+        return
+    try:
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        try:
+            current = _load_transcript_cache(cache_path)
+            if current.get("offset", 0) >= data["offset"]:
+                return
+            _write_transcript_cache_atomic(cache_path, data)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    finally:
+        lock_file.close()
+
+
+def _read_new_transcript_records(transcript_path: str, offset: int) -> tuple[list[dict], int]:
+    """Read and parse complete lines starting at byte ``offset``. Returns
+    ``(records, new_offset)`` where ``new_offset`` is the byte position right
+    after the last fully-consumed line -- any trailing partial line (a writer
+    mid-flush) is left unconsumed for the next call."""
+    try:
+        with open(transcript_path, "rb") as f:
+            f.seek(offset)
+            chunk = f.read()
+    except OSError:
+        return [], offset
+    if not chunk:
+        return [], offset
+    last_newline = chunk.rfind(b"\n")
+    if last_newline == -1:
+        return [], offset
+    consumed = chunk[:last_newline + 1]
+    new_offset = offset + len(consumed)
+    records: list[dict] = []
+    for line in consumed.decode("utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records, new_offset
+
+
+def load_transcript_tool_events(transcript_path: str) -> dict[str, dict]:
+    """Parse a session transcript JSONL into ``{tool_use_id: event}``, one
+    entry per ``tool_use``/``tool_result`` pair found, where ``event`` is::
+
+        {"tool_name": str, "tool_input": dict, "is_error": bool,
+         "content": str, "note": str | None}
+
+    ``content`` is the ``tool_result`` block's own text (only ever a plain
+    string for a denied call -- Claude Code's synthetic rejection message).
+    ``note`` is a sibling ``{"type": "text", ...}`` content entry immediately
+    following the ``tool_result`` block in the same transcript message, when
+    present: confirmed (repeatedly, across `ExitPlanMode`, `Edit`, `Bash`,
+    `Read`) to be how Claude Code delivers *any* message the user sends while
+    a tool call is in flight -- not a field specific to one tool or dialog,
+    and never exposed to any hook directly. Both `note` and a denial's typed
+    reason (see :func:`rejection_reason`) exist only here, in the raw
+    transcript -- there is no hook-visible field for either.
+
+    Every hook payload already carries ``payload["transcript_path"]``, so no
+    extra plumbing is needed to call this.
+
+    Backed by a small disk cache keyed off ``transcript_path`` (session
+    transcripts are append-only for the life of a session), since this now
+    gets called from nearly every git-committing hook via
+    :func:`flush_pending_rejections` instead of just one. The cache is a pure
+    memoization of a deterministic function over an immutable byte prefix --
+    see :func:`_try_write_transcript_cache` for why the write side still
+    needs a small guard even so.
+    """
+    if not transcript_path:
+        return {}
+    try:
+        current_size = Path(transcript_path).stat().st_size
+    except OSError:
+        return {}
+
+    cache_path = _transcript_cache_path(transcript_path)
+    cache = _load_transcript_cache(cache_path)
+    offset = cache.get("offset", 0) if isinstance(cache.get("offset"), int) else 0
+    cached_size = cache.get("size", 0) if isinstance(cache.get("size"), int) else 0
+    pending_raw = cache.get("pending_tool_uses") or {}
+    events: dict[str, dict] = dict(cache.get("events") or {})
+    tool_uses: dict[str, tuple[str, dict]] = {
+        tid: (v[0], v[1])
+        for tid, v in pending_raw.items()
+        if isinstance(v, list) and len(v) == 2
+    }
+
+    if current_size < cached_size:
+        # Transcript shrank (truncated/rotated) -- shouldn't normally
+        # happen, but be defensive and rescan from scratch.
+        offset, tool_uses, events = 0, {}, {}
+
+    records, new_offset = _read_new_transcript_records(transcript_path, offset)
+    if records:
+        _merge_transcript_records(records, tool_uses, events)
+
+    if new_offset != offset:
+        _try_write_transcript_cache(cache_path, {
+            "offset": new_offset,
+            "size": current_size,
+            "pending_tool_uses": {tid: list(v) for tid, v in tool_uses.items()},
+            "events": events,
+        })
+
     return events
 
 
@@ -266,23 +386,16 @@ def rejection_reason(content: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
-def find_tool_rejections(
-    transcript_path: str, tool_names: set[str], already_recorded: set[str]
+def _filter_rejections(
+    events: dict[str, dict], tool_names: frozenset[str] | set[str], already_recorded: set[str]
 ) -> list[dict]:
-    """Scan the transcript for denied calls to any of ``tool_names``, skipping
-    ``tool_use_id``s already in ``already_recorded``. Returns a list of
-    ``{"tool_use_id", "tool_name", "tool_input", "reason"}`` dicts (``reason``
-    is ``None`` for a denial without one) in transcript order.
-
-    No hook fires for a denied tool call (`PreToolUse` doesn't exist for most
-    gated tools including `ExitPlanMode`; `PostToolUse` only fires on
-    success; `Stop` was observed unreliable) -- callers should invoke this
-    from whatever hook reliably fires *next* in the session (empirically
-    `UserPromptSubmit`), tracking `tool_use_id`s already recorded across
-    calls in a state file to avoid double-recording.
-    """
+    """Filter an already-parsed ``{tool_use_id: event}`` map (from
+    :func:`load_transcript_tool_events`) for denied calls to any of
+    ``tool_names``, skipping ``tool_use_id``s already in ``already_recorded``.
+    Returns ``{"tool_use_id", "tool_name", "tool_input", "reason"}`` dicts
+    (``reason`` is ``None`` for a denial without one)."""
     results = []
-    for tool_id, event in load_transcript_tool_events(transcript_path).items():
+    for tool_id, event in events.items():
         if tool_id in already_recorded:
             continue
         if event["tool_name"] not in tool_names:
@@ -296,6 +409,151 @@ def find_tool_rejections(
             "reason": rejection_reason(event["content"]),
         })
     return results
+
+
+def find_tool_rejections(
+    transcript_path: str, tool_names: set[str], already_recorded: set[str]
+) -> list[dict]:
+    """Scan the transcript for denied calls to any of ``tool_names``, skipping
+    ``tool_use_id``s already in ``already_recorded``. Returns a list of
+    ``{"tool_use_id", "tool_name", "tool_input", "reason"}`` dicts (``reason``
+    is ``None`` for a denial without one) in transcript order.
+
+    No hook fires for a denied tool call (`PreToolUse` doesn't exist for most
+    gated tools including `ExitPlanMode`; `PostToolUse` only fires on
+    success; `Stop` was observed unreliable) -- callers should invoke this
+    from whatever hook reliably fires *next* in the session (empirically
+    `UserPromptSubmit`), tracking `tool_use_id`s already recorded across
+    calls in a state file to avoid double-recording. Most git-committing
+    hooks should prefer :func:`flush_pending_rejections` instead, which
+    covers both plan and command denials from a single transcript parse and
+    handles the commit/state-file race -- this is kept for direct/one-off use.
+    """
+    return _filter_rejections(load_transcript_tool_events(transcript_path), tool_names, already_recorded)
+
+
+def render_decision_block(label: str, detail: str | None) -> str:
+    """Render a simple ``❯ {label}`` decision block, with ``detail`` (if any)
+    quoted below it line by line. Shared by every hook that records a
+    plan/command accept or deny into the prompt log."""
+    out = [f"❯ {label}\n"]
+    if detail:
+        for line in detail.splitlines():
+            out.append(f"> {line}\n" if line else ">\n")
+    out.append("\n")
+    return "".join(out)
+
+
+CLAUDE_COMMAND_TOOLS = frozenset({"Bash", "shell", "unified_exec", "Write", "Edit", "Read", "apply_patch"})
+
+_PLAN_REJECTIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-rejections-state.json"
+_COMMAND_REJECTIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-command-decision-state.json"
+
+
+def _render_plan_rejection(rejection: dict) -> str:
+    reason = rejection.get("reason")
+    if reason:
+        return render_decision_block("Plan denied:", reason)
+    return render_decision_block("Plan denied.", None)
+
+
+def command_label(tool_name: str) -> str:
+    return f"`{tool_name}`" if tool_name else "a tool"
+
+
+def _render_command_rejection(rejection: dict) -> str:
+    return render_decision_block(f"Command denied: {command_label(rejection['tool_name'])}", rejection.get("reason"))
+
+
+class RejectionSpec(NamedTuple):
+    tool_names: frozenset[str]
+    state_file: Path
+    render: Callable[[dict], str]
+    commit_msg: str
+
+
+PLAN_REJECTION_SPEC = RejectionSpec(
+    tool_names=frozenset({"ExitPlanMode"}),
+    state_file=_PLAN_REJECTIONS_STATE_FILE,
+    render=_render_plan_rejection,
+    commit_msg="ai: save plan decision",
+)
+
+COMMAND_REJECTION_SPEC = RejectionSpec(
+    tool_names=CLAUDE_COMMAND_TOOLS,
+    state_file=_COMMAND_REJECTIONS_STATE_FILE,
+    render=_render_command_rejection,
+    commit_msg="ai: save command decision",
+)
+
+
+def _load_id_set(path: Path) -> set[str]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError, TypeError):
+        return set()
+    return set(data) if isinstance(data, list) else set()
+
+
+def _save_id_set(path: Path, ids: set[str]) -> None:
+    path.write_text(json.dumps(sorted(ids)), encoding="utf-8")
+
+
+def _flush_rejection_spec(spec: RejectionSpec, events: dict[str, dict]) -> None:
+    """Commit every not-yet-recorded rejection for one spec, one commit each,
+    guarded by a non-blocking lock so two concurrent hook processes can't
+    both commit the same rejection -- see the plan doc's "where the real race
+    is" section. Skips (never blocks) if another process currently holds the
+    lock; that process is, by construction, clearing the entire backlog for
+    this spec right now, not just one item, so skipping is safe."""
+    lock_path = spec.state_file.with_name(spec.state_file.name + ".lock")
+    try:
+        lock_file = open(lock_path, "a")
+    except OSError:
+        return
+    try:
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        try:
+            already_recorded = _load_id_set(spec.state_file)
+            rejections = _filter_rejections(events, spec.tool_names, already_recorded)
+            if not rejections:
+                return
+            log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+            for rejection in rejections:
+                append_and_commit(
+                    log_path,
+                    spec.render(rejection),
+                    commit_template_relpath="ai/commit-templates/decision",
+                    default_commit_msg=spec.commit_msg,
+                )
+                already_recorded.add(rejection["tool_use_id"])
+                _save_id_set(spec.state_file, already_recorded)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    finally:
+        lock_file.close()
+
+
+def flush_pending_rejections(payload: dict) -> None:
+    """Scan the transcript once for both plan (`ExitPlanMode`) and command
+    (`CLAUDE_COMMAND_TOOLS`) denials not yet recorded, and commit each one
+    individually -- one commit per denial, never batched, so denials
+    interleave correctly with whatever other commits land between them.
+
+    Call this from every git-committing hook's ``main()``, right after the
+    ``is_cross_tool_duplicate`` guard and before that hook's own work, so a
+    pending denial commits before that hook's own next commit instead of
+    landing after it. See the plan doc (`ai/°base/plans/001_...md` at the
+    time this was written) for the full design rationale."""
+    transcript_path = payload.get("transcript_path") or ""
+    if not transcript_path:
+        return
+    events = load_transcript_tool_events(transcript_path)
+    for spec in (PLAN_REJECTION_SPEC, COMMAND_REJECTION_SPEC):
+        _flush_rejection_spec(spec, events)
 
 
 def slugify(text: str, *, max_len: int = 60, fallback: str = "untitled") -> str:

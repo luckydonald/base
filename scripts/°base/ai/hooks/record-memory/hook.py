@@ -46,6 +46,7 @@ from _lib import (  # noqa: E402
     _encoded_project_dir,
     _subproject_root,
     dump_debug_payload,
+    flush_pending_rejections,
     read_payload,
     running_copilot,
 )
@@ -396,6 +397,7 @@ def main() -> int:
     dst_dir_rel = str(dst_dir.relative_to(Path.cwd()))
 
     payload = read_payload()
+    flush_pending_rejections(payload)
     dump_debug_payload(payload, "record-memory")
     event = payload.get("hook_event_name") or ""
 
