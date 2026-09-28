@@ -6859,3 +6859,12 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 
 ❯ Small task: Add `squash ai` and `squash \`ai: \`` (with or without space after `ai:`) to the ignored prompt list.
 
+❯ From @../DockerTgBot/sync_todo/ cherry pick the following commits:
+- 3c4c180e1fd7ef83859e643c489c58c702b18e06
+- dc97174be75f2a0dd77ffec4ab0c33859ab9c29e
+- 5933e344de3c3c333678d29e9f78a2e232060b70
+- 37cafffdebd454ce7326a8363330514d7adb3138
+Thanks.
+
+❯ Rename it to be a good commit. For that single commit you may drop the `ai: Run:` part, as it is the query.
+
