@@ -18,6 +18,7 @@ PLAN_HOOK = _routing.PLAN_HOOK
 PROMPT_HOOK = _routing.PROMPT_HOOK
 init_repo = _routing.init_repo
 last_subject = _routing.last_subject
+run_git = _routing.run_git
 run_hook = _routing.run_hook
 
 
@@ -66,6 +67,45 @@ def _write_rejection_transcript(tmp_dir: Path, tool_use_id: str, reason: str | N
         ]}},
     ]
     path = tmp_dir / f"transcript-{tool_use_id}.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def _write_double_rejection_transcript(
+    tmp_dir: Path, first_id: str, first_reason: str | None, second_id: str, second_reason: str | None
+) -> str:
+    """A transcript with two denied ExitPlanMode calls in a row (a plan
+    edited and resubmitted after the first denial, then denied again) with no
+    intervening `UserPromptSubmit` -- the exact shape that used to let both
+    denials pile up unrecorded and get flushed into a single commit."""
+    def _content(reason: str | None) -> str:
+        if reason:
+            return (
+                "The user doesn't want to proceed with this tool use. The tool use was rejected "
+                "(eg. if it was a file edit, the new_string was NOT written to the file). "
+                f"To tell you how to proceed, the user said:\n{reason}"
+            )
+        return (
+            "The user doesn't want to proceed with this tool use. The tool use was rejected "
+            "(eg. if it was a file edit, the new_string was NOT written to the file). "
+            "STOP what you are doing and wait for the user to tell you how to proceed."
+        )
+
+    lines = [
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": first_id, "name": "ExitPlanMode", "input": {"plan": "# Plan\n"}},
+        ]}},
+        {"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": first_id, "content": _content(first_reason), "is_error": True},
+        ]}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": second_id, "name": "ExitPlanMode", "input": {"plan": "# Plan v2\n"}},
+        ]}},
+        {"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": second_id, "content": _content(second_reason), "is_error": True},
+        ]}},
+    ]
+    path = tmp_dir / f"transcript-{first_id}-{second_id}.jsonl"
     path.write_text("\n".join(json.dumps(line) for line in lines) + "\n", encoding="utf-8")
     return str(path)
 
@@ -245,6 +285,50 @@ class PlanDenialRecordingTests(unittest.TestCase):
 
             content = _query_md(repo).read_text(encoding="utf-8")
             self.assertEqual(content.count("Plan denied:"), 1)
+
+    def test_two_pending_denials_get_two_separate_commits(self):
+        """Regression test: when two ExitPlanMode denials pile up unrecorded
+        (no `UserPromptSubmit` fired between them, e.g. the plan was edited
+        and resubmitted right after the first denial), each must land in its
+        own commit instead of being joined into a single commit covering
+        both -- see `record_claude_plan_rejections`'s docstring."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            first_id = f"toolu_deny_first_{uuid.uuid4().hex}"
+            second_id = f"toolu_deny_second_{uuid.uuid4().hex}"
+            transcript = _write_double_rejection_transcript(
+                Path(tmp), first_id, "change the approach", second_id, None
+            )
+
+            before = run_git(repo, "rev-list", "--count", "HEAD").stdout.strip()
+            run_hook(
+                repo, PROMPT_HOOK,
+                _user_prompt_submit_payload(session_id="d5", transcript_path=transcript),
+                "claude",
+            )
+            after = run_git(repo, "rev-list", "--count", "HEAD").stdout.strip()
+
+            self.assertEqual(int(after) - int(before), 2)
+
+            log = run_git(repo, "log", f"-{after}", "--pretty=%s").stdout.strip().splitlines()
+            plan_decision_commits = [s for s in log if s == "ai: save plan decision"]
+            self.assertEqual(len(plan_decision_commits), 2)
+
+            # query.md is append-only, so HEAD~1 has just the first denial's
+            # block and HEAD (cumulative) adds the second denial's block on
+            # top -- each commit's diff is exactly one denial.
+            first_commit_content = run_git(repo, "show", "HEAD~1:ai/query.md").stdout
+            second_commit_diff = run_git(repo, "diff", "HEAD~1", "HEAD", "--", "ai/query.md").stdout
+            self.assertIn("Plan denied:", first_commit_content)
+            self.assertIn("change the approach", first_commit_content)
+            self.assertNotIn("Plan denied.", first_commit_content)
+            added_lines = [
+                line for line in second_commit_diff.splitlines()
+                if line.startswith("+") and not line.startswith("+++")
+            ]
+            self.assertIn("+❯ Plan denied.", added_lines)
+            self.assertFalse(any("change the approach" in line for line in added_lines))
 
     def test_accepted_call_is_not_recorded_as_denied(self):
         with tempfile.TemporaryDirectory() as tmp:
