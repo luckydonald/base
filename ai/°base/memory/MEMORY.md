@@ -6,3 +6,4 @@
 - [codex-sync-audit git-add-empty-dir crash](codex_sync_audit_fix_empty_memory_dir.md) — `git add --all` on a memory dir that a delete just emptied fails with pathspec error 128; guard with `git status --porcelain` first.
 - [Memory subsystem directory map](memory_subsystem_directory_map.md) — the 5 memory-related dirs under scripts/°base/ aren't redundant; only scripts/°base/memories/ was dead, now moved to ai/memory/legacy/.
 - [fix-subproject-memory-project-dir-name-override](fix-subproject-memory-project-dir-name-override.md) — TODO: summarize this file.
+- [push_checks.py clean-format misapplies to base branch](push_checks_clean_format_misapplies_to_base_branch.md) — don't re-chain split.py check-push into .git/hooks/pre-push.legacy for base's own branch without an exemption fix first.

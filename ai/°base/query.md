@@ -7205,3 +7205,44 @@ Then add a push check which - only for the `base/base` repo - checks that we don
 > - [Answer (`0` chars, `0 B`)](output/agents/091.bkwprcfnk/result.md)
 > - [Raw log (`0` chars, `442 B`)]()
 
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Everything's implemented and verified locally: history rewritten (ai/query.md back to its 17-line template, the 224 misrouted lines moved into ai/°base/query.md, verified byte-for-byte against a diff of everything else), the new push guard added and end-to-end tested (blocks a real push touching ai/query.md from a repo identified as luckydonald/base), both hook installers coexisting via legacy chaining, and pre-existing test failures unchanged (6 failures/2 errors, identical before and after — confirmed unrelated). Local `base` is 3 commits ahead of `origin/base` with all history from `88d277140` onward rewritten (new SHAs). Ready to force-push?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Force-push** (1/1) <kbd>Single Select</kbd><br>
+>> Everything's implemented and verified locally: history rewritten (ai/query.md back to its 17-line template, the 224 misrouted lines moved into ai/°base/query.md, verified byte-for-byte against a diff of everything else), the new push guard added and end-to-end tested (blocks a real push touching ai/query.md from a repo identified as luckydonald/base), both hook installers coexisting via legacy chaining, and pre-existing test failures unchanged (6 failures/2 errors, identical before and after — confirmed unrelated). Local `base` is 3 commits ahead of `origin/base` with all history from `88d277140` onward rewritten (new SHAs). Ready to force-push?
+> - [ ] 1\. Yes, force-push now (Recommended)
+>   - _git push --force-with-lease origin base — publishes the rewritten history and the new push-guard commits. Backup tags (bak/bd84ca81da6a pre-rewrite, bak/a4464f74a4d3 post-rebase) stay locally reachable either way._
+> - [ ] 2\. Not yet — let me review first
+>   - _Hold off on pushing. I'll leave the local base branch as-is (already rewritten) so you can inspect it before I push._
+> - [x] 3\. _Type something:_
+>   - > Make sure the out branch has a tag. then you can force push.
+>
+> </details>
+>
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Everything from the plan is done and pushed (history rewrite + new push guard, both verified). After that push, I folded a few trailing auto-commits (a stray decision-save, two memory-record commits) into a small follow-up commit documenting why I reverted the split.py check-push chaining. That fold rewrote the already-pushed tip again, so pushing it needs another force-push — which the auto-mode classifier just blocked pending your say-so. OK to force-push this last bit?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Second force-push** (1/1) <kbd>Single Select</kbd><br>
+>> Everything from the plan is done and pushed (history rewrite + new push guard, both verified). After that push, I folded a few trailing auto-commits (a stray decision-save, two memory-record commits) into a small follow-up commit documenting why I reverted the split.py check-push chaining. That fold rewrote the already-pushed tip again, so pushing it needs another force-push — which the auto-mode classifier just blocked pending your say-so. OK to force-push this last bit?
+> - [x] 1\. Yes, force-push this cleanup too (Recommended)
+>   - _git push --force-with-lease origin base — publishes the folded/documented state. Small, local-only change (no content rewrite, just commit tidying)._
+> - [ ] 2\. No, leave it as-is
+>   - _Leave origin/base at its current tip (314b25cf6) with the stray decision/memory commits unfolded. I won't force-push again._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
