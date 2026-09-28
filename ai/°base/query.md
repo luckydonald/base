@@ -7246,3 +7246,38 @@ Then add a push check which - only for the `base/base` repo - checks that we don
 > </details>
 >
 
+❯ Cherry pick from @../DockerTgBot/sync_todo/:
+- Full 9d73b460dfeda8cfc767f1927f1132f6e5bd45bd
+- Memory and skill update of 625cbddba9d0ecdb3e197787cd0d49d51d20c8de
+Make sure that the [`ai/°base/query.md`](./query.md) is used, not [`ai/query.md`](../query.md).
+Commit message first line must adhere to `[base] [sync_todo] …: ….`.
+
+❯ clean up 30137bc76.
+
+❯ Fix the `sync_todo/ai` folder instead of `ai/°base/` in 5ca3d7633c492b9ed860ff435ed52d7985cf5bda.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. What should change in 5ca3d7633's `sync_todo/ai/` files (plan 027 + agent outputs 030–032)?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Direction** (1/1) <kbd>Single Select</kbd><br>
+>> What should change in 5ca3d7633's `sync_todo/ai/` files (plan 027 + agent outputs 030–032)?
+> - [ ] 1\. Move into ai/°base/ (Recommended)
+>   - _git mv sync_todo/ai/plans/027_* -> ai/°base/plans/ and sync_todo/ai/output/agents/030–032 -> ai/°base/output/agents/, then amend/fold into the commit. Existing 026/029 in sync_todo/ai stay as they are._
+> - [ ] 2\. Keep in sync_todo/ai/, add the query
+>   - _Files stay; additionally create sync_todo/ai/query.md with the query-log additions from 9d73b460d (that file doesn't exist in base's history)._
+> - [ ] 3\. Put the query additions in ai/°base/query.md
+>   - _Leave the sync_todo/ai files as is, and append 9d73b460d's query-log lines to ai/°base/query.md._
+> - [x] 4\. _Type something:_
+>   - > Move into `ai/°base/` (Recommended); Existing `026`/`029` in `sync_todo/ai` must be amended with a fix, just as well.
+>
+> </details>
+>
+
+❯ Adapt query mentions of those new numbers, if neeeded.
+

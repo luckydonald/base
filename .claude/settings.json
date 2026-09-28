@@ -373,7 +373,8 @@
   "enabledMcpjsonServers": [],
   "disabledMcpjsonServers": [
     "bugsink",
-    "chrome-devtools"
+    "chrome-devtools",
+    "sync_todo"
   ],
   "includeCoAuthoredBy": false
 }

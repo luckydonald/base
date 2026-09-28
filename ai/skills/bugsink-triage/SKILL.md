@@ -17,6 +17,17 @@ If `mcp__bugsink__*` tools aren't available yet, the server is probably
 still disabled in this project's settings — see [`enable.md`](enable.md) for
 how to turn it on (and a gotcha with `.codex/config.toml` fighting the sync).
 
+### Gotcha: `CONNECTION_CLOSED` in a subproject or worktree
+
+If the server is already enabled but still shows `CONNECTION_CLOSED` (instead of just "disabled"/missing), it's very likely **not** a credentials problem. The root `bugsink` MCP server is launched via `npx envmcp --env-file ai/.env npx bugsink-mcp`, and that `ai/.env` path is relative to the **session's cwd**, not to wherever the physical `.mcp.json` lives. Every subproject and every git worktree has its own real `ai/` directory, and only some of its contents (`references`, `settings`, `skills`) are symlinked back to the shared root `ai/` — `.env` is not, unless someone added it. If it's missing, `envmcp` can't find the file and the failure surfaces as an opaque `CONNECTION_CLOSED`.
+
+**Fix:**
+```bash
+ln -s <path-to-repo-root>/ai/.env <subproject-or-worktree>/ai/.env
+```
+
+**Then reconnect** — the MCP connection attempt already happened (and failed) before the symlink existed and won't retry on its own. Use the client's MCP reconnect (e.g. `/mcp` in Claude Code) or start a fresh session before assuming the fix didn't work.
+
 ## Why triage is its own step
 
 Every issue in Bugsink costs real investigation time to run down. Jumping

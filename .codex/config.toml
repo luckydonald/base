@@ -24,6 +24,11 @@ enabled = false
 command = "npx"
 args = ["-y", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"]
 
+[mcp_servers."sync_todo"]
+enabled = false
+command = "npx"
+args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "mcp-remote", "http://localhost:8000/mcp", "--header", "Authorization:${SYNC_TODO_MCP_TOKEN}"]
+
 # --- END generated mcp_servers ---
 
 [plugins."skill-creator@claude-plugins-official"]

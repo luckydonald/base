@@ -414,6 +414,17 @@
         "tools": [
         ],
         "cmd": ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statistics"]
+      },
+      "sync_todo": {
+        "enabled": false,
+        "type": "stdio",
+        "tools": [
+          ".env"
+        ],
+        "cmd": [
+          "npx", "-y", "mcp-remote", "http://localhost:8000/mcp",
+          "--header", "Authorization:${SYNC_TODO_MCP_TOKEN}"
+        ]
       }
     }
   },
