@@ -6857,3 +6857,5 @@ But incrementially checking if it exists would mean we handle those cases _(Mayb
 > - [Answer (`2663` chars, `2.61 KB`)](output/agents/087.by44mmlmv/result.md)
 > - [Raw log (`2663` chars, `2.61 KB`)](/tmp/claude-1000/-home-user-git-luckydonald-base--claude-worktrees-fix-plan-decision/95748947-feee-4748-aa3c-d4fd904b883d/tasks/by44mmlmv.output)
 
+❯ Small task: Add `squash ai` and `squash \`ai: \`` (with or without space after `ai:`) to the ignored prompt list.
+
