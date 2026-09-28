@@ -68,17 +68,38 @@ Decision: keep the new `ai/query.md` guard small and put it on pre-commit's `pre
 
 ## Part 2 — Push-time guard against `ai/query.md` on `luckydonald/base`
 
-Existing infra: `.git/hooks/pre-push` → `scripts/°base/git/hooks/push/pre_push.sh` → `python3 scripts/°base/git/split.py check-push` → `°split_lib/cli.py:_check_push()`, which already computes, per ref update, `commits: list[CommitClassification]` (each with a `.paths` tuple) via `git_ops.commits_new_to_remote()` + `classify.classify_commit()`, then calls `push_checks.evaluate_ref_update(...)` and aggregates returned violation strings; any violations → prints them and returns exit `1`, which `pre_push.sh` propagates as the hook's exit code (rejects the push).
+### 2a. New pre-commit-managed `pre-push` check
 
-**Changes:**
+Add a small standalone script, e.g. `scripts/°base/git/hooks/push/check_base_query_md.py`:
+- Duplicate the small `_is_inside_base_repo`/`_main_checkout_root` logic (`scripts/°base/ai/hooks/°commit_style_lib/__init__.py:34-73`) rather than importing across the `ai/hooks` ⟷ `git` tree boundary — matches this codebase's existing convention of duplicating tiny self-contained helpers instead of adding cross-tree import edges (e.g. `classify.py`'s comment about duplicating constants from `get-base.py`).
+- If not the base repo (per that check against the current working directory), exit `0` immediately (no-op).
+- Otherwise print an error naming the offending path and `exit(1)`.
 
-1. In `scripts/°base/git/°split_lib/push_checks.py`, add a self-contained "is this repo `luckydonald/base` itself" check. Per this codebase's existing convention (`°split_lib` deliberately has no import edges to/from `ai/hooks`; `classify.py` already duplicates small constants rather than cross-import), duplicate the ~20-line `_is_inside_base_repo` + `_main_checkout_root` logic from `scripts/°base/ai/hooks/°commit_style_lib/__init__.py:34-73` into `push_checks.py` (or a small sibling module if that reads cleaner) rather than reaching across the tree. It needs `repo_root` (already available in `cli._check_push`) and shells out to `git remote get-url origin` / `git rev-parse --git-common-dir`.
-2. Add `check_base_query_md_policy(repo_root: Path, commits: list[CommitClassification]) -> list[str]`: if the repo isn't `luckydonald/base`, return `[]`. Otherwise, for each commit where `"ai/query.md" in commit.paths`, add a violation message (e.g. `f"{commit.sha[:8]} touches ai/query.md — the base repo must log to ai/°base/query.md instead."`).
-3. Wire it into `cli._check_push()`: call once per push (not per ref-update — the "is this base repo" answer doesn't vary within one push invocation) and extend `all_violations` with commits gathered across all ref updates, or call it once per ref-update's `commits` list, consistent with how `evaluate_ref_update` is currently called in the loop — simplest is adding it inside that same per-ref-update loop, passing `commits` and `root`.
-4. Tests in `scripts/°base/tests/test_git_split_push_checks.py` (already uses `ai/query.md` as its example ai-tainted path in several existing tests — this new check slots in next to them): an `EndToEndCheckPushTests`-style test with `origin` set to a `luckydonald/base`-matching URL and a commit touching `ai/query.md` → push blocked with the new message; a control test with a non-matching `origin` URL and the same commit → push allowed (this check doesn't apply outside the base repo).
-5. Update `ai/°base/todo.md` (~line 155-163) to document this third check alongside the existing name/content policy notes, matching `push_checks.py`'s own docstring convention of pointing back at that section.
+It doesn't need to re-detect *which* commit touched `ai/query.md` itself: wire it into `.pre-commit-config.yaml` with `stages: [pre-push]` and `files: ^ai/query\.md$` — pre-commit itself computes `PRE_COMMIT_FROM_REF`/`PRE_COMMIT_TO_REF` from the push's ref-update line and only invokes file-filtered hooks when a matching path actually changed in that range (confirmed via `pre_commit/commands/run.py:262-263`'s `git.get_changed_files(from_ref, to_ref)` and the `environ['PRE_COMMIT_FROM_REF'/'_TO_REF'/'_REMOTE_NAME'/'_REMOTE_URL']` assignments around `run.py:386-405`). So by the time the script runs at all, `ai/query.md` is already known to be in the pushed diff — the script only has to answer "is this the base repo," which keeps it compatible with pre-commit's single-range model (unlike `push_checks.py`'s multi-branch policy).
+
+```yaml
+- id: base-query-md-guard
+  name: Block ai/query.md pushes from the base repo
+  entry: scripts/°base/git/hooks/tool_path.sh python3 scripts/°base/git/hooks/push/check_base_query_md.py
+  language: system
+  stages: [pre-push]
+  files: ^ai/query\.md$
+  pass_filenames: false
+```
+
+Add a unit test (new `scripts/°base/tests/test_check_base_query_md.py` or alongside an existing push-hook test file) covering: base-repo origin URL → nonzero exit; non-base origin URL → zero exit. Follow the subprocess-invocation test pattern already used for the other `git/hooks/commit/*.py` scripts if one exists (check `scripts/°base/tests/` for e.g. `test_reject_co_authored_by.py` and mirror its structure).
+
+### 2b. Restore the existing (currently-dead) branch-policy hook, without the two installers clobbering each other
+
+`.git/hooks/pre-push` in this checkout is currently an unrelated git-lfs-only script (no `scripts/°base/git/hooks/install` marker), so `split.py check-push` → `push_checks.py`'s branch name/content policy isn't running at all right now. Fix by:
+
+1. Run the existing installer (`python3 -m scripts.°base.git.hooks.install` or however it's normally invoked — check `install/__main__.py`/README for the exact entry point) so `.git/hooks/pre-push` becomes the tracked trampoline calling `scripts/°base/git/hooks/push/pre_push.sh` (which runs git-lfs, then `split.py check-push`).
+2. **Then** run `pre-commit install --hook-type pre-push` (in addition to whatever hook types are already installed — check current install invocations, likely in a setup script or README, for the existing `pre-commit install --hook-type commit-msg` equivalent to mirror). Because a non-pre-commit-managed `pre-push` hook now exists (step 1's trampoline), pre-commit's installer will back it up as `.git/hooks/pre-push.legacy` and its own generated `pre-push` script will chain-call that legacy script (confirmed via `pre_commit/commands/hook_impl.py`'s `_run_legacy()`, which execs `<hook_dir>/pre-push.legacy` with the original stdin before running pre-commit's own configured hooks). Net result: one push triggers git-lfs → `split.py check-push` (via the legacy chain) → pre-commit's own hooks including the new `base-query-md-guard`, in that order, with no installer overwriting the other.
+3. Verify ordering by pushing (or dry-running) against a throwaway branch: confirm both the legacy branch-policy output and the new query.md guard's behavior are visible.
+
+Note in the commit message / a short doc comment near the installer why this two-step order matters, so a future re-install doesn't silently drop one half again.
 
 ## Verification
 
 - Part 1: run the diff/stat checks above before touching `refs/heads/base`; after updating, `git log --oneline origin/base..HEAD` should be empty pre-push (everything force-pushed matches), and `ai/query.md` on disk should be back to the 17-line template with `ai/°base/query.md` containing the recovered content in the right place.
-- Part 2: `python3 -m unittest scripts/°base/tests/test_git_split_push_checks.py -v` covering the new tests; manually exercise `pre_push.sh`/`split.py check-push` once against a synthetic commit touching `ai/query.md` to confirm the hook actually rejects it end-to-end, not just the unit-tested function.
+- Part 2: `python3 -m unittest` the new test module; then do a real end-to-end check — reinstall both hooks per 2b's ordering, attempt (in a scratch/throwaway branch or repo clone) to push a commit touching `ai/query.md`, confirm it's rejected with the new message, and confirm a normal push still runs git-lfs + the existing branch-policy checks (e.g. push an `unclean`-format branch to `origin` and confirm it's still blocked by the pre-existing name policy).

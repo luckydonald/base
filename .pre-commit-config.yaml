@@ -25,3 +25,10 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: base-query-md-guard
+        name: Block ai/query.md pushes from the base repo
+        entry: scripts/°base/git/hooks/tool_path.sh python3 scripts/°base/git/hooks/push/check_base_query_md.py
+        language: system
+        stages: [pre-push]
+        files: ^ai/query\.md$
+        pass_filenames: false

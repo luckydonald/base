@@ -1,0 +1,1 @@
+Background command "Run the base test suite after the history rewrite" completed (exit code 0)

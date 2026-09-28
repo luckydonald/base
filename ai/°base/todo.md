@@ -166,6 +166,9 @@ Additionally, we need:
 2. branch push content check
    1. block ai or ai-containing commits to be pushed if the branch name is not **unclean** format.
    2. block code or code-containing commits to be pushed if the branch name is not **history** format.
+3. `ai/query.md` guard (base repo only)
+   1. block any push from the `luckydonald/base` repo itself whose diff touches `ai/query.md` — this repo must log to `ai/°base/query.md` instead (see `resolve_log_path()` in `scripts/°base/ai/hooks/_lib.py`).
+   2. implemented separately from checks 1–2: those live in `°split_lib/push_checks.py` (needs the full multi-ref-update/branch-name list from `split.py check-push`'s own stdin parsing), while this one runs as a `scripts/°base/git/hooks/push/check_base_query_md.py` script wired via `.pre-commit-config.yaml`'s `stages: [pre-push]` + `files: ^ai/query\.md$` — pre-commit's single computed `from_ref`/`to_ref` range is sufficient for a single-path check. Both installers coexist via pre-commit's legacy-hook chaining (`scripts/°base/git/hooks/install`'s trampoline gets installed first, then `pre-commit install --hook-type pre-push` detects and chains it as `.legacy`).
 
 - [x] Probably Done? At least low prio…
 
