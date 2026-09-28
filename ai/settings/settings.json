@@ -364,6 +364,7 @@
     ],
     "deny": [
       {"type": "read", "path": "**/.env*"},
+      {"type": "read", "path": "**/*.env*.bak"},
       {"type": "read", "path": "**/env.php*"},
       {"type": "read", "path": "**/*.pem"},
       {"type": "read", "path": "**/*.key"},
