@@ -63,15 +63,16 @@ To actually enable it:
 2. Add `SYNC_TODO_MCP_TOKEN=Bearer sytd_...` (the **full** header value, `Bearer ` included) to
    `sync_todo/ai/.env`. This file is `.env`-shaped and therefore off-limits to an agent's own
    tools in this repo (hard denylist) -- a human has to do this step.
-3. Add `SYNC_TODO_MCP_URL=http://localhost:8000/mcp` (or `<PUBLIC_URL>/mcp` for a deployed bot) next to it.
+3. Add `SYNC_TODO_MCP_URL=http://localhost:8000/api/mcp/` (or `<PUBLIC_URL>/mcp` for a deployed bot) next to it.
 4. Make sure `ai/settings/settings.json`'s `mcp.servers.sync_todo.enabled` is `true`.
 5. Start a new Claude Code session (the `SessionStart` hook re-runs
    `scripts/°base/ai/settings/sync.py` automatically) or run that script by hand to re-render
    `.mcp.json`.
 
 The URL comes from `SYNC_TODO_MCP_URL` for the same reason as the token, and is quoted the same way.
-For a locally running dev instance use `http://localhost:8000/mcp` (`sync_todo/CLAUDE.md`'s documented `uvicorn sync_todo_control.main:app --reload --port 8000`, with `POLLING=1`).
-For the deployed bot use `<PUBLIC_URL>/mcp`.
+For a locally running dev instance use `http://localhost:8000/api/mcp/` (`sync_todo/CLAUDE.md`'s documented `uvicorn sync_todo_control.main:app --reload --port 8000`, with `POLLING=1`).
+The direct backend needs the `/api` prefix and trailing slash (the app has `root_path="/api"`, and a bare `/mcp/` is a 404 there).
+For the deployed bot use `<PUBLIC_URL>/mcp`, where the frontend nginx adds that prefix.
 An unset `SYNC_TODO_MCP_URL` gives `mcp-remote` an empty URL and the same `Failed to reconnect` symptom.
 
 ## Extending it
