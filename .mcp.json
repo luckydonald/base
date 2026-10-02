@@ -36,7 +36,23 @@
         "mcp-remote",
         "\"$SYNC_TODO_MCP_URL\"",
         "--header",
-        "\"Authorization:$SYNC_TODO_MCP_TOKEN\""
+        "\"Authorization:Bearer $SYNC_TODO_MCP_TOKEN\""
+      ]
+    },
+    "coolify": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "envmcp",
+        "--env-file",
+        "ai/.env",
+        "npx",
+        "-y",
+        "mcp-remote",
+        "\"$COOLIFY_URL\"",
+        "--header",
+        "\"Authorization:Bearer $COOLIFY_TOKEN\""
       ]
     }
   }

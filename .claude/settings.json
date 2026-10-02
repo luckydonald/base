@@ -374,7 +374,8 @@
   "disabledMcpjsonServers": [
     "bugsink",
     "chrome-devtools",
-    "sync_todo"
+    "sync_todo",
+    "coolify"
   ],
   "includeCoAuthoredBy": false
 }

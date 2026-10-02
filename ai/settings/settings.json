@@ -420,7 +420,15 @@
         "tools": [
           ".env"
         ],
-        "cmd": ["npx", "-y", "mcp-remote", "\"$SYNC_TODO_MCP_URL\"", "--header", "\"Authorization:$SYNC_TODO_MCP_TOKEN\""]
+        "cmd": ["npx", "-y", "mcp-remote", "\"$SYNC_TODO_MCP_URL\"", "--header", "\"Authorization:Bearer $SYNC_TODO_MCP_TOKEN\""]
+      },
+      "coolify": {
+        "enabled": false,
+        "type": "stdio",
+        "tools": [
+          ".env"
+        ],
+        "cmd": ["npx", "-y", "mcp-remote", "\"$COOLIFY_URL\"", "--header", "\"Authorization:Bearer $COOLIFY_TOKEN\""]
       }
     }
   },
