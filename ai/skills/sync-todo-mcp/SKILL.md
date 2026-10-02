@@ -42,15 +42,20 @@ A token can hold any subset. Grant the minimum needed.
 
 ## Wiring it into this repo's own Claude Code
 
-Registered in `ai/settings/settings.json`'s `mcp.servers.sync_todo` (disabled by default -- flip
-`enabled` to `true` once a real token exists). It's a `stdio` entry, not a native `http` one:
-there's no `${VAR}` substitution for `http`-type `headers` anywhere in this repo's sync tooling
-(`scripts/°base/ai/settings/°settings_lib/mcp_servers.py` copies `headers` verbatim), so the
-entry instead bridges through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote)
-(`npx -y mcp-remote <url> --header "Authorization:${VAR}"`), which *does* expand `${VAR}` from
-its own process environment at connect time. Wrapped in the existing `mcp.tools[".env"]` prefix
-(same mechanism `bugsink`'s entry already uses -- `npx -y envmcp --env-file ai/.env`), that env
-var comes from `sync_todo/ai/.env`.
+Registered in `ai/settings/settings.json`'s `mcp.servers.sync_todo` (flip `enabled` to `false` to turn it off).
+It's a `stdio` entry, not a native `http` one: there's no `${VAR}` substitution for `http`-type `headers` anywhere in this repo's sync tooling (`scripts/°base/ai/settings/°settings_lib/mcp_servers.py` copies `headers` verbatim), so the entry instead bridges through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) (`npx -y mcp-remote <url> --header "Authorization:$SYNC_TODO_MCP_TOKEN"`).
+Wrapped in the existing `mcp.tools[".env"]` prefix (same mechanism `bugsink`'s entry already uses -- `npx -y envmcp --env-file ai/.env`), that env var comes from `sync_todo/ai/.env`.
+
+How the variable actually reaches `mcp-remote`, and why the header argument is written the way it is:
+
+- `envmcp` only loads the file into its own `process.env` and then `spawn`s the rest of the command with `shell: true`, so it is `/bin/sh` that expands `$SYNC_TODO_MCP_TOKEN`.
+- The value is the full header value `Bearer sytd_...`, which contains a space, so the argument carries its own literal double quotes (`"\"Authorization:$SYNC_TODO_MCP_TOKEN\""` in JSON).
+  Unquoted, the shell splits it into `Authorization:Bearer` and `sytd_...` and `mcp-remote` exits.
+- Never write it as `${SYNC_TODO_MCP_TOKEN}`: Claude Code itself expands that form in `.mcp.json` from *its own* environment before `envmcp` ever runs, and the variable only exists in `ai/.env`.
+- The sync (`sync.py`) merges edits to `.mcp.json` / `.codex/config.toml` back into `settings.json`, and the native files win on a difference.
+  To change this entry, edit all three consistently, or the sync silently reverts your `settings.json` edit.
+
+Symptom of getting this wrong (with a valid `ai/.env` symlink): `CONNECTION_CLOSED` or `Failed to reconnect to sync_todo` in `/mcp`.
 
 To actually enable it:
 
@@ -58,7 +63,7 @@ To actually enable it:
 2. Add `SYNC_TODO_MCP_TOKEN=Bearer sytd_...` (the **full** header value, `Bearer ` included) to
    `sync_todo/ai/.env`. This file is `.env`-shaped and therefore off-limits to an agent's own
    tools in this repo (hard denylist) -- a human has to do this step.
-3. Flip `ai/settings/settings.json`'s `mcp.servers.sync_todo.enabled` to `true`.
+3. Make sure `ai/settings/settings.json`'s `mcp.servers.sync_todo.enabled` is `true`.
 4. Start a new Claude Code session (the `SessionStart` hook re-runs
    `scripts/°base/ai/settings/sync.py` automatically) or run that script by hand to re-render
    `.mcp.json`.

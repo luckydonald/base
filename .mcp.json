@@ -36,7 +36,7 @@
         "mcp-remote",
         "http://localhost:8000/mcp",
         "--header",
-        "Authorization:${SYNC_TODO_MCP_TOKEN}"
+        "\"Authorization:$SYNC_TODO_MCP_TOKEN\""
       ]
     }
   }
