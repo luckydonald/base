@@ -1,0 +1,52 @@
+❯ While at it, can you fix the TODO: summarize this file?
+
+⏺ Read(/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/2026-07-20-history-master-replay-guards.md)
+  ⎿  Read 8 lines
+
+⏺ Bash(cd /Users/user/Documents/programming/Python/DockerTgBot && grep -rn "recreate_base_merge\|history-master\|HistoryMasterError" --include="*.py" --include="*.bash" --include="*.sh" -l . 2>/dev/null | grep -v /logs/ | head -20)
+  ⎿  scripts/°base/tests/test_git_split_e2e_deep_flow.py
+     scripts/°base/tests/test_git_split_bootstrap.py
+     scripts/°base/tests/test_get_base.py
+     scripts/°base/tests/test_git_split_history_master.py
+     scripts/°base/tests/test_git_split_recovery.py
+     scripts/°base/git/get-base.py
+     scripts/°base/git/°split_lib/branches.py
+     scripts/°base/git/°split_lib/sync_splits.py
+     scripts/°base/git/°split_lib/bootstrap.py
+     scripts/°base/git/°split_lib/history_master.py
+     scripts/°base/git/°split_lib/cli.py
+     scripts/°base/git/°split_lib/rebase_to_master.py
+  ⎿  Shell cwd was reset to /Users/user/Documents/programming/Python/DockerTgBot/sticker_tag_bot
+
+⏺ Update(/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/2026-07-20-history-master-replay-guards.md)
+  ⎿  Added 12 lines
+       1 +---
+       2 +name: history-master-replay-guards
+       3 +description: "Git-plumbing pitfalls hit while working on scripts/°base/git/°split_lib/history_master.py's merge-replay logic (conflict path handling, cherry-pick continuation, hooks, worktree state, diff parsing)"
+       4 +metadata:
+       5 +  node_type: memory
+       6 +  type: project
+       7 +  originSessionId: cc07fa16-9d46-4fa9-8443-0386b2312a41
+       8 +  modified: 2026-09-01T09:08:53.046Z
+       9 +---
+      10 +
+      11  # History-master replay guards
+      12
+      13 +Lessons from implementing/debugging `history_master.py` (part of the `°base` git-split/monorepo tooling in `scripts/°base/git/°split_lib/`), which replays merges across split repo histories.
+      14 +
+      15  - `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target
+          side. Raise `HistoryMasterError` for unrelated missing paths.
+      16  - Cherry-pick empty after conflict resolution: use `git commit --allow-empty --no-edit`, not `git cherry-pick --skip`. Keeps original commit message and `X-*` history trailers.
+      17  - Internal replay commits and cherry-pick continuation may need `core.hooksPath=/dev/null` — target repos can have hooks assuming project-specific config; else hook failures hide real Git operation.
+
+⏺ Update(/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/MEMORY.md)
+  ⎿  Added 1 line, removed 1 line
+      1  # Memory Index
+      2 -- [History-master replay guards](2026-07-20-history-master-replay-guards.md) — TODO: summarize this file.
+      2 +- [History-master replay guards](2026-07-20-history-master-replay-guards.md) — git-plumbing pitfalls in `°base`'s history_master.py merge-replay (conflict paths, cherry-pick, hooks, diff parsing)
+      3  - [File deletion policy](feedback_file_deletion.md) — git rm for tracked files; rename to *.YYYY-MM-DD.bak.ext for untracked
+      4  - [Composable bypass](feedback_composable_bypass.md) — don't call raw APIs to sidestep a composable's guards; call the composable or ask how to handle the guard
+      5  - [Squash ai: log commits](feedback_squash_ai_log_commits.md) — fold `ai: Updated log file...`/`ai: updated prompt` auto-commits into the fix commit; use commit-with-lplp-style skill
+
+⏺ Fixed — added proper frontmatter (type: project) and a one-line description to 2026-07-20-history-master-replay-guards.md, identifying it as lessons from scripts/°base/git/°split_lib/history_master.py's merge-replay logic, and updated the
+  MEMORY.md index entry to match instead of the TODO: summarize this file. placeholder.

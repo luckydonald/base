@@ -7281,3 +7281,9 @@ Commit message first line must adhere to `[base] [sync_todo] …: ….`.
 
 ❯ Adapt query mentions of those new numbers, if neeeded.
 
+❯ /plan Analyze why @ai/°base/errors/25.claude1.txt didn't produce memory commits in the `/Users/user/Documents/programming/Python/DockerTgBot/sticker_tag_bot` claude session.
+I have turned on debug now and forced it to do another change, @ai/°base/errors/25.claude2.txt , for which you can look at `sticker_tag_bot/ai/output/debug/20260901-110828_704139-save-prompt.json` up to `20260901-110902_037992-SubagentStop.json`. As always, copy the relevant errors into this project's `ai/°base/errors`, and force add & commit them, and merge them into the LPLP-style squashed message, too. Also follow the @ai/skills/code-style/references/md.md skill for the plan document.
+I've enabled plan mode, so have a markdown `shell` code block with the needed commands to run first, or a checklist of steps to do for the copy & commit instruction above.
+
+❯ resolve `git pull` by rebasing.
+

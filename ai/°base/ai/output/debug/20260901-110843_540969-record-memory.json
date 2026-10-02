@@ -1,0 +1,25 @@
+{
+  "session_id": "cc07fa16-9d46-4fa9-8443-0386b2312a41",
+  "transcript_path": "/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot-sticker-tag-bot/cc07fa16-9d46-4fa9-8443-0386b2312a41.jsonl",
+  "cwd": "/Users/user/Documents/programming/Python/DockerTgBot/sticker_tag_bot",
+  "prompt_id": "5b8110a1-d30f-43ae-bbf1-c108a9867dc3",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "cd /Users/user/Documents/programming/Python/DockerTgBot && grep -rn \"recreate_base_merge\\|history-master\\|HistoryMasterError\" --include=\"*.py\" --include=\"*.bash\" --include=\"*.sh\" -l . 2>/dev/null | grep -v /logs/ | head -20",
+    "description": "Check whether history-master / recreate_base_merge exists in this repo"
+  },
+  "tool_response": {
+    "stdout": "scripts/°base/tests/test_git_split_e2e_deep_flow.py\nscripts/°base/tests/test_git_split_bootstrap.py\nscripts/°base/tests/test_get_base.py\nscripts/°base/tests/test_git_split_history_master.py\nscripts/°base/tests/test_git_split_recovery.py\nscripts/°base/git/get-base.py\nscripts/°base/git/°split_lib/branches.py\nscripts/°base/git/°split_lib/sync_splits.py\nscripts/°base/git/°split_lib/bootstrap.py\nscripts/°base/git/°split_lib/history_master.py\nscripts/°base/git/°split_lib/cli.py\nscripts/°base/git/°split_lib/rebase_to_master.py",
+    "stderr": "\nShell cwd was reset to /Users/user/Documents/programming/Python/DockerTgBot/sticker_tag_bot",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  },
+  "tool_use_id": "toolu_01KqeHR93mjmzdsdgWE77ei7",
+  "duration_ms": 245
+}

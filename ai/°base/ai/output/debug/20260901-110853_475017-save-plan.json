@@ -1,0 +1,56 @@
+{
+  "session_id": "cc07fa16-9d46-4fa9-8443-0386b2312a41",
+  "transcript_path": "/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot-sticker-tag-bot/cc07fa16-9d46-4fa9-8443-0386b2312a41.jsonl",
+  "cwd": "/Users/user/Documents/programming/Python/DockerTgBot/sticker_tag_bot",
+  "prompt_id": "5b8110a1-d30f-43ae-bbf1-c108a9867dc3",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/2026-07-20-history-master-replay-guards.md",
+    "old_string": "# History-master replay guards\n\n- `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target side. Raise `HistoryMasterError` for unrelated missing paths.",
+    "new_string": "---\nname: history-master-replay-guards\ndescription: Git-plumbing pitfalls hit while working on scripts/°base/git/°split_lib/history_master.py's merge-replay logic (conflict path handling, cherry-pick continuation, hooks, worktree state, diff parsing)\nmetadata:\n  type: project\n---\n\n# History-master replay guards\n\nLessons from implementing/debugging `history_master.py` (part of the `°base` git-split/monorepo tooling in `scripts/°base/git/°split_lib/`), which replays merges across split repo histories.\n\n- `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target side. Raise `HistoryMasterError` for unrelated missing paths.",
+    "replace_all": false
+  },
+  "tool_response": {
+    "filePath": "/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/2026-07-20-history-master-replay-guards.md",
+    "oldString": "# History-master replay guards\n\n- `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target side. Raise `HistoryMasterError` for unrelated missing paths.",
+    "newString": "---\nname: history-master-replay-guards\ndescription: Git-plumbing pitfalls hit while working on scripts/°base/git/°split_lib/history_master.py's merge-replay logic (conflict path handling, cherry-pick continuation, hooks, worktree state, diff parsing)\nmetadata:\n  type: project\n---\n\n# History-master replay guards\n\nLessons from implementing/debugging `history_master.py` (part of the `°base` git-split/monorepo tooling in `scripts/°base/git/°split_lib/`), which replays merges across split repo histories.\n\n- `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target side. Raise `HistoryMasterError` for unrelated missing paths.",
+    "originalFile": "# History-master replay guards\n\n- `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target side. Raise `HistoryMasterError` for unrelated missing paths.\n- Cherry-pick empty after conflict resolution: use `git commit --allow-empty --no-edit`, not `git cherry-pick --skip`. Keeps original commit message and `X-*` history trailers.\n- Internal replay commits and cherry-pick continuation may need `core.hooksPath=/dev/null` — target repos can have hooks assuming project-specific config; else hook failures hide real Git operation.\n- After scratch-branch conflict resolution, reset scratch checkout hard to committed tip before restoring caller's branch. Else unstaged conflict artifact make successful replay look failed on dirty-worktree restoration.\n- Parse `git diff --name-only --diff-filter=U -z` as NUL-delimited output; quoted line parsing break on paths with spaces or special chars.\n",
+    "structuredPatch": [
+      {
+        "oldStart": 1,
+        "oldLines": 5,
+        "newStart": 1,
+        "newLines": 17,
+        "lines": [
+          "+---",
+          "+name: history-master-replay-guards",
+          "+description: \"Git-plumbing pitfalls hit while working on scripts/°base/git/°split_lib/history_master.py's merge-replay logic (conflict path handling, cherry-pick continuation, hooks, worktree state, diff parsing)\"",
+          "+metadata: ",
+          "+  node_type: memory",
+          "+  type: project",
+          "+  originSessionId: cc07fa16-9d46-4fa9-8443-0386b2312a41",
+          "+  modified: 2026-09-01T09:08:53.046Z",
+          "+---",
+          "+",
+          " # History-master replay guards",
+          " ",
+          "+Lessons from implementing/debugging `history_master.py` (part of the `°base` git-split/monorepo tooling in `scripts/°base/git/°split_lib/`), which replays merges across split repo histories.",
+          "+",
+          " - `recreate_base_merge()` hit Git conflict paths shape `path~<40-hex-oid>`, missing from original merge tree. Never blind `git rm` missing historical path; require synthetic suffix plus evidence normal counterpart exist on target side. Raise `HistoryMasterError` for unrelated missing paths.",
+          " - Cherry-pick empty after conflict resolution: use `git commit --allow-empty --no-edit`, not `git cherry-pick --skip`. Keeps original commit message and `X-*` history trailers.",
+          " - Internal replay commits and cherry-pick continuation may need `core.hooksPath=/dev/null` — target repos can have hooks assuming project-specific config; else hook failures hide real Git operation."
+        ]
+      }
+    ],
+    "userModified": false,
+    "replaceAll": false,
+    "memdirStamped": true
+  },
+  "tool_use_id": "toolu_01FCUKmqZtEoieK3q966gfmb",
+  "duration_ms": 9
+}

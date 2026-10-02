@@ -1,0 +1,18 @@
+{
+  "session_id": "cc07fa16-9d46-4fa9-8443-0386b2312a41",
+  "transcript_path": "/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot-sticker-tag-bot/cc07fa16-9d46-4fa9-8443-0386b2312a41.jsonl",
+  "cwd": "/Users/user/Documents/programming/Python/DockerTgBot/sticker_tag_bot",
+  "prompt_id": "5b8110a1-d30f-43ae-bbf1-c108a9867dc3",
+  "permission_mode": "auto",
+  "agent_id": "a42c6d60f75ef195f",
+  "agent_type": "",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_transcript_path": "/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot-sticker-tag-bot/cc07fa16-9d46-4fa9-8443-0386b2312a41/subagents/agent-a42c6d60f75ef195f.jsonl",
+  "last_assistant_message": "commit this",
+  "background_tasks": [],
+  "session_crons": []
+}

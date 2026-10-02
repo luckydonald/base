@@ -1,0 +1,32 @@
+⏺ Write(/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/feedback_squash_ai_log_commits.md)
+  ⎿  Wrote 15 lines to /Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/feedback_squash_ai_log_commits.md
+       1 ---
+       2 name: feedback-squash-ai-log-commits
+       3 description: "When committing a fix in DockerTgBot, fold any \"ai: Updated log file to next issue.\" (or similar ai: prompt/decision) auto-commit into the fix commit instead of leaving it separate"
+       4 metadata:
+       5   node_type: memory
+       6   type: feedback
+       7   originSessionId: cc07fa16-9d46-4fa9-8443-0386b2312a41
+       8   modified: 2026-09-01T08:56:17.152Z
+       9 ---
+      10
+      11 When making a work/fix commit in this repo (DockerTgBot), check for an adjacent auto-generated `ai: Updated log file to next issue.` commit (or other `ai: ...` prompt/decision auto-commits — e.g. `ai: updated prompt`, `ai: save dec
+         ision ...`) created around the same time by repo tooling/hooks, and fold it into the fix commit via interactive rebase rather than leaving it as a separate commit in history.
+      12
+      13 **Why:** the user pointed out after I left an `ai: Updated log file to next issue.` commit unsquashed (and folded it themselves): "For next time, the `ai: Updated log file to next issue.` commit shall be squashed into the fix, too.
+         " This matches the repo's established lplp-pipbuck git history convention — see e.g. commit `4f26bf702 [base] git history: ai: Run: Folded stray ai: auto-commits into their code commits.` — of keeping history clean by not leaving t
+         hese auto-commits as standalone noise next to the real change.
+      14
+      15 **How to apply:** after committing a fix in this repo, run `git log --oneline -5` and check whether an `ai: ...` commit sits adjacent to (before or after) the fix commit. If so, `git rebase -i` to fold it into the fix commit before
+          considering the commit done. The `commit-with-lplp-style` skill already implements exactly this workflow (folding nearby `ai:` auto-commits into the work commit while preserving plan-revision history) — prefer invoking that skill
+         for commits in this repo rather than doing a plain `git commit`, so this happens automatically. See also the root `CLAUDE.md` commit-message convention (`[subproject] [category] description`).
+
+⏺ Read(/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/MEMORY.md)
+  ⎿  Read 5 lines
+
+⏺ Update(/Users/user/.claude/projects/-Users-user-Documents-programming-Python-DockerTgBot/memory/MEMORY.md)
+  ⎿  Added 1 line
+      2  - [History-master replay guards](2026-07-20-history-master-replay-guards.md) — TODO: summarize this file.
+      3  - [File deletion policy](feedback_file_deletion.md) — git rm for tracked files; rename to *.YYYY-MM-DD.bak.ext for untracked
+      4  - [Composable bypass](feedback_composable_bypass.md) — don't call raw APIs to sidestep a composable's guards; call the composable or ask how to handle the guard
+      5 +- [Squash ai: log commits](feedback_squash_ai_log_commits.md) — fold `ai: Updated log file...`/`ai: updated prompt` auto-commits into the fix commit; use commit-with-lplp-style skill
