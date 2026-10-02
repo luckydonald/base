@@ -1,6 +1,6 @@
 ---
 name: "commit-with-lplp-style"
-description: "Activates the lplp-pipbuck commit style for the current session. Commits after every completed task as a plain new commit (never amended live), tags the prior HEAD via scripts/tag_backup.py as a safety net, then interactively rebases to fold nearby `ai:` prompt/decision auto-commits into the work commit while preserving plan-revision history, writes messages via ai/git/pending-commit.md, and never commits unrelated files. Use when the user opts in to this style at session start, or explicitly asks to enable it."
+description: "Activates the lplp-pipbuck commit style for the current session. Commits after every completed task as a plain new commit (never amended live), tags the prior HEAD via scripts/tag_backup.py as a safety net, then interactively rebases to fold nearby `ai:` auto-commits into the work commit while preserving plan-revision history, writes messages via ai/git/pending-commit.md, and never commits unrelated files. Always use in `luckydonald/*` and `littlepipslittleparty/*` repos, when the user opts in to this style at session start, or explicitly asks to enable it."
 ---
 
 # lplp Commit Style
@@ -25,6 +25,7 @@ Adopt these rules for every commit made this session:
    - `ai: agent <id> results` — subagent result record
    - `ai: record memory <slug>` — memory file written (e.g. `ai: record memory MEMORY`, `ai: record memory feedback_commit_amend_over_reset`)
    - `ai: save plan <NNN>_<slug>` — plan files
+   - Possibly others starting with plain `ai: `…
 
    **When to keep a commit separate instead of folding:**
    - The plan revision immediately preceding the implementation — the one that actually becomes code — **always folds into the run/implementation commit**, even when it's itself a genuine, substantive change over the version before it. It doesn't need its own commit: the run commit's summary already covers it (de-conjugated per the summary-line rule below), and its body should note what changed in that final revision when it differed from the last kept plan version.
@@ -36,10 +37,10 @@ Adopt these rules for every commit made this session:
 
    **Naming a plan-only commit that is kept separate:** raw hook messages like `ai: save plan <NNN>_<slug>` are placeholders, not final history — rename them to match the summary style used for real work, but with `ai: Plan:` (first version) or `ai: Plan update:` (each later revision of the same plan number) in place of `ai: Run:`:
    ```md
-   [where] component-or-topic: ai: Plan: <short one-line summary of what the plan proposes><sentence-separator>
+   [where] component-or-topic: ai: Plan: <short one-line summary of what the plan proposes><sentence-separator>\n\n<markdown body>
    ```
    ```md
-   [where] component-or-topic: ai: Plan update: <short one-line summary of what changed in this revision><sentence-separator>
+   [where] component-or-topic: ai: Plan update: <short one-line summary of what changed in this revision><sentence-separator>\n\n<markdown body>
    ```
    Leaving the bare `ai: save plan <NNN>_<slug>`/`ai: Plan …` hook message on a commit that's staying in history is not wanted — always rename it once it's confirmed to be a real, kept version cut.
 
@@ -112,13 +113,13 @@ Adopt these rules for every commit made this session:
 
 Run this procedure after every commit as rule 2, step 3, to fold that commit's immediately preceding `ai:` auto-commits. It also works standalone before merging or review when a branch has stray prompt/decision commits mixed further back into its history (rule 7).
 
-Handles these hook-created commits:
+Handles these hook-created commits, among others:
 
-- **`ai: updated prompt`** — one per user prompt; touches only `ai/query.md` or `ai/°base/query.md`.
-- **`ai: save decision <slug>`** — one per resolved `AskUserQuestion`; touches only `ai/query.md` or `ai/°base/query.md`. The slug is derived from the first question's text.
-- **`ai: agent <id> results`** — subagent result record; touches only agent result files.
-- **`ai: record memory <slug>`** — memory file written; touches only files under the memory directory.
-- **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>`; touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. The revision immediately preceding the implementation commit **always folds into it**, even if it's a genuine new version — note what changed in that final revision in the run commit's body when it differed from the last kept plan version. Every earlier revision of the same plan number (one followed by at least one further plan-file revision rather than directly by the implementation) stays its own commit, renamed to `ai: Plan: …` (first) / `ai: Plan update: …` (each later one) — never left as the raw hook message. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding kept version instead (or into the implementation, if it's the one immediately before it).
+- **`ai: updated prompt`** — one per user prompt; touches only `ai/query.md` or `ai/°base/query.md`; happens per hook every time the users write a new instruction, even mid-rebase (!).
+- **`ai: save decision <slug>`** — one per resolved `AskUserQuestion` via hook; touches only `ai/query.md` or `ai/°base/query.md`. The slug is derived from the first question's text.
+- **`ai: agent <id> results`** — subagent result record, hook; touches only agent result files.
+- **`ai: record memory <slug>`** — memory file written, hook; touches only files under the memory directory.
+- **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>` (hook); touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. The revision immediately preceding the implementation commit **always folds into it**, even if it's a genuine new version — note what changed in that final revision in the run commit's body when it differed from the last kept plan version. Every earlier revision of the same plan number (one followed by at least one further plan-file revision rather than directly by the implementation) stays its own commit, renamed to `ai: Plan: …` (first) / `ai: Plan update: …` (each later one) — never left as the raw hook message. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding kept version instead (or into the implementation, if it's the one immediately before it).
 
 ### Procedure
 

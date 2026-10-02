@@ -7401,3 +7401,8 @@ And, well, auto-claims sounds like the wrong thing to do, if every project would
 
 ❯ Apply [@`ai/skills/code-style/references/md.md`](../skills/code-style/references/md.md) to all skills in @ai/skills/
 
+❯ Clean up the remaining unpushed `ai:` commit.
+Have the pulled-in commits reference their DockerTgBot commit hashes, using the `user/proj@commit` github auto-link syntax. Squash this very request's `ai:` commit, too, following /commit-with-lplp-style as well.
+
+❯ fold it
+
