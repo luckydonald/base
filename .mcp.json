@@ -34,7 +34,7 @@
         "npx",
         "-y",
         "mcp-remote",
-        "http://localhost:8000/mcp",
+        "\"$SYNC_TODO_MCP_URL\"",
         "--header",
         "\"Authorization:$SYNC_TODO_MCP_TOKEN\""
       ]

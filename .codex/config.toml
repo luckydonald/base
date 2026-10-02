@@ -27,7 +27,7 @@ args = ["-y", "chrome-devtools-mcp@latest", "--autoConnect", "--no-usage-statist
 [mcp_servers."sync_todo"]
 enabled = false
 command = "npx"
-args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "mcp-remote", "http://localhost:8000/mcp", "--header", "\"Authorization:$SYNC_TODO_MCP_TOKEN\""]
+args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "mcp-remote", "\"$SYNC_TODO_MCP_URL\"", "--header", "\"Authorization:$SYNC_TODO_MCP_TOKEN\""]
 
 # --- END generated mcp_servers ---
 

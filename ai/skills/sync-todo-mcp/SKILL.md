@@ -43,7 +43,7 @@ A token can hold any subset. Grant the minimum needed.
 ## Wiring it into this repo's own Claude Code
 
 Registered in `ai/settings/settings.json`'s `mcp.servers.sync_todo` (flip `enabled` to `false` to turn it off).
-It's a `stdio` entry, not a native `http` one: there's no `${VAR}` substitution for `http`-type `headers` anywhere in this repo's sync tooling (`scripts/°base/ai/settings/°settings_lib/mcp_servers.py` copies `headers` verbatim), so the entry instead bridges through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) (`npx -y mcp-remote <url> --header "Authorization:$SYNC_TODO_MCP_TOKEN"`).
+It's a `stdio` entry, not a native `http` one: there's no `${VAR}` substitution for `http`-type `headers` anywhere in this repo's sync tooling (`scripts/°base/ai/settings/°settings_lib/mcp_servers.py` copies `headers` verbatim), so the entry instead bridges through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) (`npx -y mcp-remote "$SYNC_TODO_MCP_URL" --header "Authorization:$SYNC_TODO_MCP_TOKEN"`).
 Wrapped in the existing `mcp.tools[".env"]` prefix (same mechanism `bugsink`'s entry already uses -- `npx -y envmcp --env-file ai/.env`), that env var comes from `sync_todo/ai/.env`.
 
 How the variable actually reaches `mcp-remote`, and why the header argument is written the way it is:
@@ -63,15 +63,16 @@ To actually enable it:
 2. Add `SYNC_TODO_MCP_TOKEN=Bearer sytd_...` (the **full** header value, `Bearer ` included) to
    `sync_todo/ai/.env`. This file is `.env`-shaped and therefore off-limits to an agent's own
    tools in this repo (hard denylist) -- a human has to do this step.
-3. Make sure `ai/settings/settings.json`'s `mcp.servers.sync_todo.enabled` is `true`.
-4. Start a new Claude Code session (the `SessionStart` hook re-runs
+3. Add `SYNC_TODO_MCP_URL=http://localhost:8000/mcp` (or `<PUBLIC_URL>/mcp` for a deployed bot) next to it.
+4. Make sure `ai/settings/settings.json`'s `mcp.servers.sync_todo.enabled` is `true`.
+5. Start a new Claude Code session (the `SessionStart` hook re-runs
    `scripts/°base/ai/settings/sync.py` automatically) or run that script by hand to re-render
    `.mcp.json`.
 
-The registered URL (`http://localhost:8000/mcp`) targets a locally running dev instance
-(`sync_todo/CLAUDE.md`'s documented `uvicorn sync_todo_control.main:app --reload --port 8000`,
-with `POLLING=1`), not production -- this is for developing against a live local server, not for
-talking to the deployed bot.
+The URL comes from `SYNC_TODO_MCP_URL` for the same reason as the token, and is quoted the same way.
+For a locally running dev instance use `http://localhost:8000/mcp` (`sync_todo/CLAUDE.md`'s documented `uvicorn sync_todo_control.main:app --reload --port 8000`, with `POLLING=1`).
+For the deployed bot use `<PUBLIC_URL>/mcp`.
+An unset `SYNC_TODO_MCP_URL` gives `mcp-remote` an empty URL and the same `Failed to reconnect` symptom.
 
 ## Extending it
 
