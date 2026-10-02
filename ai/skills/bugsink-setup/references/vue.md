@@ -1,7 +1,6 @@
 # Bugsink / Sentry — Vue frontend
 
-Part of the `bugsink-setup` skill — see `../SKILL.md` for the shared
-environment-variable list, deployment wiring, and verification checklist.
+Part of the `bugsink-setup` skill — see `../SKILL.md` for the shared environment-variable list, deployment wiring, and verification checklist.
 This page covers the frontend-specific pieces only.
 
 ## SDK init
@@ -33,11 +32,7 @@ Add `@sentry/vue` as a runtime dependency.
 
 ## Release/build metadata
 
-`__GIT_COMMIT_FULL__`/`__GIT_BRANCH__`/`__BUILD_TIME__` are compile-time
-globals injected via Vite's `define`, resolved with the same
-env-override → git → baked-file fallback chain used on the backend
-(see `python.md`'s "Release/build metadata" section — keep both sides in
-sync so a single deploy reports the same tags from both ends):
+`__GIT_COMMIT_FULL__`/`__GIT_BRANCH__`/`__BUILD_TIME__` are compile-time globals injected via Vite's `define`, resolved with the same env-override → git → baked-file fallback chain used on the backend (see `python.md`'s "Release/build metadata" section — keep both sides in sync so a single deploy reports the same tags from both ends):
 
 ```js
 // vite.config
@@ -61,23 +56,15 @@ function getBuildInfo() {
 
 ## The tunnel (self-hosted Bugsink only)
 
-Skip this section entirely if Bugsink/Sentry is reachable directly from the
-browser with working CORS. Build it whenever the backend half (see
-`python.md`'s "The tunnel" section) is in place — this is the frontend half
-that decides when to use it.
+Skip this section entirely if Bugsink/Sentry is reachable directly from the browser with working CORS.
+Build it whenever the backend half (see `python.md`'s "The tunnel" section) is in place — this is the frontend half that decides when to use it.
 
-Don't hard-wire the tunnel on or off; probe first so the setup degrades
-gracefully whether Bugsink is reachable directly or not:
+Don't hard-wire the tunnel on or off; probe first so the setup degrades gracefully whether Bugsink is reachable directly or not:
 
-1. On init, POST an empty body straight to the DSN's envelope URL. If that
-   succeeds, use the DSN directly — no tunnel overhead.
-2. If it fails, POST to the tunnel endpoint instead (the path the backend
-   mounted, e.g. `/api/v1/sentry/tunnel`). If that works, re-init Sentry with
-   `tunnel: '<that path>'` added to the options.
-3. Log both checks (`console.info`/`console.warn`) — this is the single
-   fastest way to diagnose "no errors showing up in Bugsink" during setup,
-   since a silently-dropped browser event otherwise looks identical to "no
-   errors happened."
+1. On init, POST an empty body straight to the DSN's envelope URL. If that succeeds, use the DSN directly — no tunnel overhead.
+2. If it fails, POST to the tunnel endpoint instead (the path the backend mounted, e.g. `/api/v1/sentry/tunnel`).
+   If that works, re-init Sentry with `tunnel: '<that path>'` added to the options.
+3. Log both checks (`console.info`/`console.warn`) — this is the single fastest way to diagnose "no errors showing up in Bugsink" during setup, since a silently-dropped browser event otherwise looks identical to "no errors happened."
 
 ```ts
 async function probeConnection(label: string, url: string): Promise<boolean> {
@@ -93,16 +80,11 @@ async function probeConnection(label: string, url: string): Promise<boolean> {
 }
 ```
 
-If the API base URL can change at runtime (e.g. the user points the app at a
-different backend), re-run the probe when it changes rather than only at
-startup.
+If the API base URL can change at runtime (e.g. the user points the app at a different backend), re-run the probe when it changes rather than only at startup.
 
 ## Pinia state scrubbing
 
-If this project uses Pinia, add a state-scrubbing plugin before wiring
-`Sentry.createSentryPiniaPlugin` in — captured store state is otherwise
-attached to every event verbatim, including auth tokens and any other
-secrets sitting in the store:
+If this project uses Pinia, add a state-scrubbing plugin before wiring `Sentry.createSentryPiniaPlugin` in — captured store state is otherwise attached to every event verbatim, including auth tokens and any other secrets sitting in the store:
 
 ```ts
 export function sentryPiniaPlugin() {
@@ -115,14 +97,13 @@ export function sentryPiniaPlugin() {
 }
 ```
 
-Get this list from whatever the store actually holds — grep the Pinia store
-for token/secret/credential-shaped keys rather than guessing. Register it
-with `pinia.use(sentryPiniaPlugin())`.
+Get this list from whatever the store actually holds — grep the Pinia store for token/secret/credential-shaped keys rather than guessing.
+Register it with `pinia.use(sentryPiniaPlugin())`.
 
 ## Sourcemap upload (recommended, optional)
 
-Without sourcemaps, stack traces in Bugsink show minified code — useless for
-debugging. `@sentry/vite-plugin` uploads them automatically on build:
+Without sourcemaps, stack traces in Bugsink show minified code — useless for debugging.
+`@sentry/vite-plugin` uploads them automatically on build:
 
 ```js
 // vite.config
@@ -145,18 +126,12 @@ plugins: [
 build: { sourcemap: true },
 ```
 
-`BUILD_BUGSINK_URL`/`BUILD_BUGSINK_AUTH_TOKEN`/`BUILD_BUGSINK_PROJECT_SLUG`
-are deliberately **not** `VITE_`-prefixed — a `VITE_` prefix means Vite
-inlines the value into the shipped client bundle, which would leak the
-upload auth token to every visitor. Keep them build-time-only secrets, and
-delete the local `.map` files after a successful upload so they aren't
-served publicly alongside the JS.
+`BUILD_BUGSINK_URL`/`BUILD_BUGSINK_AUTH_TOKEN`/`BUILD_BUGSINK_PROJECT_SLUG` are deliberately **not** `VITE_`-prefixed — a `VITE_` prefix means Vite inlines the value into the shipped client bundle, which would leak the upload auth token to every visitor.
+Keep them build-time-only secrets, and delete the local `.map` files after a successful upload so they aren't served publicly alongside the JS.
 
 ## Sample-error test view
 
-Add a route that isn't linked from normal navigation, so you (and later,
-anyone running a Bugsink triage) can confirm the frontend side of the
-pipeline works end to end without waiting for a real bug:
+Add a route that isn't linked from normal navigation, so you (and later, anyone running a Bugsink triage) can confirm the frontend side of the pipeline works end to end without waiting for a real bug:
 
 ```vue
 <script setup lang="ts">
@@ -167,6 +142,4 @@ onMounted(async () => {
 </script>
 ```
 
-Word the message recognizably (contains "sample error ... for ...
-verification") — anyone triaging Bugsink later needs to be able to tell this
-apart from a real bug at a glance rather than investigate it.
+Word the message recognizably (contains "sample error ... for ... verification") — anyone triaging Bugsink later needs to be able to tell this apart from a real bug at a glance rather than investigate it.

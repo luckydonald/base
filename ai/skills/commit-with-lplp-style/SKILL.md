@@ -67,21 +67,21 @@ Adopt these rules for every commit made this session:
 
    <multiline body: what changed, why, key decisions>
    ```
-   Where examples: `[.idea]`, `[git]` (gitignore etc.), `[github]` (workflows, issue templates, …), `[frontend]`, `[db]`, `[stdb]` (spacetimedb), `[api]`, `[backend]`, `[docker]`, `[coolify]`, `[infra]`, …
-   The word or phrase after `[where]` is a component, feature, subsystem, or topic, not a Conventional Commit type. Do not use `feat`, `fix`, `chore`, `docs`, `test`, or `refactor` there unless that word is literally the component or topic being changed.
+   Where examples: `[.idea]`, `[git]` (gitignore etc.), `[github]` (workflows, issue templates, …), `[frontend]`, `[db]`, `[stdb]` (spacetimedb), `[api]`, `[backend]`, `[docker]`, `[coolify]`, `[infra]`, … The word or phrase after `[where]` is a component, feature, subsystem, or topic, not a Conventional Commit type.
+   Do not use `feat`, `fix`, `chore`, `docs`, `test`, or `refactor` there unless that word is literally the component or topic being changed.
    Good examples:
    - `[frontend] admin: ai: Run: Implemented user deletion UI.`
    - `[backend] models: ai: Run: Added models for cool feature.`
    - <code>[backend] cool feature: ai: Run: Added the `cool` model.</code>
-   - `[git] ignore rules: ai: Run: Ignored generated cache files.`
-   Bad examples:
+   - `[git] ignore rules: ai: Run: Ignored generated cache files.` Bad examples:
    - `[frontend] fix: ai: Run: Implement user deletion UI`
-   - `[backend] feat: ai: Run: Added cool feature models`
-   End every commit summary with a sentence separator: `.`, `:`, `,`, `!`, or `?`.
-   Usually use `.` when the summary stands on its own and the body only adds context. Use `:` when the subject needs the body/details that follow to complete the thought.
-   Both summary and body may contain pure-markdown for formatting.
-   Code ticks (`` `like this` ``) are allowed in the summary line itself — e.g. to name a function, file, or flag — not just in the body.
-   Do not hard-wrap the body at a fixed column width (e.g. 72 chars). Keep each paragraph or bullet point as one unbroken line, regardless of length; only break where a new paragraph or bullet genuinely starts.
+   - `[backend] feat: ai: Run: Added cool feature models` End every commit summary with a sentence separator: `.`, `:`, `,`, `!`, or `?`.
+     Usually use `.` when the summary stands on its own and the body only adds context.
+     Use `:` when the subject needs the body/details that follow to complete the thought.
+     Both summary and body may contain pure-markdown for formatting.
+     Code ticks (`` `like this` ``) are allowed in the summary line itself — e.g. to name a function, file, or flag — not just in the body.
+     Do not hard-wrap the body at a fixed column width (e.g. 72 chars).
+     Keep each paragraph or bullet point as one unbroken line, regardless of length; only break where a new paragraph or bullet genuinely starts.
 
    For normal use, multiple `[where]` parts can be written as one bracket with pipes, e.g. `[backend|frontend]`.
 

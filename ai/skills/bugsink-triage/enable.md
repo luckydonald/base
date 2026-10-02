@@ -32,7 +32,8 @@ This regenerates `.claude/settings.json`, moving `"bugsink"` from `disabledMcpjs
 
 ## Gotcha: `.codex/config.toml` can silently fight you
 
-`sync.py` treats *all* native files (`.claude/settings.json`, `.mcp.json`, `.codex/config.toml`) as round-trippable sources, merged back into the shared config by file mtime. `.mcp.json` has no `enabled` concept so it's harmless.
+`sync.py` treats *all* native files (`.claude/settings.json`, `.mcp.json`, `.codex/config.toml`) as round-trippable sources, merged back into the shared config by file mtime.
+`.mcp.json` has no `enabled` concept so it's harmless.
 **`.codex/config.toml` does encode `enabled` explicitly**, inside its generated block:
 
 ```toml
@@ -43,8 +44,7 @@ enabled = false        # <-- if this is stale/false, it wins
 # --- END generated mcp_servers ---
 ```
 
-If a previous sync left `enabled = false` baked in here, it gets merged back into the shared config *during the same `_load_layer` call that renders `.claude/settings.json`*
-— so your edit to `ai/settings/settings.json` gets silently overridden back to `false` before it ever reaches `.claude/settings.json`.
+If a previous sync left `enabled = false` baked in here, it gets merged back into the shared config *during the same `_load_layer` call that renders `.claude/settings.json`* — so your edit to `ai/settings/settings.json` gets silently overridden back to `false` before it ever reaches `.claude/settings.json`.
 Symptom: `sync.py --dry-run` only reports `Would write: ai/settings/settings.json` (just re-normalizing) and never mentions `.claude/settings.json` at all, even though you just changed `enabled` to `true`.
 
 **Fix:** grep for the server under `.codex/config.toml`'s generated block and flip `enabled` there too, matching the shared file, *before* rerunning sync:

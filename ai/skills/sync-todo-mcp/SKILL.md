@@ -5,23 +5,16 @@ description: "Use sync_todo's own /mcp server -- the Telegram-todo-CalDAV bot's 
 
 # sync_todo MCP server
 
-`sync_todo` (the Telegram todo <-> CalDAV sync bot) exposes its own MCP server, separate from
-its Mini App. It's a Streamable HTTP server mounted directly inside the bot's own FastAPI app at
-`/mcp` (`sync_todo/code/sync_todo_control/main.py`), so it runs on the same host/port as
-everything else -- no separate service, no separate deploy.
+`sync_todo` (the Telegram todo <-> CalDAV sync bot) exposes its own MCP server, separate from its Mini App.
+It's a Streamable HTTP server mounted directly inside the bot's own FastAPI app at `/mcp` (`sync_todo/code/sync_todo_control/main.py`), so it runs on the same host/port as everything else -- no separate service, no separate deploy.
 
 ## Auth model
 
-Every call needs `Authorization: Bearer <token>`. This is a **different** mechanism from the Mini
-App's JWT (`sync_todo/code/sync_todo_control/routers/auth.py`) -- MCP tokens are their own thing,
-created and revoked via `routers/tokens.py`, admin-only for now (`TELEGRAM_ADMIN_IDS`). A token
-is HMAC-hashed at rest (`crypto.py::hash_mcp_token`, keyed by `MCP_TOKEN_HMAC_KEY`); the plaintext
-is shown exactly once, at creation, in the sync_todo Mini App's Settings page -- there is no way
-to recover it afterward, only revoke and issue a new one.
+Every call needs `Authorization: Bearer <token>`.
+This is a **different** mechanism from the Mini App's JWT (`sync_todo/code/sync_todo_control/routers/auth.py`) -- MCP tokens are their own thing, created and revoked via `routers/tokens.py`, admin-only for now (`TELEGRAM_ADMIN_IDS`).
+A token is HMAC-hashed at rest (`crypto.py::hash_mcp_token`, keyed by `MCP_TOKEN_HMAC_KEY`); the plaintext is shown exactly once, at creation, in the sync_todo Mini App's Settings page -- there is no way to recover it afterward, only revoke and issue a new one.
 
-Auth resolution and scope checks live in `sync_todo/code/sync_todo_control/mcp/auth.py`
-(`resolve_mcp_token`, `require_scope`); the tool implementations themselves are in
-`sync_todo/code/sync_todo_control/mcp/server.py`.
+Auth resolution and scope checks live in `sync_todo/code/sync_todo_control/mcp/auth.py` (`resolve_mcp_token`, `require_scope`); the tool implementations themselves are in `sync_todo/code/sync_todo_control/mcp/server.py`.
 
 ## Scopes (`models.py::McpScope`)
 
@@ -62,14 +55,11 @@ A tool call answering `Missing or malformed Authorization header` means the head
 To actually enable it:
 
 1. Get a token (above).
-2. Add `SYNC_TODO_MCP_TOKEN=sytd_...` (the bare token, no `Bearer ` -- the config adds that) to
-   `ai/.env`. This file is `.env`-shaped and therefore off-limits to an agent's own
-   tools in this repo (hard denylist) -- a human has to do this step.
+2. Add `SYNC_TODO_MCP_TOKEN=sytd_...` (the bare token, no `Bearer ` -- the config adds that) to `ai/.env`.
+   This file is `.env`-shaped and therefore off-limits to an agent's own tools in this repo (hard denylist) -- a human has to do this step.
 3. Add `SYNC_TODO_MCP_URL=http://localhost:8000/api/mcp/` (or `<PUBLIC_URL>/mcp` for a deployed bot) next to it.
 4. Flip `ai/settings/settings.json`'s `mcp.servers.sync_todo.enabled` to `true`.
-5. Start a new Claude Code session (the `SessionStart` hook re-runs
-   `scripts/°base/ai/settings/sync.py` automatically) or run that script by hand to re-render
-   `.mcp.json`.
+5. Start a new Claude Code session (the `SessionStart` hook re-runs `scripts/°base/ai/settings/sync.py` automatically) or run that script by hand to re-render `.mcp.json`.
 
 The URL comes from `SYNC_TODO_MCP_URL` for the same reason as the token, and is quoted the same way.
 For a locally running dev instance use `http://localhost:8000/api/mcp/` (`sync_todo/CLAUDE.md`'s documented `uvicorn sync_todo_control.main:app --reload --port 8000`, with `POLLING=1`).
@@ -79,7 +69,5 @@ An unset `SYNC_TODO_MCP_URL` gives `mcp-remote` an empty URL and the same `Faile
 
 ## Extending it
 
-New tools go in `sync_todo/code/sync_todo_control/mcp/server.py`, following the existing pattern:
-open a session via `authed_session(ctx, McpScope.X)`, then delegate to the same single write
-paths every other router uses (`caldav_sync/todo_ops.py` for todos, never touching CalDAV/DB
-directly). Add tests to `sync_todo/code/tests/test_mcp_server.py`.
+New tools go in `sync_todo/code/sync_todo_control/mcp/server.py`, following the existing pattern: open a session via `authed_session(ctx, McpScope.X)`, then delegate to the same single write paths every other router uses (`caldav_sync/todo_ops.py` for todos, never touching CalDAV/DB directly).
+Add tests to `sync_todo/code/tests/test_mcp_server.py`.

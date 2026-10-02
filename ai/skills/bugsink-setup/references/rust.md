@@ -1,13 +1,11 @@
 # Bugsink / Sentry — Rust backend
 
-Part of the `bugsink-setup` skill — see `../SKILL.md` for the shared
-environment-variable list, deployment wiring, and verification checklist.
+Part of the `bugsink-setup` skill — see `../SKILL.md` for the shared environment-variable list, deployment wiring, and verification checklist.
 This page covers the backend-specific pieces only.
 
 ## SDK init
 
-Put Sentry init in its own module (`sentry.rs` next to wherever `main`
-lives) so it's one obvious place to extend later:
+Put Sentry init in its own module (`sentry.rs` next to wherever `main` lives) so it's one obvious place to extend later:
 
 ```rust
 pub fn init_sentry() -> Option<sentry::ClientInitGuard> {
@@ -27,19 +25,12 @@ pub fn init_sentry() -> Option<sentry::ClientInitGuard> {
 }
 ```
 
-`sentry::init` returns a guard — keep it alive for the lifetime of the
-process (e.g. `let _sentry_guard = init_sentry();` in `main`, held in a
-variable that isn't dropped). It flushes buffered events on drop with a
-two-second deadline; if it's dropped early (or never bound to a variable),
-events queued right before shutdown are silently lost.
+`sentry::init` returns a guard — keep it alive for the lifetime of the process (e.g. `let _sentry_guard = init_sentry();` in `main`, held in a variable that isn't dropped).
+It flushes buffered events on drop with a two-second deadline; if it's dropped early (or never bound to a variable), events queued right before shutdown are silently lost.
 
-One non-obvious detail matters more here than in most languages: **the
-Sentry client must be initialized before the async runtime starts**, so
-`#[tokio::main]`/`#[actix_web::main]` can't be used — those macros start the
-runtime before any of your code runs. Panic and error reporting installed by
-`sentry::init` needs to happen first so it can hook the whole process,
-including tasks spawned during runtime startup. Structure `main` like this
-instead:
+One non-obvious detail matters more here than in most languages: **the Sentry client must be initialized before the async runtime starts**, so `#[tokio::main]`/`#[actix_web::main]` can't be used — those macros start the runtime before any of your code runs.
+Panic and error reporting installed by `sentry::init` needs to happen first so it can hook the whole process, including tasks spawned during runtime startup.
+Structure `main` like this instead:
 
 ```rust
 // WRONG — #[tokio::main] starts the runtime before init_sentry() can run
@@ -60,14 +51,9 @@ fn main() {
 }
 ```
 
-Unhandled panics are captured automatically by the default `PanicIntegration`
-— no extra wiring needed there, unlike Python's lifespan gotcha where
-startup exceptions need an explicit `capture_exception` call.
+Unhandled panics are captured automatically by the default `PanicIntegration` — no extra wiring needed there, unlike Python's lifespan gotcha where startup exceptions need an explicit `capture_exception` call.
 
-Add the dependency, plus a framework integration if this backend uses one
-(axum/tower shown here — Actix Web and `tokio-rs/tracing` have their own
-integrations, see `sentry`'s docs.rs page if this project uses those
-instead):
+Add the dependency, plus a framework integration if this backend uses one (axum/tower shown here — Actix Web and `tokio-rs/tracing` have their own integrations, see `sentry`'s docs.rs page if this project uses those instead):
 
 ```toml
 [dependencies]
@@ -86,19 +72,13 @@ let app = Router::new().route(/* ... */).layer(
 );
 ```
 
-Without `NewSentryLayer`, errors captured mid-request still reach Sentry but
-without the request context (URL, headers, method) attached — worth having
-even if tracing spans aren't needed.
+Without `NewSentryLayer`, errors captured mid-request still reach Sentry but without the request context (URL, headers, method) attached — worth having even if tracing spans aren't needed.
 
 ## Release/build metadata
 
-Sentry groups events by `release`; without one, every deploy's errors get
-lumped together and you can't tell which version broke. The `sentry` crate
-ships a `sentry::release_name!()` macro that resolves to the Cargo package
-name/version at compile time — convenient, but it tracks the crate version,
-not the deploy. If this project's other stack-side (see `python.md`/`vue.md`)
-already keys releases off the git commit, keep Rust on the same scheme so
-frontend/backend/other-backend events from one deploy share a `release` tag:
+Sentry groups events by `release`; without one, every deploy's errors get lumped together and you can't tell which version broke.
+The `sentry` crate ships a `sentry::release_name!()` macro that resolves to the Cargo package name/version at compile time — convenient, but it tracks the crate version, not the deploy.
+If this project's other stack-side (see `python.md`/`vue.md`) already keys releases off the git commit, keep Rust on the same scheme so frontend/backend/other-backend events from one deploy share a `release` tag:
 
 ```rust
 fn release_tag() -> Option<std::borrow::Cow<'static, str>> {
@@ -117,35 +97,19 @@ fn run(cmd: &str, args: &[&str]) -> Option<String> {
 // same pattern for git_branch, tagged with sentry::configure_scope after init
 ```
 
-If the deploy is a Docker build, bake `git-commit.txt`/`git-branch.txt` (and
-a `build-time.txt`) into the image in a stage that still has access to
-`.git`, then `COPY` them into the final image — same as the Python guide,
-since the running container usually has no `.git` at all. Use the git commit
-as `release` and the build time as `dist`.
+If the deploy is a Docker build, bake `git-commit.txt`/`git-branch.txt` (and a `build-time.txt`) into the image in a stage that still has access to `.git`, then `COPY` them into the final image — same as the Python guide, since the running container usually has no `.git` at all.
+Use the git commit as `release` and the build time as `dist`.
 
-If this project is a subdirectory of a bigger monorepo deployed via a
-platform-managed "Base Directory" (Coolify and similar), `.git` usually
-isn't reachable from *any* build stage, not just hard to get to — see
-`monorepo-deploys.md` for the build-arg-based fix and a real crash this
-caused when skipped.
+If this project is a subdirectory of a bigger monorepo deployed via a platform-managed "Base Directory" (Coolify and similar), `.git` usually isn't reachable from *any* build stage, not just hard to get to — see `monorepo-deploys.md` for the build-arg-based fix and a real crash this caused when skipped.
 
-This step is optional in the sense that Sentry works without it (fall back
-to `sentry::release_name!()` if this backend has no sibling stack to stay in
-sync with) — but skip the cross-stack alignment and every future "which
-deploy introduced this error" question spanning multiple services becomes
-guesswork.
+This step is optional in the sense that Sentry works without it (fall back to `sentry::release_name!()` if this backend has no sibling stack to stay in sync with) — but skip the cross-stack alignment and every future "which deploy introduced this error" question spanning multiple services becomes guesswork.
 
 ## The tunnel (self-hosted Bugsink only)
 
-Skip this section entirely if Bugsink/Sentry is reachable directly from the
-browser with working CORS. Build it if this Rust service is the backend a
-Vue (or other) frontend talks to, and you're not certain the browser can
-reach Bugsink directly — see `vue.md`'s tunnel section for the frontend half
-this depends on.
+Skip this section entirely if Bugsink/Sentry is reachable directly from the browser with working CORS.
+Build it if this Rust service is the backend a Vue (or other) frontend talks to, and you're not certain the browser can reach Bugsink directly — see `vue.md`'s tunnel section for the frontend half this depends on.
 
-A same-origin POST endpoint that forwards the raw Sentry envelope
-server-side (shown as an axum handler; adapt the extractor types for
-Actix/other frameworks):
+A same-origin POST endpoint that forwards the raw Sentry envelope server-side (shown as an axum handler; adapt the extractor types for Actix/other frameworks):
 
 ```rust
 async fn sentry_tunnel(body: axum::body::Bytes) -> impl axum::response::IntoResponse {
@@ -193,18 +157,13 @@ async fn sentry_tunnel(body: axum::body::Bytes) -> impl axum::response::IntoResp
 }
 ```
 
-The SSRF guard is not optional — an unguarded tunnel forwards arbitrary POST
-bodies anywhere the caller names.
+The SSRF guard is not optional — an unguarded tunnel forwards arbitrary POST bodies anywhere the caller names.
 
-Mount it wherever this project's API routes live (e.g.
-`/api/v1/sentry/tunnel` alongside the rest of `/api/v1/...`), and tell the
-frontend that exact path.
+Mount it wherever this project's API routes live (e.g. `/api/v1/sentry/tunnel` alongside the rest of `/api/v1/...`), and tell the frontend that exact path.
 
 ## Sample-error route
 
-Add a deliberately-failing route so you (and later, anyone running a
-Bugsink triage) can confirm the backend side of the pipeline works end to
-end without waiting for a real bug:
+Add a deliberately-failing route so you (and later, anyone running a Bugsink triage) can confirm the backend side of the pipeline works end to end without waiting for a real bug:
 
 ```rust
 async fn sample_error() -> impl axum::response::IntoResponse {
@@ -212,18 +171,12 @@ async fn sample_error() -> impl axum::response::IntoResponse {
 }
 ```
 
-Word the message recognizably (contains "sample error ... for ...
-verification") — anyone triaging Bugsink later needs to be able to tell this
-apart from a real bug at a glance rather than investigate it. A panic works
-here because the default `PanicIntegration` reports it automatically; use
-`sentry::capture_error(&err)` instead if this route should return a normal
-error response rather than actually crash the request.
+Word the message recognizably (contains "sample error ... for ... verification") — anyone triaging Bugsink later needs to be able to tell this apart from a real bug at a glance rather than investigate it.
+A panic works here because the default `PanicIntegration` reports it automatically; use `sentry::capture_error(&err)` instead if this route should return a normal error response rather than actually crash the request.
 
 ## Structured logs (optional)
 
-If this project wants log-level detail in Bugsink (not just errors), the
-`logs` feature flag sends `tracing`/`log` records as their own Sentry
-events, separate from error capturing:
+If this project wants log-level detail in Bugsink (not just errors), the `logs` feature flag sends `tracing`/`log` records as their own Sentry events, separate from error capturing:
 
 ```toml
 [dependencies]
@@ -238,5 +191,4 @@ tracing_subscriber::registry()
     .init();
 ```
 
-This is additive to error capturing, not a replacement — skip it unless the
-project specifically wants log search/correlation inside Bugsink.
+This is additive to error capturing, not a replacement — skip it unless the project specifically wants log search/correlation inside Bugsink.

@@ -1,13 +1,11 @@
 # Bugsink / Sentry — Python backend
 
-Part of the `bugsink-setup` skill — see `../SKILL.md` for the shared
-environment-variable list, deployment wiring, and verification checklist.
+Part of the `bugsink-setup` skill — see `../SKILL.md` for the shared environment-variable list, deployment wiring, and verification checklist.
 This page covers the backend-specific pieces only.
 
 ## SDK init
 
-Put Sentry init in its own module (`sentry.py` next to the app factory) so
-it's one obvious place to extend later:
+Put Sentry init in its own module (`sentry.py` next to the app factory) so it's one obvious place to extend later:
 
 ```python
 def init_sentry() -> None:
@@ -39,13 +37,10 @@ def init_sentry() -> None:
 
 Two non-obvious placement details matter:
 
-- **Call `init_sentry()` at module import time, before the app object is
-  created** — not inside a startup event. Exceptions during route
-  registration or other import-time setup would otherwise never reach Sentry.
-- **`FastApiIntegration`/`StarletteIntegration` only instrument request
-  handlers, not the ASGI lifespan protocol.** An exception raised during
-  startup (a failed DB migration, a missing config value) is invisible to
-  Sentry unless you capture it explicitly:
+- **Call `init_sentry()` at module import time, before the app object is created** — not inside a startup event.
+  Exceptions during route registration or other import-time setup would otherwise never reach Sentry.
+- **`FastApiIntegration`/`StarletteIntegration` only instrument request handlers, not the ASGI lifespan protocol.**
+  An exception raised during startup (a failed DB migration, a missing config value) is invisible to Sentry unless you capture it explicitly:
   ```python
   @asynccontextmanager
   async def lifespan(app: FastAPI):
@@ -57,18 +52,11 @@ Two non-obvious placement details matter:
           raise
       yield
   ```
-  This one line is easy to skip and means the single most important class of
-  startup failure never shows up in error tracking. Don't skip it.
-- **A failure inside the config import itself is invisible too, if
-  `init_sentry()` reads its settings from that config.** When the config
-  module raises on a missing required environment variable, the crash happens
-  during the entrypoint's `import main` — before `init_sentry()` ever runs —
-  so the single most common deploy mistake (a forgotten variable) never
-  reaches Bugsink. Fix it with a tiny bootstrap module that reads only the
-  optional `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` straight
-  from `os.environ` and **never imports the config** (so it can't fail on the
-  same missing variable), and have the entrypoint (`server.py` or similar) use
-  it before importing the app:
+  This one line is easy to skip and means the single most important class of startup failure never shows up in error tracking.
+  Don't skip it.
+- **A failure inside the config import itself is invisible too, if `init_sentry()` reads its settings from that config.**
+  When the config module raises on a missing required environment variable, the crash happens during the entrypoint's `import main` — before `init_sentry()` ever runs — so the single most common deploy mistake (a forgotten variable) never reaches Bugsink.
+  Fix it with a tiny bootstrap module that reads only the optional `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` straight from `os.environ` and **never imports the config** (so it can't fail on the same missing variable), and have the entrypoint (`server.py` or similar) use it before importing the app:
   ```python
   init_startup_sentry()  # raw os.environ only; no-op without SENTRY_DSN
   try:
@@ -78,21 +66,17 @@ Two non-obvious placement details matter:
       report_startup_failure(e)  # capture_exception + flush(timeout=5)
       raise  # keep the non-zero exit so the container still fails
   ```
-  Wrap anything else that runs before uvicorn starts (e.g. DB migrations) the
-  same way. The `flush()` matters: the process is about to exit, and the
-  background transport would otherwise drop the event. The full `init_sentry()`
-  in the app still re-initializes with the complete config afterwards. Test
-  that the bootstrap module imports with none of the required variables set.
+  Wrap anything else that runs before uvicorn starts (e.g. DB migrations) the same way.
+  The `flush()` matters: the process is about to exit, and the background transport would otherwise drop the event.
+  The full `init_sentry()` in the app still re-initializes with the complete config afterwards.
+  Test that the bootstrap module imports with none of the required variables set.
 
-Add the dependency with the extra matching the web framework, e.g.
-`sentry-sdk[fastapi]` (Flask/Django have their own extras).
+Add the dependency with the extra matching the web framework, e.g. `sentry-sdk[fastapi]` (Flask/Django have their own extras).
 
 ## Release/build metadata
 
-Sentry groups events by `release`; without one, every deploy's errors get
-lumped together and you can't tell which version broke. Resolve it through a
-fallback chain so it works both from a local git checkout and from inside a
-Docker image where `.git` isn't present:
+Sentry groups events by `release`; without one, every deploy's errors get lumped together and you can't tell which version broke.
+Resolve it through a fallback chain so it works both from a local git checkout and from inside a Docker image where `.git` isn't present:
 
 ```python
 GIT_COMMIT_FULL = (
@@ -104,39 +88,22 @@ GIT_COMMIT_FULL = (
 # same pattern for GIT_BRANCH and BUILD_TIME
 ```
 
-If the deploy is a Docker build, bake `git-commit.txt`/`git-branch.txt` (and
-a `build-time.txt` with the build timestamp) into the image in a stage that
-still has access to `.git`, then `COPY` them into the final image — the
-running container usually doesn't have `.git` available at all. Use the git
-commit hash as `release` (not a hand-maintained version string — it's always
-accurate and needs no bump step) and the build time as `dist`.
+If the deploy is a Docker build, bake `git-commit.txt`/`git-branch.txt` (and a `build-time.txt` with the build timestamp) into the image in a stage that still has access to `.git`, then `COPY` them into the final image — the running container usually doesn't have `.git` available at all.
+Use the git commit hash as `release` (not a hand-maintained version string — it's always accurate and needs no bump step) and the build time as `dist`.
 
-If this project is a subdirectory of a bigger monorepo deployed via a
-platform-managed "Base Directory" (Coolify and similar), `.git` usually
-isn't reachable from *any* build stage, not just hard to get to — see
-`monorepo-deploys.md` for the build-arg-based fix and a real crash this
-caused when skipped.
+If this project is a subdirectory of a bigger monorepo deployed via a platform-managed "Base Directory" (Coolify and similar), `.git` usually isn't reachable from *any* build stage, not just hard to get to — see `monorepo-deploys.md` for the build-arg-based fix and a real crash this caused when skipped.
 
-If the frontend also resolves build metadata (see `vue.md`), keep both
-sides' fallback chains in sync so the same deploy reports the same
-`git_commit`/`build_time` tags from both ends — that's what makes
-frontend/backend events from the same deploy correlate cleanly in Bugsink.
+If the frontend also resolves build metadata (see `vue.md`), keep both sides' fallback chains in sync so the same deploy reports the same `git_commit`/`build_time` tags from both ends — that's what makes frontend/backend events from the same deploy correlate cleanly in Bugsink.
 
-This step is optional in the sense that Sentry works without it — but skip
-it and every future "which deploy introduced this error" question becomes
-guesswork.
+This step is optional in the sense that Sentry works without it — but skip it and every future "which deploy introduced this error" question becomes guesswork.
 
 ## The tunnel (self-hosted Bugsink only)
 
-Skip this section entirely if Bugsink/Sentry is reachable directly from the
-browser with working CORS. Build it if Bugsink is self-hosted and you're not
-certain the browser can reach it directly (the common case, and worth
-building defensively even before you've confirmed events are missing). The
-frontend half of this (probing which transport actually works) lives in
-`vue.md` — this is the backend half it depends on.
+Skip this section entirely if Bugsink/Sentry is reachable directly from the browser with working CORS.
+Build it if Bugsink is self-hosted and you're not certain the browser can reach it directly (the common case, and worth building defensively even before you've confirmed events are missing).
+The frontend half of this (probing which transport actually works) lives in `vue.md` — this is the backend half it depends on.
 
-A same-origin POST endpoint that forwards the raw Sentry envelope
-server-side:
+A same-origin POST endpoint that forwards the raw Sentry envelope server-side:
 
 ```python
 @routes.post('/tunnel')
@@ -167,18 +134,13 @@ async def sentry_tunnel(request: Request) -> Response:
     return Response(status_code=upstream.status_code, content=upstream.content)
 ```
 
-The SSRF guard is not optional — an unguarded tunnel forwards arbitrary POST
-bodies anywhere the caller names.
+The SSRF guard is not optional — an unguarded tunnel forwards arbitrary POST bodies anywhere the caller names.
 
-Mount it wherever this project's API routes live (e.g.
-`/api/v1/sentry/tunnel` alongside the rest of `/api/v1/...`), and tell the
-frontend that exact path.
+Mount it wherever this project's API routes live (e.g. `/api/v1/sentry/tunnel` alongside the rest of `/api/v1/...`), and tell the frontend that exact path.
 
 ## Sample-error route
 
-Add a deliberately-throwing route so you (and later, anyone running a
-Bugsink triage) can confirm the backend side of the pipeline works end to
-end without waiting for a real bug:
+Add a deliberately-throwing route so you (and later, anyone running a Bugsink triage) can confirm the backend side of the pipeline works end to end without waiting for a real bug:
 
 ```python
 @routes.get('/sample-error')
@@ -186,6 +148,4 @@ async def sample_error() -> None:
     raise RuntimeError('backend sample error for Sentry/Bugsink verification')
 ```
 
-Word the message recognizably (contains "sample error ... for ...
-verification") — anyone triaging Bugsink later needs to be able to tell this
-apart from a real bug at a glance rather than investigate it.
+Word the message recognizably (contains "sample error ... for ... verification") — anyone triaging Bugsink later needs to be able to tell this apart from a real bug at a glance rather than investigate it.

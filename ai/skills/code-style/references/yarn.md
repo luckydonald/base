@@ -1,14 +1,14 @@
 # Yarn 4 / Yarn Berry
 
-Yarn Berry is the modern Yarn codebase (Yarn 2 and newer). This guide specifically standardizes projects on
-Yarn 4. Do not install the `yarn` npm package globally: it is Yarn Classic 1.x. Use Corepack to select the exact
-package-manager version recorded by the project.
+Yarn Berry is the modern Yarn codebase (Yarn 2 and newer). This guide specifically standardizes projects on Yarn 4.
+Do not install the `yarn` npm package globally: it is Yarn Classic 1.x.
+Use Corepack to select the exact package-manager version recorded by the project.
 
 ## Prerequisites and initial setup
 
-Yarn 4 requires Node.js 18.12 or newer. Prefer the current LTS used by the project and record it in `engines`,
-`.nvmrc`, `.node-version`, or the repository's equivalent. Corepack was bundled but opt-in in many Node releases;
-Node 25 and newer no longer bundle it, and some operating-system Node packages omit it on older versions too.
+Yarn 4 requires Node.js 18.12 or newer.
+Prefer the current LTS used by the project and record it in `engines`, `.nvmrc`, `.node-version`, or the repository's equivalent.
+Corepack was bundled but opt-in in many Node releases; Node 25 and newer no longer bundle it, and some operating-system Node packages omit it on older versions too.
 
 ```bash
 npm install --global corepack
@@ -18,9 +18,8 @@ yarn --version
 yarn install
 ```
 
-`yarn set version 4.x` resolves the newest Yarn 4 release and writes an exact `packageManager` value. Review and
-commit that exact value. Never use `stable`, `latest`, or an unqualified `berry` in reproducible setup automation,
-because those selectors may cross a future major-version boundary.
+`yarn set version 4.x` resolves the newest Yarn 4 release and writes an exact `packageManager` value. Review and commit that exact value.
+Never use `stable`, `latest`, or an unqualified `berry` in reproducible setup automation, because those selectors may cross a future major-version boundary.
 
 For a new project, initialize the manifest before setting the version:
 
@@ -39,13 +38,13 @@ The project root contains and commits:
 - `.yarnrc.yml` when project-specific Yarn configuration is needed;
 - every workspace `package.json` referenced by the root `workspaces` field.
 
-Corepack reads `packageManager` before launching Yarn, so plain `yarn` commands use the pinned release. Prefer
-this mechanism over a checked-in Yarn executable. Use `yarnPath` and `.yarn/releases/yarn-4.x.y.cjs` only when the
-binary itself must be available from the repository, such as an air-gapped installation.
+Corepack reads `packageManager` before launching Yarn, so plain `yarn` commands use the pinned release.
+Prefer this mechanism over a checked-in Yarn executable.
+Use `yarnPath` and `.yarn/releases/yarn-4.x.y.cjs` only when the binary itself must be available from the repository, such as an air-gapped installation.
 
 `.yarnrc` is the legacy filename and must not be used. Modern settings live in valid YAML in `.yarnrc.yml`.
-Yarn 4 defaults to Plug'n'Play (PnP): packages remain in Yarn's cache and `.pnp.cjs` maps package requests. If a
-tool cannot support PnP, opt into the conventional layout explicitly:
+Yarn 4 defaults to Plug'n'Play (PnP): packages remain in Yarn's cache and `.pnp.cjs` maps package requests.
+If a tool cannot support PnP, opt into the conventional layout explicitly:
 
 ```yaml
 nodeLinker: node-modules
@@ -68,10 +67,9 @@ node_modules/
 !.yarn/versions
 ```
 
-Always commit `yarn.lock`, `package.json`, `.yarnrc.yml`, `.yarn/patches`, and any checked-in plugins, releases,
-or version definitions that the project uses. `.yarn/sdks` is optional: commit it for clone-ready editor support,
-or regenerate it after checkout. Never commit `.yarn/install-state.gz` or `.yarn/unplugged`; they are local build
-and optimization artifacts.
+Always commit `yarn.lock`, `package.json`, `.yarnrc.yml`, `.yarn/patches`, and any checked-in plugins, releases, or version definitions that the project uses.
+`.yarn/sdks` is optional: commit it for clone-ready editor support, or regenerate it after checkout.
+Never commit `.yarn/install-state.gz` or `.yarn/unplugged`; they are local build and optimization artifacts.
 
 Zero-Install repositories additionally set `enableGlobalCache: false`, commit `.yarn/cache`, and commit `.pnp.*`.
 That lets a checkout contain the dependency archive and PnP loader without an initial install:
@@ -87,8 +85,7 @@ node_modules/
 !.yarn/versions
 ```
 
-Do not implement Zero-Installs by committing `node_modules/`; the directory is large, layout-dependent, and easy
-to modify accidentally.
+Do not implement Zero-Installs by committing `node_modules/`; the directory is large, layout-dependent, and easy to modify accidentally.
 
 ## Everyday project usage
 
@@ -112,9 +109,8 @@ Use an immutable install anywhere that verifies a committed dependency graph:
 yarn install --immutable
 ```
 
-For a Zero-Install project accepting outside contributions, also use `--immutable-cache --check-cache` so CI
-verifies that checked-in archives match the lockfile and registry content. Generate editor SDKs for PnP-aware
-TypeScript and ESLint integration when needed:
+For a Zero-Install project accepting outside contributions, also use `--immutable-cache --check-cache` so CI verifies that checked-in archives match the lockfile and registry content.
+Generate editor SDKs for PnP-aware TypeScript and ESLint integration when needed:
 
 ```bash
 yarn dlx @yarnpkg/sdks vscode
@@ -129,14 +125,12 @@ yarn dlx @yarnpkg/sdks vscode
 5. Run `yarn install`, inspect the complete manifest and lockfile diff, then run the project's checks.
 6. Add the Git ignore rules for the chosen PnP, node-modules, or Zero-Install strategy.
 
-If `yarn.lock` is unexpectedly rewritten into the Classic format or older Berry metadata, restore it from Git and
-rerun the operation through the pinned release, for example `corepack yarn@4.x.y install`.
+If `yarn.lock` is unexpectedly rewritten into the Classic format or older Berry metadata, restore it from Git and rerun the operation through the pinned release, for example `corepack yarn@4.x.y install`.
 
 ## Docker builds
 
-Pin Node and activate Corepack inside the image. Copy dependency metadata before application source so Docker can
-reuse the install layer. Do not run `yarn set version stable` during a build; the committed `packageManager` field
-is the source of truth.
+Pin Node and activate Corepack inside the image. Copy dependency metadata before application source so Docker can reuse the install layer.
+Do not run `yarn set version stable` during a build; the committed `packageManager` field is the source of truth.
 
 ```dockerfile
 FROM node:24-alpine AS build
@@ -153,14 +147,13 @@ COPY . .
 RUN yarn run build
 ```
 
-If `yarnPath` is configured, copy the referenced `.yarn/releases` file before `yarn install`. A static frontend
-can copy only its compiled output into nginx or another final image. A Node/PnP runtime must also retain its
-production manifest, lockfile, `.pnp.*`, and the dependency cache or focused production install used by the
-loader. With `nodeLinker: node-modules`, copy the generated production `node_modules` between image stages but
-never back into Git.
+If `yarnPath` is configured, copy the referenced `.yarn/releases` file before `yarn install`.
+A static frontend can copy only its compiled output into nginx or another final image.
+A Node/PnP runtime must also retain its production manifest, lockfile, `.pnp.*`, and the dependency cache or focused production install used by the loader.
+With `nodeLinker: node-modules`, copy the generated production `node_modules` between image stages but never back into Git.
 
-A Compose development service can build the same image and bind-mount source. Keep dependency state in the
-container rather than letting a host `node_modules` hide container files:
+A Compose development service can build the same image and bind-mount source.
+Keep dependency state in the container rather than letting a host `node_modules` hide container files:
 
 ```yaml
 services:
@@ -179,9 +172,8 @@ volumes:
 
 ## GitHub Actions
 
-Install Corepack after selecting Node, run an immutable install, and execute scripts through Yarn. The example
-does not cache `node_modules`; add package-cache configuration only after confirming it matches the repository's
-global-cache or Zero-Install strategy.
+Install Corepack after selecting Node, run an immutable install, and execute scripts through Yarn.
+The example does not cache `node_modules`; add package-cache configuration only after confirming it matches the repository's global-cache or Zero-Install strategy.
 
 ```yaml
 name: CI
@@ -207,8 +199,8 @@ jobs:
 
 ## Repository pre-commit policy
 
-The base repository's Yarn 4 guard is enabled by default when Node/package-manager files exist. Configure it only
-in tracked `ai/settings/settings.json`:
+The base repository's Yarn 4 guard is enabled by default when Node/package-manager files exist.
+Configure it only in tracked `ai/settings/settings.json`:
 
 ```json
 {
@@ -220,10 +212,9 @@ in tracked `ai/settings/settings.json`:
 }
 ```
 
-The guard rejects old lock formats, legacy Yarn configuration and releases, competing package-manager locks,
-and tracked `node_modules`. An ignored local `node_modules` only produces a warning. A repository that must retain
-legacy package-manager state can set tracked `enabled` to `false`; putting `pre_commit.yarn@4` in the machine-local
-settings file is an error because local preferences must not weaken repository commit policy.
+The guard rejects old lock formats, legacy Yarn configuration and releases, competing package-manager locks, and tracked `node_modules`.
+An ignored local `node_modules` only produces a warning.
+A repository that must retain legacy package-manager state can set tracked `enabled` to `false`; putting `pre_commit.yarn@4` in the machine-local settings file is an error because local preferences must not weaken repository commit policy.
 
 ## References
 
