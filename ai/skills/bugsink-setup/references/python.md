@@ -59,6 +59,30 @@ Two non-obvious placement details matter:
   ```
   This one line is easy to skip and means the single most important class of
   startup failure never shows up in error tracking. Don't skip it.
+- **A failure inside the config import itself is invisible too, if
+  `init_sentry()` reads its settings from that config.** When the config
+  module raises on a missing required environment variable, the crash happens
+  during the entrypoint's `import main` — before `init_sentry()` ever runs —
+  so the single most common deploy mistake (a forgotten variable) never
+  reaches Bugsink. Fix it with a tiny bootstrap module that reads only the
+  optional `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` straight
+  from `os.environ` and **never imports the config** (so it can't fail on the
+  same missing variable), and have the entrypoint (`server.py` or similar) use
+  it before importing the app:
+  ```python
+  init_startup_sentry()  # raw os.environ only; no-op without SENTRY_DSN
+  try:
+      from myapp.main import app_module_path
+  except Exception as e:
+      logger.exception('Failed to import the app, refusing to start.')
+      report_startup_failure(e)  # capture_exception + flush(timeout=5)
+      raise  # keep the non-zero exit so the container still fails
+  ```
+  Wrap anything else that runs before uvicorn starts (e.g. DB migrations) the
+  same way. The `flush()` matters: the process is about to exit, and the
+  background transport would otherwise drop the event. The full `init_sentry()`
+  in the app still re-initializes with the complete config afterwards. Test
+  that the bootstrap module imports with none of the required variables set.
 
 Add the dependency with the extra matching the web framework, e.g.
 `sentry-sdk[fastapi]` (Flask/Django have their own extras).
