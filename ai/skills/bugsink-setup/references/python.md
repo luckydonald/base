@@ -96,9 +96,9 @@ Docker image where `.git` isn't present:
 
 ```python
 GIT_COMMIT_FULL = (
-    env('SOURCE_COMMIT', default='', required=False)  # explicit override wins
-    or _git('rev-parse', 'HEAD')                        # local dev / CI with .git present
-    or _read_file(APP_DIR / 'git-commit.txt')            # baked into the image at build time
+    env('SOURCE_COMMIT', default='', required=False)  # coolify env var
+    or git('rev-parse', 'HEAD')                        # local dev / CI with .git present
+    or read_file(APP_DIR / 'git-commit.txt')            # baked into the image at build time
     or 'unknown'
 )
 # same pattern for GIT_BRANCH and BUILD_TIME

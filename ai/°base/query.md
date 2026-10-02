@@ -7399,3 +7399,5 @@ And, well, auto-claims sounds like the wrong thing to do, if every project would
 ❯ 1. Pull the learning a437ff7c9386ca89eaca7d81c5b6954b7ed9a6b7 from `../DockerTgBot` into the bugsink skill.
 2. Cherry pick 77394016fea1722afaf97ef152749a4ee463cf96, 562314a832ef9c855fbae828c5aa7ee8788a35f8, 9d78141cdee584fbefb70808b8a92fcfd6d2f1ee, 147604127fd9b5f202cd83ca51e6ba51bbf10313, bb12792779c0da5bc339a2ed33af7a70b95e636d, 898a995aa3b7bb7c4db53c260ee8d1a4d380847c, and following commits, so the CalDAV MCP definition is available for all base-extending projects, upon turning it to enabled.
 
+❯ Apply [@`ai/skills/code-style/references/md.md`](../skills/code-style/references/md.md) to all skills in @ai/skills/
+
