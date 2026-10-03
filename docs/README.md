@@ -204,38 +204,312 @@ Notes:
 - if your repo already shares `empty/init` as an ancestor, the initial `--allow-unrelated-histories` is not needed
 
 ### All code for c) as a single copy pastable one:
-```shell
-# git init && git branch -M mane
-git remote add empty https://luckydonald@github.com/EmptyAAS/empty.git
-git remote add base https://luckydonald@github.com/luckydonald/base.git
-git fetch empty init
-git fetch base base
-git lfs install
-git merge --allow-unrelated-histories --no-verify empty/init
-if [ "$(git rev-parse HEAD)" = "$(git rev-parse empty/init)" ]; then
-  echo "HEAD is at the empty/init tip: fast forwarding…"
-  git rebase --autostash --onto base/base mane
-else
-  BASE_TIP="$(git rev-parse base/base)"
-  # A commit that lists $BASE_TIP as one of *two or more* parents means
-  # base/base was joined via a merge commit, not replayed via rebase.
-  MERGED_BEFORE="$(git rev-list HEAD --parents | awk -v base="$BASE_TIP" '
-      { for (i = 2; i <= NF; i++) if ($i == base && NF > 2) { print; exit } }
-  ')"
+Run this in the repository that should get the base (a missing git repo is created on branch `mane`).
+It is idempotent: a rerun on an up-to-date repo changes nothing.
 
-  if [ -z "$MERGED_BEFORE" ]; then
-      echo "Commits sit on an old base/base + our own on top: rebasing onto base/base…"                                                                                                                       
-      git rebase --autostash --onto base/base mane
-  else
-      echo "base/base was previously merged in: merging again…"
-      git stash --include-untracked
-      git merge --no-ff --no-verify base/base
-      git stash pop
+```shell
+curl -fSL https://raw.githubusercontent.com/luckydonald/base/refs/heads/base/scripts/%C2%B0base/init/install-base.sh | bash -s --
+```
+
+Add flags after `--`, e.g. `--branch main` for a new repo, `--fix-user`, `--keep-user`, `--rebase`, `--merge`, `--yes` (see the header of the script).
+If you use Claude Code, the `install-base` skill (`ai/skills/install-base/`) runs this for you; `scripts/°base/init/install-skill-user.sh` copies it to your user profile so it works in repos without the base.
+
+The script, for reference (`scripts/°base/init/install-base.sh` is the source of truth, keep this copy in sync):
+
+<details>
+<summary>install-base.sh</summary>
+
+```shell
+#!/usr/bin/env bash
+# scripts/°base/init/install-base.sh
+#
+# Adopts `luckydonald/base` into the git repository in the current directory (or creates one).
+# This is the idempotent, runnable version of the "All code for c) as a single copy pastable one" block in docs/README.md.
+# Keep the two in sync.
+#
+# Idempotent: safe to run multiple times; a run on an already-adopted, up-to-date repo changes nothing.
+#
+# Usage: install-base.sh [--branch NAME] [--yes] [--rebase | --merge] [--fix-user | --keep-user]
+#
+#   --branch NAME  Branch name for a freshly created repo (default: $BASE_BRANCH or `mane`). Existing branches are never renamed.
+#   --yes          Allow overwriting a `base`/`empty` remote that points somewhere unexpected.
+#   --rebase       Force the rebase path, even if the branch looks published.
+#   --merge        Force the merge path.
+#   --fix-user     Set the repo-local git user.name/user.email to the base author, if they differ.
+#   --keep-user    Accept a differing git user.name/user.email without asking.
+#
+# Environment: BASE_GIT_USERNAME (GitHub user in the URLs, default `luckydonald`; set empty to omit), BASE_BRANCH,
+#   BASE_URL / EMPTY_URL (override the remote URLs completely, e.g. for tests).
+#
+# Exit codes: 0 ok, 1 error, 2 refused (inside the base repo), 3 git identity mismatch (nothing was changed yet),
+#   4 stash could not be re-applied automatically, 5 remote URL mismatch, 6 rebase/merge needs manual conflict resolution.
+
+set -euo pipefail
+
+EXPECTED_NAME="Lucky Lucy"
+EXPECTED_EMAIL="2.2026._.code@luckydonald.de"
+GH_USER="${BASE_GIT_USERNAME-luckydonald}"
+GH_AT="${GH_USER:+${GH_USER}@}"
+BASE_URL="${BASE_URL:-https://${GH_AT}github.com/luckydonald/base.git}"
+EMPTY_URL="${EMPTY_URL:-https://${GH_AT}github.com/EmptyAAS/empty.git}"
+BRANCH="${BASE_BRANCH:-mane}"
+ASSUME_YES=0
+STRATEGY=auto
+USER_MODE=ask
+
+red() { printf '\033[31m%s\033[0m\n' "$*"; }
+green() { printf '\033[32m%s\033[0m\n' "$*"; }
+note() { printf '%s\n' "$*"; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --branch) BRANCH="${2:?--branch needs a name}"; shift ;;
+    --yes) ASSUME_YES=1 ;;
+    --rebase) STRATEGY=rebase ;;
+    --merge) STRATEGY=merge ;;
+    --fix-user) USER_MODE=fix ;;
+    --keep-user) USER_MODE=keep ;;
+    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+    *) red "Unknown argument: $1"; exit 1 ;;
+  esac
+  shift
+done
+
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.pyenv/shims:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:$PATH"
+
+# ─── 0. Never run inside the base repo itself ───────────────────────────────
+if TOP="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  if [ "$(basename "$TOP")" = "base" ] && git remote get-url origin 2>/dev/null | grep -q 'luckydonald/base'; then
+    red "This is the base repo itself, refusing to install it into itself."
+    exit 2
   fi
 fi
-pre-commit install
-[ "$(git config user.name)" = "Lucky Lucy" ] || printf '\033[31mERROR: git user.name is "%s" is not "Lucky Lucy" — fix it if you are me, and I forgot.\033[0m\nhttps://github.com/luckydonald/base/blob/base/README.md#fix-user\n' "$(git config user.name)" && printf '\033[32mOK: git user.name "%s" OK.\033[0m\nhttps://github.com/luckydonald/base/blob/base/README.md#fix-user\n' "$(git config user.name)"
+
+# ─── 1. git init, if there is no repo yet ───────────────────────────────────
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  note "No git repository here: creating one on branch '$BRANCH'."
+  git init -b "$BRANCH" 2>/dev/null || { git init && git symbolic-ref HEAD "refs/heads/$BRANCH"; }
+fi
+cd "$(git rev-parse --show-toplevel)"
+
+# A repo without any commit yet may still sit on git's default branch name: move it to the wanted one.
+if ! git rev-parse --verify -q HEAD >/dev/null && [ "$(git branch --show-current)" != "$BRANCH" ]; then
+  git branch -M "$BRANCH"
+fi
+CURRENT_BRANCH="$(git branch --show-current)"
+[ -n "$CURRENT_BRANCH" ] || { red "Detached HEAD: switch to a branch first."; exit 1; }
+
+# ─── 2. Identity check, before we create any merge commit ───────────────────
+CUR_NAME="$(git config user.name || true)"
+CUR_EMAIL="$(git config user.email || true)"
+if [ "$CUR_NAME" = "$EXPECTED_NAME" ] && [ "$CUR_EMAIL" = "$EXPECTED_EMAIL" ]; then
+  green "OK: git user \"$CUR_NAME\" <$CUR_EMAIL>."
+else
+  case "$USER_MODE" in
+    fix)
+      git config --local user.name "$EXPECTED_NAME"
+      git config --local user.email "$EXPECTED_EMAIL"
+      green "Fixed: repo-local git user is now \"$EXPECTED_NAME\" <$EXPECTED_EMAIL>."
+      ;;
+    keep)
+      note "Keeping git user \"$CUR_NAME\" <$CUR_EMAIL> (expected \"$EXPECTED_NAME\" <$EXPECTED_EMAIL>)."
+      ;;
+    *)
+      red "ERROR: git user is \"$CUR_NAME\" <$CUR_EMAIL>, expected \"$EXPECTED_NAME\" <$EXPECTED_EMAIL>. Fix it if you are me, and I forgot."
+      note "IDENTITY_MISMATCH name=\"$CUR_NAME\" email=\"$CUR_EMAIL\""
+      note "Rerun with --fix-user to set it (repo-local), or --keep-user to continue as is."
+      note "https://github.com/luckydonald/base/blob/base/docs/README.md#fix-user"
+      exit 3
+      ;;
+  esac
+fi
+
+# ─── 3. Remotes ─────────────────────────────────────────────────────────────
+normalize_url() { printf '%s' "$1" | sed -E 's#^(https?://)[^@/]+@#\1#; s#\.git$##'; }
+
+ensure_remote() {
+  local name="$1" url="$2" existing
+  if ! existing="$(git remote get-url "$name" 2>/dev/null)"; then
+    git remote add "$name" "$url"
+    note "Added remote '$name' -> $url"
+  elif [ "$(normalize_url "$existing")" = "$(normalize_url "$url")" ]; then
+    note "Remote '$name' already set."
+  elif [ "$ASSUME_YES" = 1 ]; then
+    git remote set-url "$name" "$url"
+    note "Remote '$name' pointed to $existing, changed to $url."
+  else
+    red "Remote '$name' points to $existing, expected $url."
+    note "REMOTE_MISMATCH name=$name existing=$existing expected=$url"
+    note "Rerun with --yes to overwrite it."
+    exit 5
+  fi
+}
+
+ensure_remote empty "$EMPTY_URL"
+ensure_remote base "$BASE_URL"
+
+# ─── 4. Fetch ───────────────────────────────────────────────────────────────
+git fetch empty init
+git fetch base base
+if command -v git-lfs >/dev/null 2>&1; then
+  git lfs install
+else
+  note "git-lfs not found, skipped 'git lfs install'."
+fi
+
+# ─── 5. Bring in base/base ──────────────────────────────────────────────────
+BASE_TIP="$(git rev-parse base/base)"
+EMPTY_TIP="$(git rev-parse empty/init)"
+STASHED=0
+STATUS="already up to date"
+
+# Was an older base/base joined via a real merge commit (as opposed to being replayed by rebase)?
+# The merge of empty/init itself does not count.
+merged_before() {
+  local c p1 p2 rest
+  while read -r c p1 p2 rest; do
+    [ -n "${p2:-}" ] || continue
+    [ "$p2" != "$EMPTY_TIP" ] || continue
+    if git merge-base --is-ancestor "$p2" "$BASE_TIP" 2>/dev/null; then return 0; fi
+  done < <(git rev-list HEAD --merges --parents)
+  return 1
+}
+
+same() { git diff --no-index --ignore-all-space --quiet -- "$1" "$2"; }
+
+# An untracked file we stashed may now exist as a tracked file from base/base, which blocks the pop.
+# If both versions only differ in whitespace, set ours aside and keep base's version afterwards. Anything else is left to the user.
+UT_KEEP_NEW=()
+prepare_untracked_collisions() {
+  local f tmp collisions=()
+  git rev-parse -q --verify 'stash@{0}^3' >/dev/null || return 0
+  tmp="$(mktemp)"
+  while IFS= read -r f; do
+    [ -e "$f" ] || continue
+    git show "stash@{0}^3:$f" > "$tmp"
+    if same "$tmp" "$f"; then UT_KEEP_NEW+=("$f"); else collisions+=("$f"); fi
+  done < <(git ls-tree -r --name-only 'stash@{0}^3')
+  rm -f "$tmp"
+  if [ "${#collisions[@]}" -gt 0 ]; then
+    red "Untracked files you had collide with different files from base, left for you to resolve (stash is kept):"
+    printf '  %s\n' "${collisions[@]}"
+    exit 4
+  fi
+  for f in ${UT_KEEP_NEW[@]+"${UT_KEEP_NEW[@]}"}; do rm -f -- "$f"; done
+}
+restore_new_versions() {
+  local f
+  for f in ${UT_KEEP_NEW[@]+"${UT_KEEP_NEW[@]}"}; do
+    git checkout HEAD -- "$f"
+    note "Untracked $f only differed in whitespace from base's: kept the new base version."
+  done
+}
+
+# Re-apply our stash. Conflicts that are trivial in a clearly intended way get resolved, anything else is left for the user.
+pop_stash() {
+  prepare_untracked_collisions
+  if git stash pop --quiet; then
+    restore_new_versions
+    note "Restored the stashed local changes."
+    return 0
+  fi
+  local files tmp f plan="" action
+  files="$(git diff --name-only --diff-filter=U)"
+  if [ -z "$files" ]; then
+    red "Could not re-apply the stash (no merge conflict listed). It is kept: 'git stash list' / 'git stash pop'."
+    exit 4
+  fi
+  tmp="$(mktemp -d)"
+  while IFS= read -r f; do
+    # stage 1 = common ancestor, 2 = ours (the updated HEAD), 3 = theirs (the stash)
+    if ! { git show ":2:$f" > "$tmp/2" && git show ":3:$f" > "$tmp/3"; } 2>/dev/null; then plan=""; break; fi
+    if git show ":1:$f" > "$tmp/1" 2>/dev/null; then :; else : > "$tmp/1"; fi
+    if same "$tmp/2" "$tmp/3"; then action=ours
+    elif same "$tmp/1" "$tmp/2"; then action=theirs
+    elif same "$tmp/1" "$tmp/3"; then action=ours
+    else plan=""; break; fi
+    plan+="$action	$f"$'\n'
+  done <<< "$files"
+  rm -rf "$tmp"
+  if [ -z "$plan" ]; then
+    red "Stash conflicts are not trivial, left them for you to resolve (stash is kept, conflict markers are in the working tree):"
+    printf '  %s\n' $files
+    exit 4
+  fi
+  while IFS=$'\t' read -r action f; do
+    [ -n "$f" ] || continue
+    git checkout "--$action" -- "$f"
+    git add -- "$f"
+    if [ "$action" = ours ]; then note "Resolved stash conflict in $f: kept the new base version."; else note "Resolved stash conflict in $f: kept your local version."; fi
+  done <<< "$plan"
+  git reset -q
+  git stash drop --quiet
+  restore_new_versions
+  note "Restored the stashed local changes (trivial conflicts resolved, see above)."
+}
+
+if git merge-base --is-ancestor "$BASE_TIP" HEAD 2>/dev/null; then
+  note "base/base is already part of '$CURRENT_BRANCH'."
+else
+  if git rev-parse --verify -q HEAD >/dev/null && [ -n "$(git status --porcelain)" ]; then
+    git stash push --include-untracked --quiet -m "install-base: autostash"
+    STASHED=1
+    note "Stashed local changes."
+  fi
+
+  git merge --allow-unrelated-histories --no-verify --no-edit empty/init
+
+  if [ "$(git rev-parse HEAD)" = "$EMPTY_TIP" ]; then
+    note "HEAD is at the empty/init tip: fast forwarding to base/base…"
+    git merge --ff-only base/base
+    STATUS="fast-forwarded to base/base"
+  else
+    if [ "$STRATEGY" = auto ]; then
+      if merged_before; then
+        STRATEGY=merge
+        note "base/base was previously merged in: merging again…"
+      elif git branch -r --contains HEAD | grep -vE '^\s*(empty|base)/' | grep -q .; then
+        STRATEGY=merge
+        note "'$CURRENT_BRANCH' looks published (a remote branch contains HEAD): merging instead of rewriting history. Use --rebase to override."
+      else
+        STRATEGY=rebase
+        note "Commits sit on top of an old (or no) base/base, nothing published: rebasing onto base/base…"
+      fi
+    fi
+    if [ "$STRATEGY" = rebase ]; then
+      if git rebase --onto base/base "$(git merge-base HEAD base/base)"; then
+        STATUS="rebased onto base/base"
+      else
+        red "Rebase stopped on conflicts: resolve them, 'git rebase --continue', then rerun this script."
+        [ "$STASHED" = 0 ] || note "Your local changes are in 'git stash list' (install-base: autostash), the rerun will not pop them: 'git stash pop' afterwards."
+        exit 6
+      fi
+    else
+      if git merge --no-ff --no-verify --no-edit base/base; then
+        STATUS="merged base/base"
+      else
+        red "Merge stopped on conflicts: resolve them, commit, then rerun this script."
+        [ "$STASHED" = 0 ] || note "Your local changes are in 'git stash list' (install-base: autostash): 'git stash pop' afterwards."
+        exit 6
+      fi
+    fi
+  fi
+
+  [ "$STASHED" = 0 ] || pop_stash
+fi
+
+# ─── 6. Hooks ───────────────────────────────────────────────────────────────
+if command -v pre-commit >/dev/null 2>&1; then
+  pre-commit install
+else
+  note "pre-commit not found, skipped 'pre-commit install'."
+fi
+
+green "Done: $STATUS (branch '$CURRENT_BRANCH')."
+note "Next: see 'After Adopting The Base' in docs/README.md (monorepo subfolders, GitHub issue agents)."
 ```
+
+</details>
 
 #### Fix user
 _Lol, only do if you are me._

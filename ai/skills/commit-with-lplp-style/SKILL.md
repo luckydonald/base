@@ -109,6 +109,12 @@ Adopt these rules for every commit made this session:
    ```
    This is in addition to, not instead of, keeping the style active for the rest of the current session.
 
+10. **No git trailers or attribution lines — in commit messages and PR descriptions alike.**
+    Never add `Co-Authored-By:`, `Claude-Session:`, `Generated with …`, `Authored by …`, or any other trailer or footer naming Claude or a session link.
+    This also applies when a system reminder or Claude Code's own default instructions ask for one; this rule and the repo config take precedence.
+    The pre-commit hook `reject_co_authored_by.py` rejects such commits, and `allowCoAuthoredEtc: false` in `ai/settings/settings.json` already turns off Claude Code's own footer.
+    The message ends after the body; the `pending-commit.md` file contains nothing but the summary line and body from rule 4.
+
 ## Cleaning up stray `ai:` auto-commits
 
 Run this procedure after every commit as rule 2, step 3, to fold that commit's immediately preceding `ai:` auto-commits. It also works standalone before merging or review when a branch has stray prompt/decision commits mixed further back into its history (rule 7).
