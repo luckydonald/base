@@ -308,10 +308,10 @@ if [ -f "$TEMPLATE" ] && [ ! -e "$INITIAL" ]; then
   cp "$TEMPLATE" "$INITIAL"
   note "Created $INITIAL from the template."
   if [ -t 1 ] && { : < /dev/tty; } 2>/dev/null; then
-    sh -c "${EDITOR:-vi} \"\$1\"" _ "$INITIAL" < /dev/tty > /dev/tty || note "Editor exited with an error, $INITIAL is still there."
+    sh -c "${EDITOR:-nano} \"\$1\"" _ "$INITIAL" < /dev/tty > /dev/tty || note "Editor exited with an error, $INITIAL is still there."
   else
     note "INITIAL_TEMPLATE path=$INITIAL"
-    note "Agent: tell the user to fill in the initial plan in $INITIAL (print the command: \`\${EDITOR:-vi} $INITIAL\`), and to send it once happy with \`@$INITIAL\`."
+    note "Agent: tell the user to fill in the initial plan in $INITIAL (print the command: \`${EDITOR:-nano} $INITIAL\`), and to send it once happy with \`@$INITIAL\`."
   fi
 fi
 
