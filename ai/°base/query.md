@@ -7406,3 +7406,20 @@ Have the pulled-in commits reference their DockerTgBot commit hashes, using the 
 
 ❯ fold it
 
+❯ /plan Based on [@`docs/README.md`](../../docs/README.md) build a skill to install this. Mostly the big pastable block linked at the top, the one starting with `# git init`.
+The commented out stuff should only be done if needed, the rest pretty much run in it's entirety - it should be written in a way where it's pretty indempotent anyways. Also if run and the git account doesn't match, offer to fix it.
+
+❯ Plan denied:
+> Changes:
+> 1. > end with the Claude-Session: trailer.
+>    - No, that's wrong, no Authored by and that not either. You may need to adapt the commit style there.
+> 2. Also include a script to copy it to the user's claude profile, so it's reusable if _not_ checked out in this particular git repo.
+> 3. The branch to create, especially if none exists (fresh `git init`) shall be named `mane` per default.
+> 4. Add the `git init` etc. setup as runnable indempotent code, too.
+> 5. Identity check: Yeah fix that code bug.
+> 6. Your improved code should be updated in the readme as well.
+> 7. > if stash pop conflicts
+>    - if it's super trivial to solve in a clearly intended way, go ahead and report the result.
+>
+> Note: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions.
+
