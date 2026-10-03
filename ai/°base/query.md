@@ -7423,3 +7423,8 @@ The commented out stuff should only be done if needed, the rest pretty much run 
 >
 > Note: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions.
 
+❯ Plan denied:
+> Make sure the /commit-with-lplp-style skill is edited to be clear about the git trailers, and you follow the /code-style (`md.md`) for the skills.
+>
+> Note: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions.
+

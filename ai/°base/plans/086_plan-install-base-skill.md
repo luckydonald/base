@@ -2,56 +2,70 @@
 
 ## Context
 
-`docs/README.md` ("All code for c) as a single copy pastable one") is a big shell block for adopting `luckydonald/base` into another repo.
+`docs/README.md` ("All code for c) as a single copy pastable one", lines 206-238) is a big shell block for adopting `luckydonald/base` into another repo.
 Today a human pastes it by hand.
 We want a skill that makes Claude run it, so adoption is one request, safe to repeat, and fixes a wrong git identity on request.
+The improved code is the single source of truth: it goes into a script, the skill runs that script, and the README block is updated to match.
 
 Commit style: `commit-with-lplp-style` is active for the implementation (origin is `luckydonald/base`, so assumed `yes` per `AGENTS.md`).
-Commits use `[base] install-base skill: ai: Run: Short summary.` and end with the `Claude-Session:` trailer.
+Commit messages are `[base] install-base skill: ai: Run: Short summary.` with **no trailers at all**: no `Co-Authored-By:`, no `Claude-Session:`, no "authored by" line.
+The repo's pre-commit hook (`.pre-commit-config.yaml`) rejects them, and `ai/settings/settings.json` already suppresses Claude Code's own footer.
+This deliberately overrides the session attribution reminder, and the plan file notes it because the implementation may run in a session that only sees this document.
 
-## Deliverable
+## Deliverables
 
-New canonical file `ai/skills/install-base/SKILL.md`, then run `python3 scripts/°base/ai/settings/sync.py` to create the `.claude/skills` and `.agents/skills` symlinks.
-Prose is wrapped per `ai/skills/code-style/references/md.md` (sentence-per-line, ~140 chars). No new scripts: the block lives in the skill.
+1. **`scripts/°base/init/install-base.sh`** (new): the idempotent installer, sibling of `checkout.sh`. Contains everything below.
+2. **`ai/skills/install-base/SKILL.md`** (new): tells Claude when and how to run the script, handles the interactive questions, reports results.
+   Prose wrapped per `ai/skills/code-style/references/md.md`.
+   Frontmatter `name: "install-base"`, description triggering on "install/adopt/add/merge/update the base into this repo".
+   Then run `python3 scripts/°base/ai/settings/sync.py` to create the `.claude/skills` and `.agents/skills` symlinks.
+3. **`scripts/°base/init/install-skill-user.sh`** (new): copies the skill (and the installer script it needs) into the user's Claude profile, so it works in repos that don't have the base checked out.
+   - Target `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/install-base/` (honours the dual work/private config dirs, see memory [[project_dual_codex_config_dirs]]).
+   - Copies `SKILL.md` plus a bundled copy of `install-base.sh` next to it; the user-level `SKILL.md` references the script relative to its own dir. Idempotent (`rsync`/`cp -f`, no-op if identical). A copy rather than a symlink, because the symlink would dangle once the base repo moves or isn't checked out.
+   - Also mention the same install for `~/.agents/skills` (Codex) as an optional flag `--codex`.
+4. **`docs/README.md`**: replace the block at lines 206-238 with the improved code (inlined, still one copy-pastable block, or a short `curl | bash` of the script plus the full block kept for transparency), and fix the identity-check bug there. Also add a note pointing to the skill.
 
-Frontmatter: `name: "install-base"`, plus a description that triggers on "install/adopt/add/merge the base into this repo", "set up luckydonald/base", "update base".
+## Installer behaviour (`install-base.sh`)
 
-## Skill content
+Runs from the target repo root. `set -u`; each step is guarded so a rerun changes nothing.
 
-1. **Scope check.** Run from the target repo root. Refuse to run in the `base` repo itself (dir named `base` with origin `luckydonald/base`; reuse the same idea as `_is_inside_base_repo()` in `scripts/°base/ai/hooks/_lib.py`).
-   If the dir isn't a git repo, run `git init` and `git branch -M <name>`; ask the user for the branch name (default `main`, README example `mane`). These are the README's commented-out lines, so they run only when needed (no `.git`, or the user asked for a rename).
-2. **Run the block almost verbatim**, as the README does, with these changes for idempotency (the rest of the README block stays as-is):
-   - `git remote add empty|base …` becomes `git remote get-url X >/dev/null 2>&1 || git remote add X …`.
-     If the remote exists with a different URL, show it and ask before `set-url`.
-   - `git fetch`, `git lfs install` and `pre-commit install` are already safe to repeat.
-   - The `--onto base/base mane` rebase uses the literal `mane`, which is a README bug for any other branch name.
-     The skill substitutes the current branch (`git branch --show-current`).
-   - Add a fast path: if `git merge-base --is-ancestor base/base HEAD`, print "already up to date" and skip the merge/rebase branches (but still run `pre-commit install` and the identity check).
-   - Keep the README's three-way decision (at `empty/init` tip → rebase; old base plus own commits → rebase; previously merged → merge).
-   - Warn before the rebase branches, since they rewrite history. Recommend merge if the branch is already pushed (`git branch -r --contains HEAD` non-empty), per README "Which Workflow To Choose".
-   - Stay out of `--autostash`/`stash` surprises: if stash pop conflicts, stop and report instead of continuing.
-   - Skip the `git lfs install` / `pre-commit install` steps with a note if the binary isn't installed (report it, don't fail the whole run).
-3. **Identity check, with the README bug fixed.**
-   The README line `[ ] || printf ERROR && printf OK` prints OK even after ERROR (`||`/`&&` are left-associative), so the skill uses a proper if/else.
-   Compare `git config user.name` with `Lucky Lucy` (and email with `2.2026._.code@luckydonald.de`).
-   On mismatch, print what was found and **ask the user** (`AskUserQuestion`: fix / leave) before running the README "Fix user" `git config --local …` commands.
-   Add the README's warning that this is only for the repo owner.
-   Only when commits already exist with the wrong author, mention the README "Fix previous commits" rebase but do not run it unprompted.
-4. **Gotchas to state:** the `luckydonald@` URL part only matters with multiple GitHub accounts (use `BASE_GIT_USERNAME`-like substitution for other users);
-   the pre-commit `--no-verify` merges are intentional because base hooks can't pass before the base is present.
-5. **Report:** which branch path was taken, remotes added, identity result, and next steps (README "After Adopting The Base": per-subfolder `link-subproject-claude.sh`, GitHub agent secrets).
+1. **Self-guard:** refuse in the base repo itself (dir named `base` and origin `luckydonald/base`; same idea as `_is_inside_base_repo()` in `scripts/°base/ai/hooks/_lib.py`).
+2. **git init, runnable, not commented out:**
+   - `git rev-parse --git-dir` fails → `git init -b mane` (default branch name `mane`; override via `BASE_BRANCH` env or `--branch`).
+   - Already a repo: do not rename. For a fresh repo with no commits whose branch isn't the target, `git branch -M mane`. Otherwise keep the current branch.
+3. **Remotes, idempotent:** helper `ensure_remote NAME URL` = add if missing, no-op if same URL, print and `--set-url` only with confirmation (`--yes` or asked by the skill) if different.
+   `empty` → `EmptyAAS/empty.git`, `base` → `luckydonald/base.git`; the `luckydonald@` username is customizable via `BASE_GIT_USERNAME` (as `get-base.py` already does).
+4. **Fetch:** `git fetch empty init`, `git fetch base base`, `git lfs install` (skip with a note if `git-lfs` is missing).
+5. **Merge/rebase decision, README logic kept:**
+   - Fast path first: `git merge-base --is-ancestor base/base HEAD` → "already up to date", skip to step 6.
+   - `git merge --allow-unrelated-histories --no-verify empty/init`, then the three-way decision (at `empty/init` tip → rebase; old base + own commits → rebase; previously merged → merge).
+   - Bug fix: the rebase uses the **current branch** (`git branch --show-current`) instead of the literal `mane`.
+   - Rebase rewrites history; if `git branch -r --contains HEAD` is non-empty (already pushed), warn and use the merge path unless `--rebase` is forced.
+   - Replace `git stash` + `git merge` + `git stash pop` with a conflict-aware pop: if `stash pop` conflicts, inspect the conflicted hunks; when each is trivial and the intent is unambiguous (e.g. one side is only whitespace/identical, or only one side changed the lines), resolve it, `git add`, drop the stash and **report what was resolved**. Anything non-trivial: stop, leave the stash intact, and report the conflicting files.
+6. **`pre-commit install`** (skip with a note if missing).
+7. **Identity check, bug fixed:** the README line `[ ... ] || printf ERROR && printf OK` prints OK even after ERROR (`||`/`&&` are left-associative), so use a real `if/else`.
+   Compare `user.name` with `Lucky Lucy` and `user.email` with `2.2026._.code@luckydonald.de`.
+   On mismatch the script prints what it found and exits with a distinct code (e.g. 3) instead of changing anything;
+   the skill then asks the user (`AskUserQuestion`: fix / leave), and on yes reruns with `--fix-user`, which runs the README's `git config --local` commands.
+   Include the README's "only if you are me" caveat.
+   Wrongly-authored existing commits: mention the README "Fix previous commits" recipe but never run it unprompted.
+8. **Summary line** of what was done vs. skipped, for the skill to report. Also point to README "After Adopting The Base" (per-subfolder `link-subproject-claude.sh`, GitHub agent secrets).
 
 ## Critical files
 
-- `ai/skills/install-base/SKILL.md` (new)
-- Read-only sources: `docs/README.md` lines 206-253, `ai/skills/code-style/references/md.md`
+- New: `scripts/°base/init/install-base.sh`, `scripts/°base/init/install-skill-user.sh`, `ai/skills/install-base/SKILL.md`
+- Edited: `docs/README.md`
+- Reference: `scripts/°base/init/checkout.sh` (style and conventions), `scripts/°base/ai/hooks/_lib.py`, `ai/skills/code-style/references/md.md`
 - Generated by sync: `.claude/skills/install-base/`, `.agents/skills/install-base/`
 
 ## Verification
 
-1. `python3 scripts/°base/ai/settings/sync.py` then `--check` passes; symlinks exist.
-2. Dry-run the script portion in a scratch dir under the scratchpad (not this repo):
-   - fresh `git init` repo, run the block: ends up on top of `base/base`.
-   - run a second time: reports up to date and changes nothing (`git rev-parse HEAD` unchanged).
-   - set `user.name` to something else: mismatch detected, offer shown, no change unless confirmed.
-3. Run the repo's unit tests command from `AGENTS.md` to confirm nothing else broke.
+1. `shellcheck` on both scripts; `python3 scripts/°base/ai/settings/sync.py` then `--check` passes.
+2. In scratchpad dirs (never this repo), with `base`/`empty` remotes pointing at local clones or the real URLs:
+   - empty dir: `git init -b mane` happens, base is merged, ends on top of `base/base`.
+   - second run: "already up to date", `git rev-parse HEAD` unchanged, no duplicate remotes.
+   - repo with an existing commit on branch `main`: branch not renamed, rebase uses `main` not `mane`.
+   - repo with a dirty tree that conflicts trivially with base: stash pop handled and reported; a non-trivial conflict stops and keeps the stash.
+   - wrong `user.name`: exit code 3 and no OK line; `--fix-user` fixes it.
+3. `install-skill-user.sh` with `CLAUDE_CONFIG_DIR` pointed at a scratch dir: files land there, rerun is a no-op.
+4. Run the unit tests from `AGENTS.md`; confirm the README block and the script's logic still match.
