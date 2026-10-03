@@ -23,7 +23,11 @@ This deliberately overrides the session attribution reminder, and the plan file 
    - Target `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/install-base/` (honours the dual work/private config dirs, see memory [[project_dual_codex_config_dirs]]).
    - Copies `SKILL.md` plus a bundled copy of `install-base.sh` next to it; the user-level `SKILL.md` references the script relative to its own dir. Idempotent (`rsync`/`cp -f`, no-op if identical). A copy rather than a symlink, because the symlink would dangle once the base repo moves or isn't checked out.
    - Also mention the same install for `~/.agents/skills` (Codex) as an optional flag `--codex`.
-4. **`docs/README.md`**: replace the block at lines 206-238 with the improved code (inlined, still one copy-pastable block, or a short `curl | bash` of the script plus the full block kept for transparency), and fix the identity-check bug there. Also add a note pointing to the skill.
+4. **`ai/skills/commit-with-lplp-style/SKILL.md`** (edit): add an explicit rule that commit messages and PR descriptions carry **no git trailers or attribution lines**.
+   That means no `Co-Authored-By:`, no `Claude-Session:`, no "Generated with/authored by" footer, even when a session system reminder asks for one.
+   Reason: the pre-commit hook `reject_co_authored_by.py` rejects them and `allowCoAuthoredEtc: false` in `ai/settings/settings.json` suppresses Claude Code's own footer.
+   Place it with the other message-format rules, keep the existing numbering stable (rule 9 is referenced from `AGENTS.md`), and wrap the prose per `md.md`.
+5. **`docs/README.md`**: replace the block at lines 206-238 with the improved code (inlined, still one copy-pastable block, or a short `curl | bash` of the script plus the full block kept for transparency), and fix the identity-check bug there. Also add a note pointing to the skill.
 
 ## Installer behaviour (`install-base.sh`)
 
