@@ -131,8 +131,10 @@ ensure_remote base "$BASE_URL"
 # ─── 4. Fetch ───────────────────────────────────────────────────────────────
 git fetch empty init
 git fetch base base
+# --local: a plain `git lfs install` exits non-zero (and would abort us) when a global filter.lfs.* config differs from its defaults,
+# e.g. an absolute /opt/homebrew/bin/git-lfs. It is also what checkout.sh does, and never touches the global ~/.gitconfig.
 if command -v git-lfs >/dev/null 2>&1; then
-  git lfs install
+  git lfs install --local || note "WARNING: 'git lfs install --local' failed, continuing (git-lfs filters may need 'git lfs install --force --local')."
 else
   note "git-lfs not found, skipped 'git lfs install'."
 fi
@@ -283,6 +285,16 @@ if command -v pre-commit >/dev/null 2>&1; then
   pre-commit install
 else
   note "pre-commit not found, skipped 'pre-commit install'."
+fi
+
+# ─── 7. LFS hardening (helpers that came in with the base) ──────────────────
+# Make the repo-local filter.lfs.* use the absolute git-lfs path (IDE gits run with a restricted PATH),
+# and disable LFS lock verification (lfs.<endpoint>.locksverify) for GitHub remotes, which would otherwise fail pushes.
+if command -v git-lfs >/dev/null 2>&1; then
+  if [ -x scripts/°base/init/git-lfs-full-path.sh ]; then scripts/°base/init/git-lfs-full-path.sh || note "WARNING: git-lfs-full-path.sh failed."; fi
+  if [ -f scripts/°base/git/remote/fix_username.py ] && command -v python3 >/dev/null 2>&1; then
+    python3 scripts/°base/git/remote/fix_username.py --fix-lfs-locks-only || note "WARNING: fixing LFS lock verification failed."
+  fi
 fi
 
 green "Done: $STATUS (branch '$CURRENT_BRANCH')."

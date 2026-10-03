@@ -7434,3 +7434,9 @@ The commented out stuff should only be done if needed, the rest pretty much run 
 
 ❯ Any `*@luckydonald.de` is fine. (ammend for this time).
 
+❯ install it
+
+❯ Check out the issue in session 178bfc05-688e-4ed4-9313-8d8b631e13ad (@ai/°base/errors/27.md), which happened in @../bitwarden-keepass-sync/. It is solved by that one fix-project python script as one of the last tasks by setting `filter.lfs.<remote>.something`, which we automatically should, too.
+
+❯ yeah, locksverify, I think.
+

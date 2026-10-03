@@ -26,7 +26,8 @@ The script is safe to rerun, and a rerun on an up-to-date repo changes nothing.
 1. No git repository yet: `git init -b mane`.
    A repo with no commits is moved to `mane` as well, an existing branch is never renamed. Another name for a new repo: `--branch NAME`.
 2. Checks the git identity (see below) before it creates any commit.
-3. Adds the `empty` and `base` remotes if missing, then fetches them and runs `git lfs install`.
+3. Adds the `empty` and `base` remotes if missing, then fetches them and runs `git lfs install --local`.
+   `--local` matters: a plain `git lfs install` fails when a global `filter.lfs.*` config differs from git-lfs' defaults (e.g. an absolute `/opt/homebrew/bin/git-lfs`), and it would rewrite the global `~/.gitconfig` with `--force`.
 4. Brings in `base/base`:
    - already contained → nothing to do.
    - repo only at `empty/init` → fast-forward.
@@ -34,6 +35,7 @@ The script is safe to rerun, and a rerun on an up-to-date repo changes nothing.
    - an older base was merged before → merge again.
    - Local changes are stashed and re-applied afterwards. Trivial conflicts (whitespace-only differences, or only one side changed) are resolved and reported, anything else is left for the user.
 5. Runs `pre-commit install`.
+6. LFS hardening, using the helpers that came in with the base: repo-local `filter.lfs.*` pointing at the absolute `git-lfs` path (`git-lfs-full-path.sh`), and `lfs.<endpoint>.locksverify false` for GitHub remotes (`fix_username.py --fix-lfs-locks-only`).
 
 Flags: `--rebase` / `--merge` force the strategy (rebase rewrites history, so only force it when the user is fine with a later force-push), `--yes` allows overwriting a differing `base`/`empty` remote URL.
 The `luckydonald@` part of the remote URLs only matters with several GitHub accounts; set `BASE_GIT_USERNAME` to another user, or empty to drop it.
