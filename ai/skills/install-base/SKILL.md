@@ -43,7 +43,7 @@ The `luckydonald@` part of the remote URLs only matters with several GitHub acco
 | Code | Meaning | Do |
 |---|---|---|
 | 0 | done | Report the summary line. Point to "After Adopting The Base" in `docs/README.md`. |
-| 3 | git `user.name`/`user.email` is not `Lucky Lucy` / `2.2026._.code@luckydonald.de`; nothing has been changed yet | Ask the user via `AskUserQuestion` whether to fix it (this is only right if they are the owner of the base). Yes → rerun with `--fix-user`. No → rerun with `--keep-user`. |
+| 3 | git `user.name`/`user.email` is not `Lucky Lucy` with an email `*@luckydonald.de` or `*@luckylu.cy` (`--fix-user` sets `2.2026._.code@luckydonald.de`); nothing has been changed yet | Ask the user via `AskUserQuestion` whether to fix it (this is only right if they are the owner of the base). Yes → rerun with `--fix-user`. No → rerun with `--keep-user`. |
 | 4 | the stash could not be re-applied automatically | The stash is kept. Show the listed files and help resolve them, then `git stash drop`. |
 | 5 | an existing `base`/`empty` remote points elsewhere | Show both URLs, ask whether to overwrite, then rerun with `--yes`. |
 | 6 | rebase or merge stopped on conflicts | Help resolve, `git rebase --continue` (or commit the merge), then rerun the script. Local changes are in `git stash list`. |

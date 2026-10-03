@@ -25,7 +25,9 @@
 set -euo pipefail
 
 EXPECTED_NAME="Lucky Lucy"
-EXPECTED_EMAIL="2.2026._.code@luckydonald.de"
+EXPECTED_EMAIL="2.2026._.code@luckydonald.de"  # what --fix-user sets
+# Emails that count as the base author: anything at luckydonald.de or luckylu.cy.
+email_ok() { case "$1" in *@luckydonald.de|*@luckylu.cy) return 0 ;; *) return 1 ;; esac; }
 GH_USER="${BASE_GIT_USERNAME-luckydonald}"
 GH_AT="${GH_USER:+${GH_USER}@}"
 BASE_URL="${BASE_URL:-https://${GH_AT}github.com/luckydonald/base.git}"
@@ -80,7 +82,7 @@ CURRENT_BRANCH="$(git branch --show-current)"
 # ─── 2. Identity check, before we create any merge commit ───────────────────
 CUR_NAME="$(git config user.name || true)"
 CUR_EMAIL="$(git config user.email || true)"
-if [ "$CUR_NAME" = "$EXPECTED_NAME" ] && [ "$CUR_EMAIL" = "$EXPECTED_EMAIL" ]; then
+if [ "$CUR_NAME" = "$EXPECTED_NAME" ] && email_ok "$CUR_EMAIL"; then
   green "OK: git user \"$CUR_NAME\" <$CUR_EMAIL>."
 else
   case "$USER_MODE" in
@@ -90,10 +92,10 @@ else
       green "Fixed: repo-local git user is now \"$EXPECTED_NAME\" <$EXPECTED_EMAIL>."
       ;;
     keep)
-      note "Keeping git user \"$CUR_NAME\" <$CUR_EMAIL> (expected \"$EXPECTED_NAME\" <$EXPECTED_EMAIL>)."
+      note "Keeping git user \"$CUR_NAME\" <$CUR_EMAIL> (expected \"$EXPECTED_NAME\" <*@luckydonald.de or *@luckylu.cy>)."
       ;;
     *)
-      red "ERROR: git user is \"$CUR_NAME\" <$CUR_EMAIL>, expected \"$EXPECTED_NAME\" <$EXPECTED_EMAIL>. Fix it if you are me, and I forgot."
+      red "ERROR: git user is \"$CUR_NAME\" <$CUR_EMAIL>, expected \"$EXPECTED_NAME\" <*@luckydonald.de or *@luckylu.cy>. Fix it if you are me, and I forgot."
       note "IDENTITY_MISMATCH name=\"$CUR_NAME\" email=\"$CUR_EMAIL\""
       note "Rerun with --fix-user to set it (repo-local), or --keep-user to continue as is."
       note "https://github.com/luckydonald/base/blob/base/docs/README.md#fix-user"
