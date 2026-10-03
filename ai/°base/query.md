@@ -7440,3 +7440,5 @@ The commented out stuff should only be done if needed, the rest pretty much run 
 
 ❯ yeah, locksverify, I think.
 
+❯ I've added [@`ai/°base/initial_template.md`](./initial_template.md) which I want the script installing the base/base to the current folder to copy into `./ai` and open with `$EDITOR` at the end (or if there's no stdin (agent ran it) echo to the agent to print the command to edit an initial plan template ready for editing and sending with `@ai/initial.md` once happy.
+

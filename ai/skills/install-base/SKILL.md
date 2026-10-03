@@ -39,6 +39,8 @@ The script is safe to rerun, and a rerun on an up-to-date repo changes nothing.
 
 Flags: `--rebase` / `--merge` force the strategy (rebase rewrites history, so only force it when the user is fine with a later force-push), `--yes` allows overwriting a differing `base`/`empty` remote URL.
 The `luckydonald@` part of the remote URLs only matters with several GitHub accounts; set `BASE_GIT_USERNAME` to another user, or empty to drop it.
+7. Copies `ai/°base/initial_template.md` to `ai/initial.md` if that doesn't exist yet. A human on a terminal gets `$EDITOR` opened on it; when run by an agent (no terminal) the script prints an `INITIAL_TEMPLATE path=ai/initial.md` line instead.
+   In that case print the command to the user (`${EDITOR:-vi} ai/initial.md`) and tell them to send the file with `@ai/initial.md` once they're happy with it. Don't fill in or edit the plan yourself.
 
 ## Exit codes and what to do
 

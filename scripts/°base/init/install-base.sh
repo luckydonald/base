@@ -131,10 +131,11 @@ ensure_remote base "$BASE_URL"
 # ─── 4. Fetch ───────────────────────────────────────────────────────────────
 git fetch empty init
 git fetch base base
-# --local: a plain `git lfs install` exits non-zero (and would abort us) when a global filter.lfs.* config differs from its defaults,
-# e.g. an absolute /opt/homebrew/bin/git-lfs. It is also what checkout.sh does, and never touches the global ~/.gitconfig.
+# --local: a plain `git lfs install` exits non-zero (and would abort us) when a global filter.lfs.* config differs from git-lfs' defaults,
+# e.g. an absolute /opt/homebrew/bin/git-lfs. --local --force only (re)writes this repo's own config, never the global ~/.gitconfig;
+# the absolute-path filters are set again in step 7.
 if command -v git-lfs >/dev/null 2>&1; then
-  git lfs install --local || note "WARNING: 'git lfs install --local' failed, continuing (git-lfs filters may need 'git lfs install --force --local')."
+  git lfs install --local --force || note "WARNING: 'git lfs install --local --force' failed, continuing."
 else
   note "git-lfs not found, skipped 'git lfs install'."
 fi
@@ -294,6 +295,23 @@ if command -v git-lfs >/dev/null 2>&1; then
   if [ -x scripts/°base/init/git-lfs-full-path.sh ]; then scripts/°base/init/git-lfs-full-path.sh || note "WARNING: git-lfs-full-path.sh failed."; fi
   if [ -f scripts/°base/git/remote/fix_username.py ] && command -v python3 >/dev/null 2>&1; then
     python3 scripts/°base/git/remote/fix_username.py --fix-lfs-locks-only || note "WARNING: fixing LFS lock verification failed."
+  fi
+fi
+
+# ─── 8. Initial plan template ───────────────────────────────────────────────
+# Copy the template to ai/initial.md (never overwriting) and get it edited: open $EDITOR for a human, or tell the agent how.
+# A human is detected by a terminal on stdout plus a readable /dev/tty, not by stdin, because `curl … | bash` occupies stdin.
+TEMPLATE="ai/°base/initial_template.md"
+INITIAL="ai/initial.md"
+if [ -f "$TEMPLATE" ] && [ ! -e "$INITIAL" ]; then
+  mkdir -p ai
+  cp "$TEMPLATE" "$INITIAL"
+  note "Created $INITIAL from the template."
+  if [ -t 1 ] && { : < /dev/tty; } 2>/dev/null; then
+    sh -c "${EDITOR:-vi} \"\$1\"" _ "$INITIAL" < /dev/tty > /dev/tty || note "Editor exited with an error, $INITIAL is still there."
+  else
+    note "INITIAL_TEMPLATE path=$INITIAL"
+    note "Agent: tell the user to fill in the initial plan in $INITIAL (print the command: \`\${EDITOR:-vi} $INITIAL\`), and to send it once happy with \`@$INITIAL\`."
   fi
 fi
 
