@@ -7612,3 +7612,8 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 > </details>
 >
 
+❯ Plan [@`ai/°base/todos.md`](./todos.md)
+
+
+❯ Put `.avif` into `.gitattributes` in @../../base/ including this query into the `ai/°base/query.md`, and commit with the `[base] [sticker_robot]` prefix there.
+
