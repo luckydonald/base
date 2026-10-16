@@ -1,0 +1,1 @@
+Background command "Wait for loop to finish and summarize scores" completed (exit code 0)

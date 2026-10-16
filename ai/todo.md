@@ -34,7 +34,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 - [ ] have the show-plan-confirm-action for claude also sync the plan once more — `todo:7eb9a977-d3d3-4ba0-9889-39732d4c7f1a`
   > Sometimes it uses echo or python scripts to edit the plan file, also usually not mentioning the full path in one go, but `CLAUDE_PLAN_DIR + PLAN_NAME + ‘.md’` or something weird.
   > Hence it’s best to write & commit it once more. You can also use the plan decision hook for that, if that’s better.
-- [x] add missing `mcp__bugsink__*` permissions — `todo:9adc5376-530b-4020-9cf4-6f7e55ff3ac1`
+- [x] add missing `mcp__bugsink__*` permissions — `todo:9adc5376-530b-4020-9cf4-6f7e55ff3ac1` _(done)_
   > Add to @ai/settings/settings.json:
   > ```json
   > // TODO: fix quotes
@@ -43,6 +43,6 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > “mcp__bugsink__get_stacktrace”,
   > “mcp__bugsink__test_connection”,
   > ```
-- [ ] checkout.sh: skip symlinked hooks in repair_git_lfs_hooks_path — `todo:56f6ee1a-63c7-4c77-9588-174c3f48d98d`
+- [x] checkout.sh: skip symlinked hooks in repair_git_lfs_hooks_path — `todo:56f6ee1a-63c7-4c77-9588-174c3f48d98d` _(done)_
   > `scripts/°base/init/checkout.sh` `repair_git_lfs_hooks_path()` rewrote symlinked hooks (e.g. `.git/hooks/pre-push` -> tracked `.hooks/pre-push.bash`) through the link, stripping the repo's own hook content on every Claude session start.
   > Fixed in luckydonald/docker-tg-bot with a `[ -L "$hook_file" ] && continue` guard plus `scripts/°base/tests/test_checkout_lfs_hooks.py`; bring the same change into luckydonald/base.

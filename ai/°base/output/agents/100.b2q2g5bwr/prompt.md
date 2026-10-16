@@ -1,0 +1,1 @@
+Background command "Run the full unit test suite" completed (exit code 0)

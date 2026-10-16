@@ -104,6 +104,9 @@ repair_git_lfs_hooks_path() {
   for hook_name in post-checkout post-commit post-merge pre-push; do
     hook_file="$HOOKS_DIR/$hook_name"
     [ -f "$hook_file" ] || continue
+    # A symlinked hook is a tracked script of the repo (e.g. `.hooks/pre-push.bash`), not a git-lfs stub:
+    # `cat >` would write through the link and overwrite the tracked file.
+    [ -L "$hook_file" ] && continue
     if grep -q 'git lfs' "$hook_file" && grep -q 'git-lfs' "$hook_file"; then
       lfs_command="$hook_name"
       cat >"$hook_file" <<EOF
