@@ -1,0 +1,1 @@
+Background command "Show generated diffs and run tests" failed with exit code 144

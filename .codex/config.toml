@@ -10,13 +10,25 @@ enabled = true
 command = "npx"
 args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "bugsink-mcp"]
 
+[mcp_servers."bugsink".tools."get_event"]
+approval_mode = "auto"
+
 [mcp_servers."bugsink".tools."get_issue"]
+approval_mode = "auto"
+
+[mcp_servers."bugsink".tools."get_stacktrace"]
+approval_mode = "auto"
+
+[mcp_servers."bugsink".tools."list_events"]
 approval_mode = "auto"
 
 [mcp_servers."bugsink".tools."list_issues"]
 approval_mode = "auto"
 
 [mcp_servers."bugsink".tools."list_projects"]
+approval_mode = "auto"
+
+[mcp_servers."bugsink".tools."test_connection"]
 approval_mode = "auto"
 
 [mcp_servers."chrome-devtools"]

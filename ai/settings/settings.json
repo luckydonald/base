@@ -362,6 +362,10 @@
       {"type": "mcp", "server": "bugsink", "tool": "list_projects"},
       {"type": "mcp", "server": "bugsink", "tool": "list_issues"},
       {"type": "mcp", "server": "bugsink", "tool": "get_issue"},
+      {"type": "mcp", "server": "bugsink", "tool": "list_events"},
+      {"type": "mcp", "server": "bugsink", "tool": "get_event"},
+      {"type": "mcp", "server": "bugsink", "tool": "get_stacktrace"},
+      {"type": "mcp", "server": "bugsink", "tool": "test_connection"},
       {"type": "bash", "command": "echo \"---\""},
       {"type": "bash", "command": "echo ---"},
       {"type": "bash", "command": "echo '---'"}

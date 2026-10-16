@@ -51,7 +51,28 @@ Quick, well-specified items go first, the larger hook and symlink work last.
 
 ## Current task
 
-None started. Next: run the sync, then intel on item 1 (`9adc5376`).
+Item 1 of 13, `9adc5376` (bugsink permissions): intel done, awaiting plan accept.
+Sync reload is done: `[base] up to date (13 todos)`.
+Run the script from `/Users/user/Documents/programming/Python/DockerTgBot` with `uv run --script scripts/sync_todos.py --project base`, because run from `base` uv picks up DockerTgBot's `.python-version` (`docker-tg-bot-3.10.0`) and fails.
+
+### Plan for item 1 (`9adc5376`)
+
+Findings: `ai/settings/settings.json` already has `{"type": "mcp", "server": "bugsink", "tool": ...}` allow entries for `list_projects`, `list_issues` and `get_issue` at lines 362-364.
+The todo's four tools are missing, and its curly quotes only matter if pasted literally, the structured form needs none.
+
+Change: insert four entries after line 364, in the same compact one-line form.
+
+```json
+{"type": "mcp", "server": "bugsink", "tool": "list_events"},
+{"type": "mcp", "server": "bugsink", "tool": "get_event"},
+{"type": "mcp", "server": "bugsink", "tool": "get_stacktrace"},
+{"type": "mcp", "server": "bugsink", "tool": "test_connection"},
+```
+
+Then run `python3 scripts/°base/ai/settings/sync.py` so `.claude/settings.json` (`mcp__bugsink__*` permission strings) follows, and check `sync.py --check` plus the unit tests.
+No new unit test: this is pure data, covered by the existing sync round-trip tests and the `--check` pre-commit hook.
+Commit: `[base] settings: ai: Run: Allow remaining read-only bugsink MCP tools.` with the message in `ai/git/pending-commit.md`.
+Close: tick `9adc5376`, `complete_todo` (needs the `sync_todo` MCP, currently disconnected, so I'll report this to the user if it stays unavailable), re-run the sync, rebase.
 
 ## Verification
 

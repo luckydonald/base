@@ -34,7 +34,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 - [ ] have the show-plan-confirm-action for claude also sync the plan once more — `todo:7eb9a977-d3d3-4ba0-9889-39732d4c7f1a`
   > Sometimes it uses echo or python scripts to edit the plan file, also usually not mentioning the full path in one go, but `CLAUDE_PLAN_DIR + PLAN_NAME + ‘.md’` or something weird.
   > Hence it’s best to write & commit it once more. You can also use the plan decision hook for that, if that’s better.
-- [ ] add missing `mcp__bugsink__*` permissions — `todo:9adc5376-530b-4020-9cf4-6f7e55ff3ac1`
+- [x] add missing `mcp__bugsink__*` permissions — `todo:9adc5376-530b-4020-9cf4-6f7e55ff3ac1`
   > Add to @ai/settings/settings.json:
   > ```json
   > // TODO: fix quotes

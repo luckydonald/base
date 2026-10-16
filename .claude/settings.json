@@ -354,6 +354,10 @@
       "mcp__bugsink__list_projects",
       "mcp__bugsink__list_issues",
       "mcp__bugsink__get_issue",
+      "mcp__bugsink__list_events",
+      "mcp__bugsink__get_event",
+      "mcp__bugsink__get_stacktrace",
+      "mcp__bugsink__test_connection",
       "Bash(echo \"---\")",
       "Bash(echo ---)",
       "Bash(echo '---')"
