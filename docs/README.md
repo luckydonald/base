@@ -297,6 +297,9 @@ The helper is idempotent (no-ops if the symlink already points at the right plac
 After a `git merge`/`git pull` or a finished `git rebase`, the pre-commit `post-merge`/`post-rewrite` hook (`scripts/°base/git/hooks/post/resync_subproject_links.py`, installed by `scripts/°base/init/checkout.sh`) re-syncs the per-file `.run/*.run.xml` links of every subproject (a folder with a tracked `.claude` symlink): missing links are added, dangling ones removed, and just those paths are committed as `link_subproject: re-sync subproject links.` without touching your index, working tree or the merge/rebase state.
 The commit is skipped (links stay staged) while a cherry-pick/revert/bisect is running, on a detached HEAD, or with `SUBPROJECT_RESYNC_COMMIT=0`. Run `scripts/°base/init/link_subproject.py --resync` to do the same by hand.
 
+To keep a run config at the repo root only, list it in `.run/.subprojectIgnore` (read from the monorepo root only): one `fnmatch` glob per line, matched against the file name, with `#` comment lines and blank lines allowed.
+Ignored configs are skipped by both `link_subproject.py` and the re-sync; links that already exist in a subproject are not removed.
+
 ### Branch splitting (clean/unclean/history)
 
 This base can keep a "clean" branch (no AI/base mentions, safe to publish) in sync with an `ai/UNCLEAN/{branch}` working branch (where AI and code commits mix freely) and an `ai/history/{branch}` branch (the AI-only leftovers). The tooling for this lives under `scripts/°base/git/°split_lib/`, but since it's itself classified as AI/base content, it never exists on a clean checkout — so it ships with a standalone launcher instead.

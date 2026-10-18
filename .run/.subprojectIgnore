@@ -1,0 +1,4 @@
+# Run configs listed here are not symlinked into subprojects by `scripts/°base/init/link_subproject.py`.
+# One `fnmatch` glob per line, matched against the file name in this folder, e.g.:
+#   some root only.run.xml
+#   *.local.run.xml

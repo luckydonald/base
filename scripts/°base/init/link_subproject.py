@@ -17,6 +17,10 @@
 # from inside a subfolder of a monorepo that has the `base` repo merged at
 # its top level.
 #
+# Run configs listed in the monorepo-root `.run/.subprojectIgnore` (one
+# `fnmatch` glob per line matched against the file name, `#` comments and blank
+# lines allowed) are not linked; links that already exist are left alone.
+#
 # Because <cwd>/.claude is a symlink to the monorepo root's .claude, Claude
 # Code's own native project-identity resolution (used for its auto-memory
 # and session storage under ~/.claude/projects/<encoded>/) collapses back to
@@ -49,6 +53,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import os
 import re
@@ -373,6 +378,28 @@ def copy_if_missing(rel: str, template_name: str) -> None:
 # end def
 
 
+SUBPROJECT_IGNORE_NAME = ".subprojectIgnore"
+
+
+def read_subproject_ignore() -> list[str]:
+    # the patterns of `<git_root>/.run/.subprojectIgnore`: one `fnmatch` glob per
+    # line, matched against the config's file name; blank lines and `#` comment
+    # lines are skipped. A missing or unreadable file ignores nothing.
+    try:
+        text = (git_root / ".run" / SUBPROJECT_IGNORE_NAME).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    # end try
+    stripped = (line.strip() for line in text.splitlines())
+    return [line for line in stripped if line and not line.startswith("#")]
+# end def
+
+
+def is_subproject_ignored(name: str, patterns: list[str]) -> bool:
+    return any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns)
+# end def
+
+
 def link_run_configs(*, backup: bool = True) -> list[str]:
     # returns the sub_dir-relative paths of the symlinks newly created.
     run_dir = git_root / ".run"
@@ -383,7 +410,12 @@ def link_run_configs(*, backup: bool = True) -> list[str]:
         return created
     # end if
 
+    ignored = read_subproject_ignore()
     for f in sorted(run_dir.glob("*.run.xml")):
+        if is_subproject_ignored(f.name, ignored):
+            print(f"{f.name} is listed in {SUBPROJECT_IGNORE_NAME} — not linking.")
+            continue
+        # end if
         rel = f".run/{f.name}"
         if link_path(rel, git_root / rel, backup=backup):
             created.append(rel)

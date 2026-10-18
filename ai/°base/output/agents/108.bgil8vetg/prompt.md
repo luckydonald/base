@@ -1,0 +1,1 @@
+Background command "Run the full test suite" failed with exit code 144

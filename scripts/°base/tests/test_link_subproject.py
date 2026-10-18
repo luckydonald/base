@@ -338,6 +338,51 @@ class ResyncTests(unittest.TestCase):
         self.assertEqual(git(["log", "-1", "--format=%s"], self.repo_root), link_subproject.RESYNC_COMMIT_MESSAGE)
     # end def
 
+    def test_ignored_root_run_configs_are_not_linked(self) -> None:
+        (self.repo_root / ".run" / ".subprojectIgnore").write_text(
+            "# root only\n\nroot only.run.xml\r\n  🅱️*.local.run.xml  \n"
+        )
+        for name in ("root only.run.xml", "🅱️x.local.run.xml", "kept.run.xml"):
+            (self.repo_root / ".run" / name).write_text("n")
+        # end for
+        git(["add", "-A"], self.repo_root)
+        git(["commit", "-m", "root adds configs"], self.repo_root)
+
+        link_subproject.resync_all()
+
+        self.assertEqual(self.committed_paths(), ["sub/.run/kept.run.xml"])
+        self.assertFalse((self.sub_dir / ".run" / "root only.run.xml").exists())
+        self.assertFalse((self.sub_dir / ".run" / "🅱️x.local.run.xml").is_symlink())
+        self.assertFalse((self.sub_dir / ".run" / ".subprojectIgnore").exists())
+    # end def
+
+    def test_manual_run_skips_ignored_configs(self) -> None:
+        (self.repo_root / ".run" / ".subprojectIgnore").write_text("a.run.xml\n")
+        (self.repo_root / ".run" / "b.run.xml").write_text("b")
+        (self.sub_dir / ".run" / "a.run.xml").unlink()
+
+        created = link_subproject.link_run_configs()
+
+        self.assertEqual(created, [".run/b.run.xml"])
+        self.assertFalse((self.sub_dir / ".run" / "a.run.xml").exists())
+    # end def
+
+    def test_existing_link_of_a_now_ignored_config_is_left_alone(self) -> None:
+        (self.repo_root / ".run" / ".subprojectIgnore").write_text("*.run.xml\n")
+        before = self.head()
+
+        link_subproject.resync_all()
+
+        self.assertTrue((self.sub_dir / ".run" / "a.run.xml").is_symlink())
+        self.assertTrue((self.sub_dir / ".run" / EMOJI_RUN).is_symlink())
+        self.assertEqual(before, self.head())
+    # end def
+
+    def test_missing_ignore_file_ignores_nothing(self) -> None:
+        self.assertEqual(link_subproject.read_subproject_ignore(), [])
+        self.assertFalse(link_subproject.is_subproject_ignored("a.run.xml", []))
+    # end def
+
     def test_dangling_link_to_a_removed_root_config_is_removed_and_committed(self) -> None:
         git(["rm", "-q", "--", f".run/{EMOJI_RUN}"], self.repo_root)
         git(["commit", "-m", "root removes config"], self.repo_root)
