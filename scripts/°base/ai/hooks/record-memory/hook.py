@@ -437,7 +437,7 @@ def main() -> int:
         if command:
             for target in _rm_targets(command):
                 matched_src_dir = next(
-                    (d for d in src_dirs if target.parent == d.resolve()), None
+                    (d for d in src_dirs if target.parent.resolve() == d.resolve()), None
                 )
                 if matched_src_dir is None:
                     continue

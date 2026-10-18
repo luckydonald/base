@@ -234,7 +234,7 @@ class GetBaseTests(unittest.TestCase):
         self.assertEqual(result, path)
         self.assertFalse(stale_file.exists())
         self.assertEqual(sibling_file.read_text(), "keep\n")
-        self.assertEqual(git(["rev-parse", "--show-toplevel"], path), str(path))
+        self.assertEqual(git(["rev-parse", "--show-toplevel"], path), str(path.resolve()))
         self.assertIn(f"get-base.py: removing stale worktree: {path}", stderr.getvalue())
     # end def
 

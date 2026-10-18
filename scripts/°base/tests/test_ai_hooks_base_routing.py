@@ -2979,7 +2979,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
     def test_process_referenced_files_links_existing_skill(self):
         content, resolved = self._process_with_skill("please /code-style this, then /code-style.\n")
         self.assertEqual(content.count("[/code-style]("), 2, content)
-        self.assertEqual(content.count("ai/skills/code-style/SKILL.md)"), 2, content)
+        self.assertEqual(content.count("](./skills/code-style/SKILL.md)"), 2, content)
         self.assertTrue(content.endswith(", then [/code-style](" + content.rsplit("](", 1)[1]), content)
         self.assertTrue(all(m.skill == "code-style" for m in resolved))
 

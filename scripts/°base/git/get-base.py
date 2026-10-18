@@ -129,7 +129,8 @@ def _is_valid_worktree(path: Path) -> bool:
     if not path.exists():
         return False
     result = _run(["rev-parse", "--show-toplevel"], cwd=path, check=False)
-    return result.returncode == 0 and Path(result.stdout.strip()) == path
+    # git reports the resolved toplevel, so compare against the resolved path (symlinked checkouts, macOS `/var` -> `/private/var`)
+    return result.returncode == 0 and Path(result.stdout.strip()).resolve() == path.resolve()
 
 
 def ensure_worktree(repo_root: Path, ref: str = REMOTE_BRANCH) -> Path:

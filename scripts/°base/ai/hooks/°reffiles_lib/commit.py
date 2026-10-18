@@ -85,7 +85,8 @@ def resolve_existing(mentions: list[Mention], subproject: Path) -> list[Resolved
 
 
 def link_target(abspath: Path, log_path: Path) -> str:
-    target = os.path.relpath(abspath, log_path.parent)
+    # `abspath` is already resolved, so the log directory has to be too, or a symlinked checkout (e.g. macOS `/var` -> `/private/var`) gets a wrong `../../..` link
+    target = os.path.relpath(abspath, log_path.parent.resolve())
     return target if target.startswith("..") else f"./{target}"
 # end def
 
