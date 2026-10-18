@@ -12,7 +12,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > • still must adhere to .gitignore
 - [x] also link `/skill` calls to their `ai/skills/…/SKILL.md` — `todo:be604b2a-0d90-4b41-973b-d57bc48e0772` _(done)_
   > • obviously the skill must exist
-- [!] add skill to use `download_ref.py` — `todo:e7df2be3-4ad7-41c4-8aab-d3a2acd1508b` _(needs action)_
+- [x] add skill to use `download_ref.py` — `todo:e7df2be3-4ad7-41c4-8aab-d3a2acd1508b` _(done)_
   > So at least `--no-ide.`
 
 ## Synced from CalDAV
