@@ -1431,6 +1431,81 @@ class CliApplyOrCheckTests(unittest.TestCase):
             second_pass = cli._apply_or_check(shared_path, claude_path, codex_path, True, rules_path, config_path)
             self.assertEqual(second_pass, [])
 
+    def _shared_with_allow(self, root: Path, commands_allowed: list[str]) -> Path:
+        shared_path = root / "ai" / "settings" / "settings.json"
+        shared_path.parent.mkdir(parents=True, exist_ok=True)
+        allow = ", ".join(f'{{"type": "bash", "command": "{command}"}}' for command in commands_allowed)
+        shared_path.write_text(
+            '{"version": 1, "hooks": {}, "permissions": {"allow": [' + allow + '], "deny": []}}', encoding="utf-8",
+        )
+        return shared_path
+
+    def test_dry_run_records_a_diff_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shared_path = self._shared_with_allow(root, ["tree:*"])
+            claude_path = root / ".claude" / "settings.json"
+            codex_path = root / ".codex" / "hooks.json"
+
+            json_io.CHANGE_DIFFS.clear()
+            changed = cli._apply_or_check(shared_path, claude_path, codex_path, False)
+
+            self.assertIn(str(claude_path), changed)
+            self.assertFalse(claude_path.exists())
+            diff = json_io.CHANGE_DIFFS[str(claude_path)]
+            self.assertIn("--- /dev/null", diff)
+            self.assertIn(f"+++ b/{claude_path}", diff)
+            self.assertIn("tree:*", diff)
+
+    def test_applied_change_records_a_diff_with_added_lines(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shared_path = self._shared_with_allow(root, ["tree:*"])
+            claude_path = root / ".claude" / "settings.json"
+            codex_path = root / ".codex" / "hooks.json"
+            cli._apply_or_check(shared_path, claude_path, codex_path, True)
+            self._shared_with_allow(root, ["ls:*"])
+            os.utime(shared_path, (time.time() + 10, time.time() + 10))
+
+            json_io.CHANGE_DIFFS.clear()
+            cli._apply_or_check(shared_path, claude_path, codex_path, True)
+
+            diff = json_io.CHANGE_DIFFS[str(claude_path)]
+            self.assertRegex(diff, r"(?m)^\+.*ls")
+            self.assertNotRegex(diff, r"(?m)^[-+].*tree")
+            self.assertIn("ls", claude_path.read_text(encoding="utf-8"))
+
+            json_io.CHANGE_DIFFS.clear()
+            self.assertEqual(cli._apply_or_check(shared_path, claude_path, codex_path, True), [])
+            self.assertEqual(json_io.CHANGE_DIFFS, {})
+
+    def test_print_changes_shows_diff_and_warns_when_shared_source_loses_lines(self):
+        shared = paths.TRACKED_SHARED
+        json_io.CHANGE_DIFFS.clear()
+        json_io._record_change(shared, '{\n  "a": 1,\n  "b": 2\n}\n', '{\n  "a": 1\n}\n')
+        out = io.StringIO()
+
+        with contextlib.redirect_stdout(out):
+            cli._print_changes([str(shared)], "Would write")
+
+        text = out.getvalue()
+        self.assertIn(f"Would write: {shared}", text)
+        self.assertIn('-  "b": 2', text)
+        self.assertIn("WARNING", text)
+        self.assertIn("1 file(s), +1 -2 lines.", text)
+
+    def test_print_changes_does_not_warn_when_only_a_trailing_comma_was_added(self):
+        shared = paths.TRACKED_SHARED
+        json_io.CHANGE_DIFFS.clear()
+        json_io._record_change(shared, '[\n  "a"\n]\n', '[\n  "a",\n  "b"\n]\n')
+        out = io.StringIO()
+
+        with contextlib.redirect_stdout(out):
+            cli._print_changes([str(shared)])
+
+        self.assertNotIn("WARNING", out.getvalue())
+        self.assertIn('+  "b"', out.getvalue())
+
     def test_content_change_preserves_existing_native_key_order(self):
         # Regression test: `render_claude` always builds its result dict in a
         # fixed key order (hooks, permissions, enabledPlugins, ...). Without

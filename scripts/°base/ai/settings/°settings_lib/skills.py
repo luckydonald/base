@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from . import paths
-from .json_io import _write_text_if_changed
+from .json_io import _record_note, _write_text_if_changed
 
 _FRONTMATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n(.*)\Z", re.DOTALL)
 _META_LINE = re.compile(r"^([A-Za-z0-9_-]+):\s*(.*)$")
@@ -138,6 +138,7 @@ def _write_symlink_if_changed(link_path: Path, target_path: Path, apply: bool) -
     relative_target = Path(os.path.relpath(target_path, start=link_path.parent))
     if link_path.is_symlink() and Path(os.readlink(link_path)) == relative_target:
         return []
+    _record_note(link_path, f"symlink {link_path} -> {relative_target}")
     if apply:
         link_path.parent.mkdir(parents=True, exist_ok=True)
         if link_path.is_symlink() or link_path.exists():
@@ -153,6 +154,7 @@ def _write_dir_symlink_if_changed(link_path: Path, target_path: Path, apply: boo
     relative_target = Path(os.path.relpath(target_path, start=link_path.parent))
     if link_path.is_symlink() and Path(os.readlink(link_path)) == relative_target:
         return []
+    _record_note(link_path, f"symlink {link_path} -> {relative_target}")
     if apply:
         link_path.parent.mkdir(parents=True, exist_ok=True)
         if link_path.is_symlink():
@@ -188,6 +190,7 @@ def _promote_extra_skill_files(source_skill_md: Path, shared_dir: Path, apply: b
         if dest.exists():
             continue
         changed.append(str(dest))
+        _record_note(dest, f"copy {item} -> {dest}")
         if apply:
             dest.parent.mkdir(parents=True, exist_ok=True)
             if item.is_dir():

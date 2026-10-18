@@ -18,7 +18,9 @@ from typing import Any
 
 from . import codex_rules, codex_toml, commands, mcp_servers, paths
 from .hooks import CURRENT_VERSION, _shared_extras, _merge, _normalize_native, render_claude, render_codex_hooks, render_copilot_hooks
-from .json_io import _read_json, _same_json, _write_json, _write_text_if_changed
+from .json_io import (
+    CHANGE_DIFFS, _current_text, _json_text, _read_json, _record_change, _same_json, _write_json, _write_text_if_changed,
+)
 from .skills import _sync_skills
 
 
@@ -296,6 +298,7 @@ def _apply_or_check(
         if _same_json(path, data):
             continue
         changed.append(str(path))
+        _record_change(path, _current_text(path), _json_text(data))
         if apply:
             _write_json(path, data, backup_timestamp)
 
@@ -324,6 +327,7 @@ def _apply_or_check(
             print(f"Skipped MCP server '{name}' for Claude: unresolvable tool reference.")
         if not _same_json(claude_mcp_path, mcp_data):
             changed.append(str(claude_mcp_path))
+            _record_change(claude_mcp_path, _current_text(claude_mcp_path), _json_text(mcp_data))
             if apply:
                 _write_json(claude_mcp_path, mcp_data, backup_timestamp)
 
@@ -336,13 +340,55 @@ def _stage(paths_to_add: list[str]) -> None:
     subprocess.run(["git", "add", "--", *paths_to_add], check=False)
 
 
+def _count_diff_lines(diff: str) -> tuple[int, int]:
+    """`(added, removed)` line counts of a unified diff, not counting the `+++`/`---` file headers."""
+    lines = diff.splitlines()
+    added = sum(1 for line in lines if line.startswith("+") and not line.startswith("+++"))
+    removed = sum(1 for line in lines if line.startswith("-") and not line.startswith("---"))
+    return added, removed
+
+
+def _lost_lines(diff: str) -> list[str]:
+    """Removed lines of a unified diff that are not merely re-added in changed form, e.g. the previous last array entry that only gained
+    a trailing comma."""
+    lines = diff.splitlines()
+    added = {line[1:].strip().rstrip(",") for line in lines if line.startswith("+") and not line.startswith("+++")}
+    removed = [line[1:] for line in lines if line.startswith("-") and not line.startswith("---")]
+    return [line for line in removed if line.strip().rstrip(",") not in added]
+
+
+def _print_changes(changed: list[str], verb: str | None = None) -> None:
+    """Print every changed path (with `verb`, e.g. `Wrote`, as a prefix when given), each followed by its recorded diff, then a summary.
+
+    Removed lines in the shared source `ai/settings/settings.json` are called out: that happens when a stale native file was picked as
+    the newest one and its older content gets synced over fresher edits."""
+    added_total = removed_total = 0
+    for path in changed:
+        print(f"{verb}: {path}" if verb else f"  {path}")
+        diff = CHANGE_DIFFS.get(path, "")
+        if diff:
+            print(diff, end="" if diff.endswith("\n") else "\n")
+        added, removed = _count_diff_lines(diff)
+        added_total += added
+        removed_total += removed
+        lost = _lost_lines(diff)
+        if lost and Path(path).resolve() == paths.TRACKED_SHARED.resolve():
+            print(
+                f"WARNING: {path} loses {len(lost)} line(s), check that the newest of the native settings files is really the one to keep."
+            )
+        # end if
+    # end for
+    print(f"{len(changed)} file(s), +{added_total} -{removed_total} lines.")
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Synchronize Claude and Codex AI tool settings.")
+    parser =argparse.ArgumentParser(description="Synchronize Claude and Codex AI tool settings.")
     parser.add_argument("--dry-run", action="store_true", help="show what would change without writing files")
     parser.add_argument("--check", action="store_true", help="like --dry-run but exit 1 if files are out of sync (used by pre-commit)")
     args = parser.parse_args(argv)
 
     os.chdir(paths._git_root())
+    CHANGE_DIFFS.clear()
 
     # A merge commit can leave the tracked settings genuinely out of sync (a
     # normal thing to fix), but it can also just surface pre-existing drift in
@@ -395,8 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     if merge_auto_sync:
         if changed:
             print("Merge in progress — auto-synced AI tool settings:")
-            for path in changed:
-                print(f"  Wrote: {path}")
+            _print_changes(changed, "  Wrote")
             if backup_timestamp:
                 print(f"Backups of overwritten files saved alongside originals (*.bak.{backup_timestamp}.*).")
             _stage(changed_main + changed_skills)
@@ -407,13 +452,10 @@ def main(argv: list[str] | None = None) -> int:
     if changed:
         if args.check:
             print("AI tool settings are out of sync:")
-            for path in changed:
-                print(f"  {path}")
+            _print_changes(changed)
             print("Run `./scripts/°base/ai/settings/sync.py` to fix.")
             return 1
-        verb = "Would write" if dry else "Wrote"
-        for path in changed:
-            print(f"{verb}: {path}")
+        _print_changes(changed, "Would write" if dry else "Wrote")
     else:
         print("All files are already in sync.")
 

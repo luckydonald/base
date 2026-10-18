@@ -51,7 +51,35 @@ The todos live on CalDAV (calendar 7, "TODO: Today") and are mirrored into `ai/t
 Items 1 to 3 are done, committed, folded and completed on CalDAV (`d9c9c0c4b`, `d1dbf09e0`, `c9d1085e2`).
 Known pre-existing test failures, ignore: `test_ai_hooks_base_routing` (8), `test_get_base` (2), `test_tag_backup.test_remove_flag_deletes_tags_in_parent_history` (1).
 
-### Plan for item 8 (`e7df2be3`): skill for `download_ref.py`
+### Plan for item 9 (`51f4adc0`): proper diff in the settings sync
+
+Problem: `sync.py` (`scripts/°base/ai/settings/°settings_lib/cli.py`) only prints file names (`Would write: …` / `Wrote: …` / the `--check` list).
+When the wrong file is detected as newest (`_load_layer` merges native sources sorted by `st_mtime`), an older file can overwrite fresh edits, and nothing shows it.
+The todo wants a real diff for both the dry run and the actual run so the agent or user can spot that.
+
+Design:
+1. `json_io.py`: add a module-level `CHANGE_DIFFS: dict[str, str]` plus `_record_change(path, old_text, new_text)` which stores a `difflib.unified_diff` (`a/<path>` and `b/<path>` labels, 3 lines of context, empty `old_text` for a new file).
+   Add `_json_text(data)` (`_dump_json(data) + "\n"`, already what `_write_json` writes) so the JSON and the diff use the same text.
+2. Record the diff exactly where a change is detected, before it is applied:
+   - `cli._apply_or_check`, in the render loop after `_same_json(...)` is false: old text is the file's current text (or empty), new text `_json_text(data)`; same for the `claude_mcp_path` write.
+   - `json_io._write_text_if_changed`, which covers `codex_rules`, `codex config.toml`, the skill files and the command shims.
+   - Symlink changes in `skills.py` (`_write_symlink_if_changed`, `_write_dir_symlink_if_changed`) have no text, so record a one-line `symlink <link> -> <target>` entry instead.
+3. `cli.main`: clear `CHANGE_DIFFS` at the start and add `_print_changes(changed)`, replacing the three separate loops (`Wrote:`, the `--check` list, `Would write:`).
+   For each path it prints the existing line, followed by its diff (if any), and a one-line summary `N files, +A -R lines`.
+   A diff with removed lines in the shared source `ai/settings/settings.json` gets a `WARNING: removes lines from the shared source, check the newest-file detection` line, since that is the case the todo is about.
+   `--check` still exits 1, and the diff makes the pre-commit failure self-explanatory.
+   The merge auto-sync branch prints the diffs too.
+4. Tests in `scripts/°base/tests/test_ai_settings_sync.py` next to `test_apply_or_check_writes_and_is_idempotent`:
+   - A change in dry mode (`apply=False`) records a diff containing the `-` and `+` lines and writes nothing.
+   - The same with `apply=True` records the diff and writes the file; an idempotent second pass records nothing.
+   - A new file gets an all-`+` diff.
+   - `_print_changes` output contains the diff and the warning when the shared source loses lines.
+
+No change to the return type of `_apply_or_check` (`list[str]`), so existing callers and tests are unaffected.
+Verify: `test_ai_settings_sync.py`, then `sync.py --dry-run` and `--check` for real on the repo (clean, so "already in sync"), plus a manual dry run with a temporary edit of `.claude/settings.json` that is reverted.
+Commit `[base] ai/settings sync: ai: Run: Showed a unified diff of every file the settings sync would write or wrote.` (check the topic wording with `git log --oneline -5 -- scripts/°base/ai/settings`), then tick, tag, fold, `complete_todo`, sync.
+
+### Done: plan for item 8 (`e7df2be3`): skill for `download_ref.py`
 
 Context: `scripts/download_ref.py` (symlink to `scripts/°base/download_ref.py`, a `uv run --script` entry point into `scripts/°base/ai/references/°dllink_lib/cli.py`) downloads documentation pages into `ai/references/<host>/…` as Markdown.
 There is no skill telling an agent when and how to use it, and the default behavior opens the downloaded file in an IDE (`--open-ide`, setting `ide`), which hangs or pops windows during agent runs, hence the todo's "at least `--no-ide`".

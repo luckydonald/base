@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import json
 from pathlib import Path
 from typing import Any
@@ -84,11 +85,36 @@ def _backup_if_needed(path: Path, backup_timestamp: str | None) -> str | None:
     return str(backup)
 
 
+# Unified diff per path that a sync run would write (dry run) or wrote, filled while the changes are detected.
+CHANGE_DIFFS: dict[str, str] = {}
+
+
+def _record_change(path: Path, old_text: str, new_text: str) -> None:
+    CHANGE_DIFFS[str(path)] = "".join(difflib.unified_diff(
+        old_text.splitlines(keepends=True),
+        new_text.splitlines(keepends=True),
+        fromfile=f"a/{path}" if old_text else "/dev/null",
+        tofile=f"b/{path}",
+    ))
+
+
+def _record_note(path: Path, note: str) -> None:
+    """For a change that has no text to diff, e.g. a symlink or a copied directory."""
+    CHANGE_DIFFS[str(path)] = f"{note}\n"
+
+
+def _json_text(data: dict[str, Any]) -> str:
+    return _dump_json(data) + "\n"
+
+
+def _current_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
 def _write_json(path: Path, data: dict[str, Any], backup_timestamp: str | None = None) -> None:
     _backup_if_needed(path, backup_timestamp)
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = _dump_json(data) + "\n"
-    path.write_text(text, encoding="utf-8")
+    path.write_text(_json_text(data), encoding="utf-8")
 
 
 def _same_json(path: Path, data: dict[str, Any]) -> bool:
@@ -110,8 +136,10 @@ def _unique(values: list[Any]) -> list[Any]:
 
 
 def _write_text_if_changed(path: Path, text: str, apply: bool, backup_timestamp: str | None = None) -> list[str]:
-    if path.is_file() and path.read_text(encoding="utf-8") == text:
+    current = _current_text(path)
+    if path.is_file() and current == text:
         return []
+    _record_change(path, current, text)
     if apply:
         _backup_if_needed(path, backup_timestamp)
         path.parent.mkdir(parents=True, exist_ok=True)
