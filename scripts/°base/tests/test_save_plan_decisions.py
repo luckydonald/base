@@ -16,6 +16,10 @@ from pathlib import Path
 _routing = importlib.import_module("scripts.°base.tests.test_ai_hooks_base_routing")
 PLAN_HOOK = _routing.PLAN_HOOK
 PROMPT_HOOK = _routing.PROMPT_HOOK
+CORRECTION_NOTE = (
+    "Note: The user's next message may contain a correction or preference. Pay close attention — "
+    "if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions."
+)
 init_repo = _routing.init_repo
 last_subject = _routing.last_subject
 run_git = _routing.run_git
@@ -257,6 +261,44 @@ class PlanDenialRecordingTests(unittest.TestCase):
             content = _query_md(repo).read_text(encoding="utf-8")
             self.assertIn("Plan denied:", content)
             self.assertIn("change the approach", content)
+
+    def test_deny_reason_drops_the_appended_correction_note(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            tool_use_id = f"toolu_deny_note_{uuid.uuid4().hex}"
+            transcript = _write_rejection_transcript(
+                Path(tmp), tool_use_id, f"change the approach\n\n{CORRECTION_NOTE}",
+            )
+
+            run_hook(
+                repo, PROMPT_HOOK,
+                _user_prompt_submit_payload(session_id="d3", transcript_path=transcript),
+                "claude",
+            )
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertIn("Plan denied:", content)
+            self.assertIn("change the approach", content)
+            self.assertNotIn("next message may contain", content)
+
+    def test_deny_with_only_the_correction_note_records_plain_denial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            tool_use_id = f"toolu_deny_note_only_{uuid.uuid4().hex}"
+            transcript = _write_rejection_transcript(Path(tmp), tool_use_id, CORRECTION_NOTE)
+
+            run_hook(
+                repo, PROMPT_HOOK,
+                _user_prompt_submit_payload(session_id="d4", transcript_path=transcript),
+                "claude",
+            )
+
+            content = _query_md(repo).read_text(encoding="utf-8")
+            self.assertIn("Plan denied.", content)
+            self.assertNotIn("Plan denied:", content)
+            self.assertNotIn("next message may contain", content)
 
     def test_deny_without_reason_records_plain_denial(self):
         with tempfile.TemporaryDirectory() as tmp:

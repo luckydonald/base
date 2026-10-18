@@ -163,6 +163,8 @@ def sweep_pending_decisions(session_id: str) -> None:
 
 _REJECTION_PREFIX = "The user doesn't want to proceed with this tool use."
 _REJECTION_REASON_RE = re.compile(r"user said:\n(.*)\Z", re.S)
+# Claude Code appends this boilerplate to a typed deny reason; it is not something the user wrote.
+_REJECTION_CORRECTION_NOTE_RE = re.compile(r"\s*Note: The user's next message may contain a correction or preference\..*\Z", re.S)
 
 
 def _merge_transcript_records(
@@ -383,7 +385,10 @@ def rejection_reason(content: str) -> str | None:
     when the user denied without typing one (a different, shorter message
     with no ``"user said:"`` clause -- see :func:`is_rejection`)."""
     match = _REJECTION_REASON_RE.search(content)
-    return match.group(1).strip() if match else None
+    if not match:
+        return None
+    reason = _REJECTION_CORRECTION_NOTE_RE.sub("", match.group(1)).strip()
+    return reason or None
 
 
 def _filter_rejections(
