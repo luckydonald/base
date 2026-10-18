@@ -7822,3 +7822,5 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 
 ❯ [/code-style](../skills/code-style/SKILL.md) py
 
+❯ Remove those underscores, a class with **only** underscore methods (in python implies private) makes no sense.
+

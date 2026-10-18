@@ -51,3 +51,8 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > - ˋlink_subproject.pyˋ already does it now
   > - the other things should do that too
   > - ideally a shared python function
+- [ ] Remove the `_` prefix from private-style functions in `record-memory/hook.py` — `todo:fded287a-f92c-4f4f-a632-8b3f373eba44`
+  > • code-style says no `_` prefix for ordinary identifiers; hook.py still has ~20 (`_commit`, `_sync_all`, `_git_root`, `_rm_targets`, …)
+  > • rename them and their callers/tests
+  > • or extract into a module instead of hiding them
+  > • low prio, pure cleanup

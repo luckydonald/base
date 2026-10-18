@@ -21,9 +21,9 @@ def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 class RecordMemoryHookTest(unittest.TestCase):
     def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        tmp = Path(self._tmp.name).resolve()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        tmp = Path(self.tmp.name).resolve()
         self.repo = tmp / "base"
         self.config = tmp / "claude"
         self.repo.mkdir()

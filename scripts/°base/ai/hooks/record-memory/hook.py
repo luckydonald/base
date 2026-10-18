@@ -247,7 +247,7 @@ def _check_memory_index_consistency(dst_dir: Path) -> None:
         )
 
 
-def _dirty_names(dst_dir_rel: str, only: list[str] | None = None) -> list[str]:
+def dirty_names(dst_dir_rel: str, only: list[str] | None = None) -> list[str]:
     """`*.md` names in the memory dir that git reports as modified or untracked.
 
     An already hardlinked memory edited in place leaves `link_file` with nothing
@@ -494,7 +494,7 @@ def main() -> int:
         target_dir = secondary_dir if (secondary_dir / rel).is_file() and not (dst_dir / rel).is_file() else dst_dir
         target_rel = str(target_dir.relative_to(Path.cwd()))
         linked = memory_lib.link_file(src_file, target_dir / rel)
-        if linked or _dirty_names(target_rel, [str(rel)]):
+        if linked or dirty_names(target_rel, [str(rel)]):
             _commit(target_rel, [str(rel)])
         # end if
         _check_memory_index_consistency(target_dir)
@@ -511,7 +511,7 @@ def main() -> int:
         for name in _sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel, recreate_missing_src=(i == 0)):
             if name not in changed:
                 changed.append(name)
-    for name in _dirty_names(dst_dir_rel):
+    for name in dirty_names(dst_dir_rel):
         if name not in changed:
             changed.append(name)
         # end if
