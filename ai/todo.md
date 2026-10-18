@@ -32,7 +32,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > • I manually added the `ai/memories/MEMORY.md` in 3927b1d4cc654ec54bba23997c7f448e193b4cab there.
 - [x] have the sync ai settings script show a propper diff — `todo:51f4adc0-dc22-43c4-92cf-4bf9475b9ba1` _(done)_
   > Both for dry run and the actual execution. This is to catch errors if the wrong file was detected as newest, and the changes are removed by syncing an older file over it. This allows the AI agent or user to detect that.
-- [ ] have the show-plan-confirm-action for claude also sync the plan once more — `todo:7eb9a977-d3d3-4ba0-9889-39732d4c7f1a`
+- [x] have the show-plan-confirm-action for claude also sync the plan once more — `todo:7eb9a977-d3d3-4ba0-9889-39732d4c7f1a` _(done)_
   > Sometimes it uses echo or python scripts to edit the plan file, also usually not mentioning the full path in one go, but `CLAUDE_PLAN_DIR + PLAN_NAME + ‘.md’` or something weird.
   > Hence it’s best to write & commit it once more. You can also use the plan decision hook for that, if that’s better.
 - [x] add missing `mcp__bugsink__*` permissions — `todo:9adc5376-530b-4020-9cf4-6f7e55ff3ac1` _(done)_
