@@ -36,6 +36,11 @@
 #   cd monorepo/some_project
 #   ../scripts/°base/init/link_subproject.py
 #
+# `link_subproject.py --resync` (run from anywhere in the repo) is the git-hook
+# mode: after a merge or rebase it adds the missing per-file `.run` links and
+# drops dangling ones in every subproject (a folder with a tracked `.claude`
+# symlink), then commits just those paths. See `resync_all`/`commit_resync`.
+#
 # Safe to run multiple times — already-correct symlinks/seeded files are
 # left alone. Anything pre-existing that would be clobbered by a symlink is
 # moved aside first, as `{name}.YYYY-MM-DD_HH-MM-SS.bak.{ext}` (via `git mv`
@@ -43,11 +48,13 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import os
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -295,13 +302,16 @@ def backup_path(rel: str) -> None:
 # end def
 
 
-def link_path(rel: str, source: Path) -> None:
+def link_path(rel: str, source: Path, *, backup: bool = True) -> bool:
+    # returns whether a new symlink was created. With `backup=False` (the
+    # git-hook re-sync) nothing pre-existing is ever moved or replaced:
+    # a conflicting path is skipped with a warning instead.
     target = sub_dir / rel
     target_dir = target.parent
 
     if not source.exists():
         print(f"no {source} — skipping {rel}", file=sys.stderr)
-        return
+        return False
     # end if
 
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -309,7 +319,11 @@ def link_path(rel: str, source: Path) -> None:
     if target.is_symlink():
         if realpath_of(target) == realpath_of(source):
             print(f"{target} already linked to {source}")
-            return
+            return False
+        # end if
+        if not backup:
+            print(f"{target} is a symlink but points elsewhere ({os.readlink(target)}) — leaving it alone.", file=sys.stderr)
+            return False
         # end if
         print(
             f"{target} is a symlink but points elsewhere ({os.readlink(target)}) — backing up.",
@@ -317,6 +331,10 @@ def link_path(rel: str, source: Path) -> None:
         )
         backup_path(rel)
     elif target.exists():
+        if not backup:
+            print(f"{target} exists and is not a symlink — leaving it alone.", file=sys.stderr)
+            return False
+        # end if
         print(f"{target} exists and is not a symlink — backing up.", file=sys.stderr)
         backup_path(rel)
     # end if
@@ -325,6 +343,7 @@ def link_path(rel: str, source: Path) -> None:
     target.symlink_to(rel_link)
     print(f"linked {target} -> {rel_link}")
     git(["add", "--", rel], sub_dir)
+    return True
 # end def
 
 
@@ -354,18 +373,198 @@ def copy_if_missing(rel: str, template_name: str) -> None:
 # end def
 
 
-def link_run_configs() -> None:
+def link_run_configs(*, backup: bool = True) -> list[str]:
+    # returns the sub_dir-relative paths of the symlinks newly created.
     run_dir = git_root / ".run"
+    created: list[str] = []
 
     if not run_dir.is_dir():
         print(f"no {run_dir} — skipping .run configs", file=sys.stderr)
-        return
+        return created
     # end if
 
     for f in sorted(run_dir.glob("*.run.xml")):
         rel = f".run/{f.name}"
-        link_shared(rel)
+        if link_path(rel, git_root / rel, backup=backup):
+            created.append(rel)
+        # end if
     # end for
+    return created
+# end def
+
+
+def prune_dangling_run_links() -> list[str]:
+    # removes `<sub_dir>/.run/*.run.xml` symlinks that point into the
+    # monorepo-root `.run/` but whose target no longer exists. Anything that
+    # is not a symlink, or points elsewhere, is never touched. Returns the
+    # sub_dir-relative paths removed.
+    run_dir = sub_dir / ".run"
+    root_run_dir = str(git_root / ".run") + os.sep
+    removed: list[str] = []
+
+    if not run_dir.is_dir():
+        return removed
+    # end if
+
+    for f in sorted(run_dir.glob("*.run.xml")):
+        if not f.is_symlink() or f.exists():
+            continue
+        # end if
+        resolved = os.path.normpath(os.path.join(f.parent, os.readlink(f)))
+        if not resolved.startswith(root_run_dir):
+            continue
+        # end if
+        rel = f".run/{f.name}"
+        if is_tracked(rel):
+            git(["rm", "-f", "--quiet", "--", rel], sub_dir)
+        else:
+            f.unlink()
+        # end if
+        print(f"removed dangling {f}")
+        removed.append(rel)
+    # end for
+    return removed
+# end def
+
+
+RESYNC_COMMIT_MESSAGE = "link_subproject: re-sync subproject links."
+
+
+def find_subproject_dirs() -> list[Path]:
+    # a subproject is a folder holding a tracked `.claude` symlink (mode
+    # 120000), which is what `link_shared(".claude")` creates. NUL-delimited,
+    # as the names can hold anything (emoji, spaces, `&`).
+    raw = subprocess.run(
+        ["git", "-C", str(git_root), "ls-files", "-z", "-s"], capture_output=True, text=True, check=True
+    ).stdout
+    found: list[Path] = []
+    for entry in raw.split("\0"):
+        meta, _, path = entry.partition("\t")
+        if not meta.startswith("120000 ") or not path.endswith("/.claude"):
+            continue
+        # end if
+        found.append(git_root / path.removesuffix("/.claude"))
+    # end for
+    return sorted(found)
+# end def
+
+
+def commit_blocker(event: str | None) -> str | None:
+    # why an automatic commit must not happen right now, or None if it is safe.
+    # `event` is the git hook calling us: "merge" (post-merge) tolerates
+    # `MERGE_HEAD`, since git runs that hook before it removes the merge state;
+    # "rebase" (post-rewrite) tolerates the rebase directories, since git runs
+    # that hook once, after the last pick, when the branch ref has moved.
+    # A manual run (None) tolerates neither.
+    gdir = Path(git(["rev-parse", "--absolute-git-dir"], git_root))
+    in_progress = ["CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "sequencer"]
+    if event != "merge":
+        in_progress.append("MERGE_HEAD")
+    # end if
+    if event != "rebase":
+        in_progress += ["rebase-merge", "rebase-apply"]
+    # end if
+    for name in in_progress:
+        if (gdir / name).exists():
+            return f"{name} present"
+        # end if
+    # end for
+    if (gdir / "index.lock").exists():
+        return "index.lock present"
+    # end if
+    head = subprocess.run(["git", "-C", str(git_root), "symbolic-ref", "--quiet", "HEAD"], capture_output=True)
+    if head.returncode != 0:
+        return "detached HEAD"
+    # end if
+    return None
+# end def
+
+
+def commit_resync(paths: list[str], event: str | None) -> str | None:
+    # commits exactly `paths` (git-root-relative, already staged) on top of HEAD
+    # and nothing else. Done with plumbing instead of `git commit`: that would
+    # refuse a partial commit (and make a two-parent commit) while `MERGE_HEAD`
+    # still exists, which it does inside post-merge. A temporary index starts at
+    # HEAD, takes the staged entries of just these paths, and becomes the new
+    # commit; the real index and working tree are not touched (the staged links
+    # already match the new commit), no hooks run. Never raises; on any problem
+    # the links are simply left staged.
+    blocker = commit_blocker(event)
+    if blocker:
+        print(f"not committing the re-synced links ({blocker}); left staged.", file=sys.stderr)
+        return None
+    # end if
+    head = rev_parse_quiet("HEAD", git_root)
+    if head is None:
+        print("not committing the re-synced links (no commits yet); left staged.", file=sys.stderr)
+        return None
+    # end if
+
+    def run(args: list[str], *, env: dict[str, str], stdin: str | None = None) -> str:
+        return subprocess.run(
+            ["git", "-C", str(git_root), *args], capture_output=True, text=True, check=True, input=stdin, env=env
+        ).stdout
+    # end def
+
+    try:
+        literal = {**os.environ, "GIT_LITERAL_PATHSPECS": "1"}
+        staged: dict[str, str] = {}
+        for entry in run(["ls-files", "-z", "-s", "--", *paths], env=literal).split("\0"):
+            meta, _, path = entry.partition("\t")
+            if meta:
+                mode, sha, stage = meta.split(" ")
+                staged[path] = f"{mode} {sha}"
+            # end if
+        # end for
+        index_info = "".join(f"{staged.get(path, '0 ' + '0' * 40)}\t{path}\0" for path in paths)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**literal, "GIT_INDEX_FILE": os.path.join(tmp, "index")}
+            run(["read-tree", head], env=env)
+            run(["update-index", "-z", "--index-info"], env=env, stdin=index_info)
+            tree = run(["write-tree"], env=env).strip()
+        # end with
+
+        if tree == run(["rev-parse", f"{head}^{{tree}}"], env=literal).strip():
+            return None
+        # end if
+        new_sha = run(["commit-tree", tree, "-p", head, "-m", RESYNC_COMMIT_MESSAGE], env=literal).strip()
+        run(["update-ref", "-m", RESYNC_COMMIT_MESSAGE, "HEAD", new_sha, head], env=literal)
+    except subprocess.CalledProcessError as e:
+        print(f"committing the re-synced links failed, left staged: {e.stderr.strip()}", file=sys.stderr)
+        return None
+    # end try
+    print(f"committed re-synced links as {new_sha}")
+    return new_sha
+# end def
+
+
+def resync_all(*, event: str | None = None, commit: bool = True) -> int:
+    # git-hook entry point (after a merge or rebase): brings the per-file
+    # `.run` links of every subproject up to date. Create-only and
+    # non-destructive, no seeding. Never fails the surrounding git command.
+    global sub_dir
+
+    touched: list[str] = []
+    for sub in find_subproject_dirs():
+        sub_dir = sub
+        try:
+            changed = link_run_configs(backup=False) + prune_dangling_run_links()
+        except (subprocess.CalledProcessError, OSError) as e:
+            print(f"re-syncing {sub} failed: {e}", file=sys.stderr)
+            continue
+        # end try
+        touched += [relpath_of(sub / rel, git_root) for rel in changed]
+    # end for
+
+    if not touched:
+        print("subproject links already up to date.")
+        return 0
+    # end if
+    if commit:
+        commit_resync(touched, event)
+    # end if
+    return 0
 # end def
 
 
@@ -551,6 +750,17 @@ def main() -> int:
         )
     )
     root_claude = git_root / ".claude"
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--resync", action="store_true", help="re-sync the per-file links of every subproject (git hook mode)")
+    parser.add_argument("--event", choices=["merge", "rebase"], help="the git hook calling this (post-merge, post-rewrite)")
+    parser.add_argument("--no-commit", action="store_true", help="with --resync: only stage, do not commit")
+    args = parser.parse_args()
+
+    if args.resync:
+        commit = not args.no_commit and os.environ.get("SUBPROJECT_RESYNC_COMMIT") != "0"
+        return resync_all(event=args.event, commit=commit)
+    # end if
 
     if sub_dir == git_root:
         print(f"{sub_dir} is the git root — no symlinks needed.", file=sys.stderr)

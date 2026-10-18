@@ -1,0 +1,1 @@
+Background command "Run full test suite and sync check" failed with exit code 144

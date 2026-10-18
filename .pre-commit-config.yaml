@@ -32,3 +32,17 @@ repos:
         stages: [pre-push]
         files: ^ai/query\.md$
         pass_filenames: false
+      - id: subproject-links-post-merge
+        name: Re-sync subproject symlinks after a merge
+        entry: scripts/°base/git/hooks/tool_path.sh python3 scripts/°base/git/hooks/post/resync_subproject_links.py
+        language: system
+        stages: [post-merge]
+        always_run: true
+        pass_filenames: false
+      - id: subproject-links-post-rewrite
+        name: Re-sync subproject symlinks after a rebase
+        entry: scripts/°base/git/hooks/tool_path.sh python3 scripts/°base/git/hooks/post/resync_subproject_links.py
+        language: system
+        stages: [post-rewrite]
+        always_run: true
+        pass_filenames: false

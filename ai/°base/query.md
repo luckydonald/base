@@ -7760,3 +7760,15 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 
 ❯ Plan accepted, auto mode.
 
+❯ Task Notification:
+> - Task `bx3iyq6pp` <kbd>failed</kbd>
+> - Tool `toolu_01HiLQ8TVS9raqCvMCfqx4Fe`
+> - > Background command "Run full test suite and sync check" failed with exit code 144
+> - [Query (`81` chars, `81 B`)](output/agents/106.bx3iyq6pp/prompt.md)
+> - [Answer (`24` chars, `24 B`)](output/agents/106.bx3iyq6pp/result.md)
+> - [Raw log (`24` chars, `24 B`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/6df08294-5e46-45e4-b787-9796239294ea/tasks/bx3iyq6pp.output)
+
+❯ If you didn't cause those issues fix them in a secondary commit.
+
+❯ [/code-style](../skills/code-style/SKILL.md) py
+

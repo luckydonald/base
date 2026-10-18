@@ -112,6 +112,7 @@ Hooks:
 - `reject_co_authored_by.py` — blocks `Co-Authored-By:` in commit messages (stage: commit-msg)
 - `require_memory_delete_marker.py` — requires an explicit marker when memory files are deleted (stage: commit-msg)
 - `require_yarn_4.py` — enforces Yarn 4 project state when Node/package-manager files exist (stage: pre-commit)
+- `resync_subproject_links.py` — after a merge or rebase, re-links the per-file `.run` symlinks of monorepo subprojects and commits just those paths via plumbing (stages: post-merge, post-rewrite; always exits 0)
 
 ### Plan mode
 

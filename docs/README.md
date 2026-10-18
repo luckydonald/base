@@ -294,6 +294,9 @@ This creates a relative symlink `some_project/.claude → ../.claude`, so the sa
 
 The helper is idempotent (no-ops if the symlink already points at the right place), refuses to clobber a non-symlink `.claude/`, and exits cleanly at the git root, so it's safe to re-run or wire into your own setup script.
 
+After a `git merge`/`git pull` or a finished `git rebase`, the pre-commit `post-merge`/`post-rewrite` hook (`scripts/°base/git/hooks/post/resync_subproject_links.py`, installed by `scripts/°base/init/checkout.sh`) re-syncs the per-file `.run/*.run.xml` links of every subproject (a folder with a tracked `.claude` symlink): missing links are added, dangling ones removed, and just those paths are committed as `link_subproject: re-sync subproject links.` without touching your index, working tree or the merge/rebase state.
+The commit is skipped (links stay staged) while a cherry-pick/revert/bisect is running, on a detached HEAD, or with `SUBPROJECT_RESYNC_COMMIT=0`. Run `scripts/°base/init/link_subproject.py --resync` to do the same by hand.
+
 ### Branch splitting (clean/unclean/history)
 
 This base can keep a "clean" branch (no AI/base mentions, safe to publish) in sync with an `ai/UNCLEAN/{branch}` working branch (where AI and code commits mix freely) and an `ai/history/{branch}` branch (the AI-only leftovers). The tooling for this lives under `scripts/°base/git/°split_lib/`, but since it's itself classified as AI/base content, it never exists on a clean checkout — so it ships with a standalone launcher instead.

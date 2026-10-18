@@ -277,6 +277,244 @@ class LinkSubprojectEndToEndTests(unittest.TestCase):
 # end class
 
 
+HOOK_WRAPPER = Path(__file__).resolve().parents[1] / "git" / "hooks" / "post" / "resync_subproject_links.py"
+EMOJI_RUN = "🅱️✨1 _ Tag & go.run.xml"
+
+
+def build_resync_repo() -> tuple[TemporaryDirectory, Path, Path]:
+    """A throwaway monorepo with a root `.run/` holding two configs and one
+    already fully linked subproject `sub/` (a tracked `.claude` symlink plus
+    the `.run` links), all committed.
+    """
+    tmp = TemporaryDirectory()
+    repo_root = Path(tmp.name) / "repo"
+    repo_root.mkdir()
+    init_repo(repo_root)
+    (repo_root / ".claude").mkdir()
+    (repo_root / ".claude" / "keep").write_text("x")
+    (repo_root / ".run").mkdir()
+    (repo_root / ".run" / "a.run.xml").write_text("a")
+    (repo_root / ".run" / EMOJI_RUN).write_text("e")
+    sub_dir = repo_root / "sub"
+    (sub_dir / ".run").mkdir(parents=True)
+    (sub_dir / ".claude").symlink_to("../.claude")
+    for name in ("a.run.xml", EMOJI_RUN):
+        (sub_dir / ".run" / name).symlink_to(f"../../.run/{name}")
+    # end for
+    git(["add", "-A"], repo_root)
+    git(["commit", "-m", "init"], repo_root)
+    return tmp, repo_root, sub_dir
+# end def
+
+
+class ResyncTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp, self.repo_root, self.sub_dir = build_resync_repo()
+        self.addCleanup(self.tmp.cleanup)
+        link_subproject.git_root = Path(os.path.realpath(self.repo_root))
+        link_subproject.sub_dir = self.sub_dir
+        self.addCleanup(lambda: os.environ.pop("SUBPROJECT_RESYNC_COMMIT", None))
+    # end def
+
+    def head(self) -> str:
+        return git(["rev-parse", "HEAD"], self.repo_root)
+    # end def
+
+    def committed_paths(self) -> list[str]:
+        return git(["-c", "core.quotepath=off", "show", "--name-only", "--format=", "HEAD"], self.repo_root).splitlines()
+    # end def
+
+    def test_new_root_run_config_is_linked_and_committed(self) -> None:
+        (self.repo_root / ".run" / "new b.run.xml").write_text("n")
+        git(["add", "-A"], self.repo_root)
+        git(["commit", "-m", "root adds config"], self.repo_root)
+        before = self.head()
+
+        link_subproject.resync_all()
+
+        self.assertTrue((self.sub_dir / ".run" / "new b.run.xml").is_symlink())
+        self.assertNotEqual(before, self.head())
+        self.assertEqual(self.committed_paths(), ["sub/.run/new b.run.xml"])
+        self.assertEqual(git(["log", "-1", "--format=%s"], self.repo_root), link_subproject.RESYNC_COMMIT_MESSAGE)
+    # end def
+
+    def test_dangling_link_to_a_removed_root_config_is_removed_and_committed(self) -> None:
+        git(["rm", "-q", "--", f".run/{EMOJI_RUN}"], self.repo_root)
+        git(["commit", "-m", "root removes config"], self.repo_root)
+
+        link_subproject.resync_all()
+
+        self.assertFalse((self.sub_dir / ".run" / EMOJI_RUN).is_symlink())
+        self.assertEqual(self.committed_paths(), [f"sub/.run/{EMOJI_RUN}"])
+        self.assertTrue((self.sub_dir / ".run" / "a.run.xml").is_symlink())
+    # end def
+
+    def test_foreign_link_and_regular_file_are_left_alone(self) -> None:
+        (self.sub_dir / ".run" / "mine.run.xml").symlink_to("nowhere.xml")
+        (self.sub_dir / ".run" / "a.run.xml").unlink()
+        (self.sub_dir / ".run" / "a.run.xml").write_text("local copy")
+
+        link_subproject.resync_all()
+
+        self.assertTrue((self.sub_dir / ".run" / "mine.run.xml").is_symlink())
+        self.assertEqual((self.sub_dir / ".run" / "a.run.xml").read_text(), "local copy")
+    # end def
+
+    def test_up_to_date_repo_makes_no_commit_and_rerun_is_a_no_op(self) -> None:
+        before = self.head()
+        link_subproject.resync_all()
+        self.assertEqual(before, self.head())
+
+        (self.repo_root / ".run" / "c.run.xml").write_text("c")
+        git(["add", "-A"], self.repo_root)
+        git(["commit", "-m", "root adds c"], self.repo_root)
+        link_subproject.resync_all()
+        after_first = self.head()
+        link_subproject.resync_all()
+        self.assertEqual(after_first, self.head())
+    # end def
+
+    def test_only_folders_with_a_tracked_claude_symlink_are_subprojects(self) -> None:
+        (self.repo_root / "plain").mkdir()
+        (self.repo_root / "plain" / "f").write_text("x")
+        git(["add", "-A"], self.repo_root)
+        git(["commit", "-m", "plain folder"], self.repo_root)
+
+        found = link_subproject.find_subproject_dirs()
+
+        self.assertEqual([p.name for p in found], ["sub"])
+    # end def
+
+    def stage_new_config(self) -> None:
+        (self.repo_root / ".run" / "z.run.xml").write_text("z")
+        git(["add", "-A"], self.repo_root)
+        git(["commit", "-m", "root adds z"], self.repo_root)
+    # end def
+
+    def test_commit_takes_only_the_links_and_keeps_other_staged_work(self) -> None:
+        self.stage_new_config()
+        (self.repo_root / "wip.txt").write_text("work in progress")
+        git(["add", "wip.txt"], self.repo_root)
+
+        link_subproject.resync_all()
+
+        self.assertEqual(self.committed_paths(), ["sub/.run/z.run.xml"])
+        self.assertEqual(git(["diff", "--cached", "--name-only"], self.repo_root), "wip.txt")
+    # end def
+
+    def assert_staged_not_committed(self, before: str) -> None:
+        self.assertEqual(before, self.head())
+        self.assertEqual(git(["diff", "--cached", "--name-only"], self.repo_root), "sub/.run/z.run.xml")
+    # end def
+
+    def test_no_commit_while_a_merge_is_in_progress(self) -> None:
+        self.stage_new_config()
+        before = self.head()
+        gdir = Path(git(["rev-parse", "--absolute-git-dir"], self.repo_root))
+        (gdir / "MERGE_HEAD").write_text(before + "\n")
+
+        link_subproject.resync_all()
+
+        self.assert_staged_not_committed(before)
+    # end def
+
+    def test_no_commit_on_a_detached_head(self) -> None:
+        self.stage_new_config()
+        git(["checkout", "-q", "--detach"], self.repo_root)
+        before = self.head()
+
+        link_subproject.resync_all()
+
+        self.assert_staged_not_committed(before)
+    # end def
+
+    def test_no_commit_with_an_index_lock(self) -> None:
+        gdir = Path(git(["rev-parse", "--absolute-git-dir"], self.repo_root))
+        self.assertIsNone(link_subproject.commit_blocker(False))
+        (gdir / "index.lock").write_text("")
+
+        self.assertEqual(link_subproject.commit_blocker(False), "index.lock present")
+    # end def
+
+    def test_rebase_directory_blocks_only_the_non_rebase_events(self) -> None:
+        gdir = Path(git(["rev-parse", "--absolute-git-dir"], self.repo_root))
+        (gdir / "rebase-merge").mkdir()
+
+        self.assertEqual(link_subproject.commit_blocker(False), "rebase-merge present")
+        self.assertIsNone(link_subproject.commit_blocker("rebase"))
+    # end def
+
+    def test_merge_event_commits_a_single_parent_commit_despite_merge_head(self) -> None:
+        self.stage_new_config()
+        before = self.head()
+        gdir = Path(git(["rev-parse", "--absolute-git-dir"], self.repo_root))
+        (gdir / "MERGE_HEAD").write_text(before + "\n")
+
+        link_subproject.resync_all(event="merge")
+
+        self.assertEqual(git(["rev-parse", "HEAD^"], self.repo_root), before)
+        self.assertEqual(git(["rev-list", "--parents", "-n1", "HEAD"], self.repo_root).count(" "), 1)
+        self.assertEqual(self.committed_paths(), ["sub/.run/z.run.xml"])
+        self.assertEqual(git(["status", "--porcelain"], self.repo_root), "")
+    # end def
+
+    def test_env_opt_out_only_stages(self) -> None:
+        self.stage_new_config()
+        before = self.head()
+
+        result = subprocess.run(
+            [sys.executable, str(INIT_DIR / "link_subproject.py"), "--resync"],
+            cwd=self.repo_root, capture_output=True, text=True, env={**os.environ, "SUBPROJECT_RESYNC_COMMIT": "0"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_staged_not_committed(before)
+    # end def
+
+    def run_wrapper(self, rewrite_command: str | None) -> subprocess.CompletedProcess[str]:
+        env = {k: v for k, v in os.environ.items() if k != "PRE_COMMIT_REWRITE_COMMAND"}
+        if rewrite_command is not None:
+            env["PRE_COMMIT_REWRITE_COMMAND"] = rewrite_command
+        # end if
+        return subprocess.run([sys.executable, str(HOOK_WRAPPER)], cwd=self.repo_root, capture_output=True, text=True, env=env)
+    # end def
+
+    def test_wrapper_ignores_amend(self) -> None:
+        self.stage_new_config()
+        before = self.head()
+
+        result = self.run_wrapper("amend")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(before, self.head())
+        self.assertFalse((self.sub_dir / ".run" / "z.run.xml").exists())
+    # end def
+
+    def test_wrapper_resyncs_after_merge_and_rebase(self) -> None:
+        self.stage_new_config()
+        result = self.run_wrapper(None)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.committed_paths(), ["sub/.run/z.run.xml"])
+
+        (self.repo_root / ".run" / "y.run.xml").write_text("y")
+        git(["add", "-A"], self.repo_root)
+        git(["commit", "-m", "root adds y"], self.repo_root)
+        result = self.run_wrapper("rebase")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.committed_paths(), ["sub/.run/y.run.xml"])
+    # end def
+
+    def test_wrapper_exits_zero_when_the_script_fails(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(HOOK_WRAPPER)], cwd=self.tmp.name, capture_output=True, text=True,
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("warning", result.stderr)
+    # end def
+# end class
+
+
 if __name__ == "__main__":
     unittest.main()
 # end if

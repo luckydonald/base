@@ -18,7 +18,8 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 ## Synced from CalDAV
 
 - [x] Strip `Note: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions.` from plan decisions. — `todo:5e80abad-4a70-4e79-b210-14ac7b639f88` _(done)_
-- [ ] Have a rebase or merge use git triggers to re-sync per-file subproject symlinks. — `todo:6f2b2450-103d-4be5-b029-bbe95c3e5501`
+- [x] Have a rebase or merge use git triggers to re-sync per-file subproject symlinks. — `todo:6f2b2450-103d-4be5-b029-bbe95c3e5501` _(done)_
+  > for now skip this todo (it is already being worked on in the base repository itself, don't do it from another project)
 - [ ] have a `.run/.subprojectIgnore` file, defining files to not link into subprojects. — `todo:58a06dbd-33b8-48fe-b392-9f5a67b935cc`
 - [ ] `ai/memories/MEMORY.md` is skipped in commit — `todo:b8ae433f-4258-4549-b98c-cc3ceded8903`
   > • but it’s written and then a dirty file
@@ -46,3 +47,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 - [x] checkout.sh: skip symlinked hooks in repair_git_lfs_hooks_path — `todo:56f6ee1a-63c7-4c77-9588-174c3f48d98d` _(done)_
   > `scripts/°base/init/checkout.sh` `repair_git_lfs_hooks_path()` rewrote symlinked hooks (e.g. `.git/hooks/pre-push` -> tracked `.hooks/pre-push.bash`) through the link, stripping the repo's own hook content on every Claude session start.
   > Fixed in luckydonald/docker-tg-bot with a `[ -L "$hook_file" ] && continue` guard plus `scripts/°base/tests/test_checkout_lfs_hooks.py`; bring the same change into luckydonald/base.
+- [ ] design auto-commit to be scoped only to the link paths, bypass hooks, skip during merges/rebases/detached HEAD, and safely fall back to staged-but-uncommitted if anything fails — `todo:163fb511-e999-42c1-b288-818da77d2e40`
+  > - ˋlink_subproject.pyˋ already does it now
+  > - the other things should do that too
+  > - ideally a shared python function
