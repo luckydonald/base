@@ -7772,3 +7772,19 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 
 ❯ [/code-style](../skills/code-style/SKILL.md) py
 
+❯ /todo-loop
+
+❯ Plan denied:
+> [/code-style](../skills/code-style/SKILL.md)
+
+❯ Plan denied:
+> [/code-style](../skills/code-style/SKILL.md) py
+
+❯ Plan denied:
+> I don't care that much about ˋ# end ifˋ, but no underscore funcs please
+
+❯ Plan denied:
+> [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md)
+
+❯ Plan accepted, auto mode.
+
