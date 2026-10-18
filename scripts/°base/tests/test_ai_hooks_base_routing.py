@@ -1837,7 +1837,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             repo = Path(tmp) / "base"
             init_repo(repo, "https://luckydonald@github.com/luckydonald/base.git")
             session_id = f"test-{uuid.uuid4()}"
-            fake_plan_path = f"/home/user/.claude/plans/session-plan.md"
+            fake_plan_path = "/home/user/.claude/plans/session-plan.md"
 
             # Step 1: Write trigger → plan A → prefix 001
             run_hook(

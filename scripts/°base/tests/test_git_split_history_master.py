@@ -166,7 +166,6 @@ class HistoryMasterTests(unittest.TestCase):
             self.repo_root,
         )
         git(["commit", "--allow-empty", "-m", marker_message], self.repo_root)
-        seeded_marker_sha = git(["rev-parse", "HEAD"], self.repo_root)
         git(["checkout", "master"], self.repo_root)
 
         # Advance master with a genuinely new commit.

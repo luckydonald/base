@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     force = False
     if existing.returncode == 0:
         print(f"Tag {tag!r} already exists (pointing at {existing.stdout.strip()})")
-        print(f"Using `--force`.")
+        print("Using `--force`.")
         force = True
     # end if
 

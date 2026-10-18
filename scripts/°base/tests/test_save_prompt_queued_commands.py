@@ -7,7 +7,6 @@ without this scan it's silently never logged to ai/query.md at all.
 """
 from __future__ import annotations
 
-import importlib
 import json
 import sys
 import tempfile

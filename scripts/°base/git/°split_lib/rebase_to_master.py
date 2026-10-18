@@ -92,7 +92,7 @@ def rebase_branches_to_master(
             if not history_exists:
                 status["unclean"] = "skipped: history missing (unclean rebases onto history's rebased tip)"
             else:
-                status["unclean"] = f"dry-run: would rebase onto history's rebased tip"
+                status["unclean"] = "dry-run: would rebase onto history's rebased tip"
         else:
             status["unclean"] = "skipped: branch does not exist"
 

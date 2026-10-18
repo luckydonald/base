@@ -131,7 +131,6 @@ class DebugPayloadTests(unittest.TestCase):
         self.assertEqual(_payload["hook_event_name"], "PostToolUse")
 
     def test_file_path_matches_plan_pattern(self):
-        import re
         file_path = _payload["tool_input"]["file_path"]
         self.assertRegex(file_path, _PLAN_PATH_RE)
 

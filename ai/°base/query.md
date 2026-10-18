@@ -7846,3 +7846,5 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 > - [Answer (`136` chars, `136 B`)](output/agents/111.bl7s4uknr/result.md)
 > - [Raw log (`136` chars, `136 B`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/6df08294-5e46-45e4-b787-9796239294ea/tasks/bl7s4uknr.output)
 
+❯ Clean outstanding formatting issues and failing tests which pre-existed (if any) in an additional commit.
+

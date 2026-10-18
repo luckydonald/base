@@ -244,7 +244,6 @@ class FlushPendingRejectionsLockTests(unittest.TestCase):
                 is_error=True,
             ),
         ])
-        payload = {"transcript_path": path}
 
         # Isolate this test's state file from any other test/run.
         state_file = Path(tempfile.gettempdir()) / f"test-lock-state-{uuid.uuid4().hex}.json"

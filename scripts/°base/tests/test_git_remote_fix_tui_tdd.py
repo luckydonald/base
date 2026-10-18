@@ -250,7 +250,7 @@ class TuiTddTests(TuiTestCase):
         ui = self.build_ui(theme="boxy")
 
         blink_on_line = ui.render_input_line()
-        blink_on_fragments = ui.render_window_fragments(ui.username_window)
+        ui.render_window_fragments(ui.username_window)
 
         clock["value"] = 0.75
         blink_off_line = ui.render_input_line()

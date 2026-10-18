@@ -485,7 +485,6 @@ class UncleanMergeDetectionTests(SyncSplitsTestBase):
         # have been unrolled/treated as standalone commits.
         clean_tip = git_ops.rev_parse("feature/x", self.repo)
         clean_trailers = trailers.read_trailers(self.message_for(clean_tip), self.repo)
-        app_code_sha = git_ops.parents_of(merge_sha, self.repo)[0]
         self.assertFalse(any(key.startswith("X-Base-") for key in clean_trailers))
 
     def test_fake_merges_flattens_merge_into_a_single_parent_commit(self):

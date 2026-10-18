@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
 import unittest
 from pathlib import Path
 
@@ -130,7 +129,7 @@ class ParseCodexTests(unittest.TestCase):
         self.assertEqual(other.note, "")
 
     def test_none_of_the_above_with_note(self):
-        qs = self._parse(_make_payload(_Q_SINGLE, {
+        self._parse(_make_payload(_Q_SINGLE, {
             "q1": {"answers": ["None of the above", "user_note: see me"]}
         }))
         other = self._other(self._parse(_make_payload(_Q_SINGLE, {
