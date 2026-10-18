@@ -247,6 +247,28 @@ def _check_memory_index_consistency(dst_dir: Path) -> None:
         )
 
 
+def _dirty_names(dst_dir_rel: str, only: list[str] | None = None) -> list[str]:
+    """`*.md` names in the memory dir that git reports as modified or untracked.
+
+    An already hardlinked memory edited in place leaves `link_file` with nothing
+    to change, so the link state alone can't tell whether a commit is due.
+    """
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "-z", "--", dst_dir_rel], capture_output=True, text=True
+    )
+    names: list[str] = []
+    for entry in (result.stdout or "").split("\0"):
+        if len(entry) < 4:
+            continue
+        name = Path(entry[3:]).name
+        if not name.endswith(".md") or name in names:
+            continue
+        if only is not None and name not in only:
+            continue
+        names.append(name)
+    return names
+
+
 def _commit(dst_dir_rel: str, names: list[str]) -> None:
     if not names:
         return
@@ -465,8 +487,10 @@ def main() -> int:
         # If this memory was already promoted/demoted to the other valid
         # dir, keep updating it there instead of creating a second copy.
         target_dir = secondary_dir if (secondary_dir / rel).is_file() and not (dst_dir / rel).is_file() else dst_dir
-        if memory_lib.link_file(src_file, target_dir / rel):
-            _commit(str(target_dir.relative_to(Path.cwd())), [str(rel)])
+        target_rel = str(target_dir.relative_to(Path.cwd()))
+        linked = memory_lib.link_file(src_file, target_dir / rel)
+        if linked or _dirty_names(target_rel, [str(rel)]):
+            _commit(target_rel, [str(rel)])
         _check_memory_index_consistency(target_dir)
         return 0
 
@@ -481,6 +505,9 @@ def main() -> int:
         for name in _sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel, recreate_missing_src=(i == 0)):
             if name not in changed:
                 changed.append(name)
+    for name in _dirty_names(dst_dir_rel):
+        if name not in changed:
+            changed.append(name)
     _commit(dst_dir_rel, changed)
     _check_memory_index_consistency(dst_dir)
     compact_result.capture_session_start(payload)

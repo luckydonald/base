@@ -21,7 +21,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 - [x] Have a rebase or merge use git triggers to re-sync per-file subproject symlinks. — `todo:6f2b2450-103d-4be5-b029-bbe95c3e5501` _(done)_
   > for now skip this todo (it is already being worked on in the base repository itself, don't do it from another project)
 - [x] have a `.run/.subprojectIgnore` file, defining files to not link into subprojects. — `todo:58a06dbd-33b8-48fe-b392-9f5a67b935cc` _(done)_
-- [ ] `ai/memories/MEMORY.md` is skipped in commit — `todo:b8ae433f-4258-4549-b98c-cc3ceded8903`
+- [x] `ai/memories/MEMORY.md` is skipped in commit — `todo:b8ae433f-4258-4549-b98c-cc3ceded8903` _(done)_
   > • but it’s written and then a dirty file
   > • figure out why; I even got you an example:
   > • DockerTgBot
