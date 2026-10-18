@@ -7738,3 +7738,5 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 
 ❯ Plan accepted, auto mode.
 
+❯ Plan accepted, auto mode.
+

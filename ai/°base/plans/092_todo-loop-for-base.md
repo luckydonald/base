@@ -35,9 +35,10 @@ The todos live on CalDAV (calendar 7, "TODO: Today") and are mirrored into `ai/t
 2. `56f6ee1a` `checkout.sh` symlink guard: done.
 3. `268ba6c5` code style for `/plan`: done (already fixed by the hook, evals skipped, ticked).
 4. `5e80abad` Strip the "next message may contain a correction" note from plan decisions.
-5. `66f35747` `@file)` mention detection: try the full match first, then without trailing punctuation.
-6. `b7a5299c` Referenced-file auto-commit for staged and previously committed files, respecting `.gitignore`.
-7. `be604b2a` Also link `/skill` calls to their existing `ai/skills/…/SKILL.md`.
+4. done (`7877487cc`).
+5. `66f35747` `@file)` mention detection: done, already fixed by `0d86e4572`, ticked.
+6. `b7a5299c` Referenced-file auto-commit for staged and previously committed files: done, same commit, ticked.
+7. `be604b2a` Link `/skill` calls to their `SKILL.md`: done, same commit, ticked.
 8. `e7df2be3` Skill for `download_ref.py` (at least `--no-ide`).
 9. `51f4adc0` Proper diff in the settings sync script.
 10. `7eb9a977` Plan-confirm hook syncs the plan once more.
@@ -50,7 +51,29 @@ The todos live on CalDAV (calendar 7, "TODO: Today") and are mirrored into `ai/t
 Items 1 to 3 are done, committed, folded and completed on CalDAV (`d9c9c0c4b`, `d1dbf09e0`, `c9d1085e2`).
 Known pre-existing test failures, ignore: `test_ai_hooks_base_routing` (8), `test_get_base` (2), `test_tag_backup.test_remove_flag_deletes_tags_in_parent_history` (1).
 
-### Plan for item 4 (`5e80abad`)
+### Plan for item 8 (`e7df2be3`): skill for `download_ref.py`
+
+Context: `scripts/download_ref.py` (symlink to `scripts/°base/download_ref.py`, a `uv run --script` entry point into `scripts/°base/ai/references/°dllink_lib/cli.py`) downloads documentation pages into `ai/references/<host>/…` as Markdown.
+There is no skill telling an agent when and how to use it, and the default behavior opens the downloaded file in an IDE (`--open-ide`, setting `ide`), which hangs or pops windows during agent runs, hence the todo's "at least `--no-ide`".
+
+Facts from `cli.py`:
+- Usage `scripts/download_ref.py [URL] [flags]`, URL may also be piped on stdin.
+- Flags: `--output-root` (default `ai/references`), `--open-ide/--open/--ide COMMAND`, `--no-ide` (`--no-open-ide`, `--no-ide-open`), `--no-git-add`, `--no-git-commit`, `--no-git` (both).
+- By default it does `git add` and `git commit --no-verify --only <file>` with the message ``ai/references: Downloaded `<path>`.``, then opens the IDE.
+- Providers: `providers/github.py` and `providers/generic.py`, with a Markdown variant tried first and the web archive as a fallback (prints `archive fallback: snapshot from …` to stderr).
+- Output is printed as `download:`, `wrote:`, `git add:`, `git commit:`, `open:` lines, errors exit 1 as `download-link: …`.
+
+Change:
+1. New `ai/skills/download-ref/SKILL.md` (frontmatter `name`, `description` that says when to use: user shares a docs URL to keep as a reference, asks to "download/save this doc", or an `@ai/references/…` path is missing).
+   Body: how to run it, always pass `--no-ide` as an agent, when to add `--no-git`/`--no-git-commit` (the commit is made on its own and bypasses hooks via `--no-verify`, so mention it in the lplp-style flow), where the file lands, how to cite it with `@ai/references/<host>/…`, and how to check a failure (exit 1, archive fallback note).
+   Keep it short and in the style of `ai/skills/sanitize-error-logs/SKILL.md`.
+2. Run `python3 scripts/°base/ai/settings/sync.py` to generate the `.claude`/`.codex` skill copies and command file, then `--check`.
+3. No script changes, and no live download (would hit the network and commit); verify the flags with `scripts/download_ref.py --help`.
+
+Commit `[base] ai/skills: ai: Run: Added a `download-ref` skill for `scripts/download_ref.py`, using `--no-ide` as an agent.`, staging the skill plus the sync-generated files.
+Then tick, tag, fold, `complete_todo`, sync.
+
+### Done: plan for item 4 (`5e80abad`)
 
 Problem: when the user denies a plan or a command with typed text, Claude Code appends a boilerplate sentence to the deny message:
 `Note: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions.`
