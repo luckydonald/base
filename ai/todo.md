@@ -29,7 +29,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > • backup tags should exist with possibly the original commit
   > • search for filename in commit msg
   > • I manually added the `ai/memories/MEMORY.md` in 3927b1d4cc654ec54bba23997c7f448e193b4cab there.
-- [ ] have the sync ai settings script show a propper diff — `todo:51f4adc0-dc22-43c4-92cf-4bf9475b9ba1`
+- [x] have the sync ai settings script show a propper diff — `todo:51f4adc0-dc22-43c4-92cf-4bf9475b9ba1` _(done)_
   > Both for dry run and the actual execution. This is to catch errors if the wrong file was detected as newest, and the changes are removed by syncing an older file over it. This allows the AI agent or user to detect that.
 - [ ] have the show-plan-confirm-action for claude also sync the plan once more — `todo:7eb9a977-d3d3-4ba0-9889-39732d4c7f1a`
   > Sometimes it uses echo or python scripts to edit the plan file, also usually not mentioning the full path in one go, but `CLAUDE_PLAN_DIR + PLAN_NAME + ‘.md’` or something weird.

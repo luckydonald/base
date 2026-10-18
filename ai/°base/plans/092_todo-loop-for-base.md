@@ -51,7 +51,29 @@ The todos live on CalDAV (calendar 7, "TODO: Today") and are mirrored into `ai/t
 Items 1 to 3 are done, committed, folded and completed on CalDAV (`d9c9c0c4b`, `d1dbf09e0`, `c9d1085e2`).
 Known pre-existing test failures, ignore: `test_ai_hooks_base_routing` (8), `test_get_base` (2), `test_tag_backup.test_remove_flag_deletes_tags_in_parent_history` (1).
 
-### Plan for item 9 (`51f4adc0`): proper diff in the settings sync
+### Plan for item 10 (`7eb9a977`): re-sync the plan file on plan confirm
+
+Problem: `save-plan/hook.py` snapshots the plan into `ai/°base/plans/NNN_slug.md` on `Write`/`Edit` of the harness plan file (`~/.claude/plans/*.md`) and on `ExitPlanMode`.
+When the agent edits the plan with `echo`, a Python script or another Bash command, no `Write`/`Edit` hook fires, and the path is often built (`CLAUDE_PLAN_DIR + NAME + '.md'`) so it never appears in one piece.
+At `ExitPlanMode` the hook then takes `tool_input.plan` first and only then `tool_response.plan`, neither of which is guaranteed to be what is on disk now; it reads the file (`tool_response.filePath`) only when both are empty.
+(The todo calls it "show-plan-confirm-action"; no hook has that name in `base`, the plan-confirm handling is `ExitPlanMode` in `save-plan/hook.py`, whose decision is recorded by `_record_claude_plan_acceptance`.)
+
+Change, all in `scripts/°base/ai/hooks/save-plan/hook.py`:
+1. New `_plan_from_disk(payload, session)`: for Claude, the current text of the plan file, from `tool_response["filePath"]` when `_is_plan_file_path()` accepts it, else the session's recorded `source` filename looked up in `<CLAUDE_CONFIG_DIR or ~/.claude>/plans/`.
+   Returns `""` when the file is missing or unreadable.
+2. In `main()`, the `ExitPlanMode` branch tries `_plan_from_disk` first (Claude only), then falls back to the existing `tool_input.plan`, `tool_response.plan`, Copilot session order.
+   The existing dedup (identical content skips, changed content commits `ai: save plan NNN_slug` under the same prefix, renaming if the slug changed) then does the "write and commit it once more".
+3. Not changed: Codex and Copilot paths, the `Write`/`Edit` handling, the `done` marker logic.
+
+Tests in `scripts/°base/tests/test_save_plan_decisions.py` (hook run through `run_hook` with a plan file inside a temporary `.claude/plans/` dir):
+- A `Write` snapshot, then the file edited on disk without a hook, then `ExitPlanMode` whose `tool_response.plan` is the stale text: the second commit contains the on-disk text.
+- `ExitPlanMode` with unchanged file content creates no extra plan commit (dedup).
+- `filePath` outside any plans dir (like the existing fixture's `/tmp/plan.md`) is ignored and the old fallback order applies.
+
+Verify: `test_save_plan_decisions.py`, plus `test_ai_hooks_base_routing.py -k Plan` to check nothing in the routing broke (the known `/private/var` failures aside).
+Commit `[base] ai/hooks save-plan: ai: Run: Re-read the plan file from disk when a plan is confirmed.` (topic wording from `git log --oneline -5 -- scripts/°base/ai/hooks/save-plan`), then tick, tag, fold, `complete_todo`, sync.
+
+### Done: plan for item 9 (`51f4adc0`): proper diff in the settings sync
 
 Problem: `sync.py` (`scripts/°base/ai/settings/°settings_lib/cli.py`) only prints file names (`Would write: …` / `Wrote: …` / the `--check` list).
 When the wrong file is detected as newest (`_load_layer` merges native sources sorted by `st_mtime`), an older file can overwrite fresh edits, and nothing shows it.
