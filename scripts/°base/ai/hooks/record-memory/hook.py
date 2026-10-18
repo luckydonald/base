@@ -49,6 +49,7 @@ from _lib import (  # noqa: E402
     flush_pending_rejections,
     read_payload,
     running_copilot,
+    stage_and_commit,
 )
 
 memory_lib = importlib.import_module("°memory_lib")
@@ -277,7 +278,6 @@ def dirty_names(dst_dir_rel: str, only: list[str] | None = None) -> list[str]:
 def _commit(dst_dir_rel: str, names: list[str]) -> None:
     if not names:
         return
-    subprocess.run(["git", "add", "--", dst_dir_rel], capture_output=True)
     if len(names) == 1:
         msg = f"ai: record memory {Path(names[0]).stem}"
     else:
@@ -285,7 +285,7 @@ def _commit(dst_dir_rel: str, names: list[str]) -> None:
         extra = f" (+{len(names) - 3} more)" if len(names) > 3 else ""
         msg = f"ai: record memories {head}{extra}"
     msg = commit_message("ai/commit-templates/memory", msg)
-    subprocess.run(["git", "commit", "--no-verify", "--only", dst_dir_rel, "-m", msg], capture_output=True)
+    stage_and_commit([dst_dir_rel], msg)
 
 
 def _git_root() -> Path | None:

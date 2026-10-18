@@ -6,7 +6,6 @@ Usage: hook.py [ai_tool_name]
 from __future__ import annotations
 
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from _lib import (  # noqa: E402
     is_cross_tool_duplicate,
     read_payload,
     resolve_log_path,
+    stage_and_commit,
 )
 
 INSTRUCTION_KEYS = ("custom_instructions", "custom_instruction", "customInstructions", "instructions")
@@ -80,12 +80,7 @@ def main() -> int:
 
     cwd = Path.cwd()
     compacted_rel = str(compacted_file.relative_to(cwd))
-    subprocess.run(["git", "add", "--", compacted_rel], capture_output=True)
-    subprocess.run(
-        ["git", "commit", "--no-verify", "--only", compacted_rel,
-         "-m", base_ai_commit_subject(f"ai: compact {dir_name} prompt")],
-        capture_output=True,
-    )
+    stage_and_commit([compacted_rel], base_ai_commit_subject(f"ai: compact {dir_name} prompt"))
 
     rel_compacted = f"output/compacted/{dir_name}.md"
     content = f"- [`/compact` possible prompt](./{rel_compacted})\n"

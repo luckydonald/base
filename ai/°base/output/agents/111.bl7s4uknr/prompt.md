@@ -1,0 +1,1 @@
+Background command "Wait until full suite finishes" completed (exit code 0)

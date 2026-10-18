@@ -59,9 +59,12 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 from datetime import datetime
+from importlib import import_module
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "git"))
+scoped_commit_lib = import_module("°scoped_commit_lib")
 
 sub_dir: Path
 git_root: Path
@@ -482,91 +485,16 @@ def find_subproject_dirs() -> list[Path]:
 
 
 def commit_blocker(event: str | None) -> str | None:
-    # why an automatic commit must not happen right now, or None if it is safe.
-    # `event` is the git hook calling us: "merge" (post-merge) tolerates
-    # `MERGE_HEAD`, since git runs that hook before it removes the merge state;
-    # "rebase" (post-rewrite) tolerates the rebase directories, since git runs
-    # that hook once, after the last pick, when the branch ref has moved.
-    # A manual run (None) tolerates neither.
-    gdir = Path(git(["rev-parse", "--absolute-git-dir"], git_root))
-    in_progress = ["CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "sequencer"]
-    if event != "merge":
-        in_progress.append("MERGE_HEAD")
-    # end if
-    if event != "rebase":
-        in_progress += ["rebase-merge", "rebase-apply"]
-    # end if
-    for name in in_progress:
-        if (gdir / name).exists():
-            return f"{name} present"
-        # end if
-    # end for
-    if (gdir / "index.lock").exists():
-        return "index.lock present"
-    # end if
-    head = subprocess.run(["git", "-C", str(git_root), "symbolic-ref", "--quiet", "HEAD"], capture_output=True)
-    if head.returncode != 0:
-        return "detached HEAD"
-    # end if
-    return None
+    return scoped_commit_lib.commit_blocker(event, git_root)
 # end def
 
 
 def commit_resync(paths: list[str], event: str | None) -> str | None:
-    # commits exactly `paths` (git-root-relative, already staged) on top of HEAD
-    # and nothing else. Done with plumbing instead of `git commit`: that would
-    # refuse a partial commit (and make a two-parent commit) while `MERGE_HEAD`
-    # still exists, which it does inside post-merge. A temporary index starts at
-    # HEAD, takes the staged entries of just these paths, and becomes the new
-    # commit; the real index and working tree are not touched (the staged links
-    # already match the new commit), no hooks run. Never raises; on any problem
-    # the links are simply left staged.
-    blocker = commit_blocker(event)
-    if blocker:
-        print(f"not committing the re-synced links ({blocker}); left staged.", file=sys.stderr)
-        return None
+    # commits exactly the re-synced link `paths` (git-root-relative, already staged) and nothing else.
+    new_sha = scoped_commit_lib.commit_staged_paths(paths, RESYNC_COMMIT_MESSAGE, event=event, cwd=git_root)
+    if new_sha:
+        print(f"committed re-synced links as {new_sha}")
     # end if
-    head = rev_parse_quiet("HEAD", git_root)
-    if head is None:
-        print("not committing the re-synced links (no commits yet); left staged.", file=sys.stderr)
-        return None
-    # end if
-
-    def run(args: list[str], *, env: dict[str, str], stdin: str | None = None) -> str:
-        return subprocess.run(
-            ["git", "-C", str(git_root), *args], capture_output=True, text=True, check=True, input=stdin, env=env
-        ).stdout
-    # end def
-
-    try:
-        literal = {**os.environ, "GIT_LITERAL_PATHSPECS": "1"}
-        staged: dict[str, str] = {}
-        for entry in run(["ls-files", "-z", "-s", "--", *paths], env=literal).split("\0"):
-            meta, _, path = entry.partition("\t")
-            if meta:
-                mode, sha, stage = meta.split(" ")
-                staged[path] = f"{mode} {sha}"
-            # end if
-        # end for
-        index_info = "".join(f"{staged.get(path, '0 ' + '0' * 40)}\t{path}\0" for path in paths)
-
-        with tempfile.TemporaryDirectory() as tmp:
-            env = {**literal, "GIT_INDEX_FILE": os.path.join(tmp, "index")}
-            run(["read-tree", head], env=env)
-            run(["update-index", "-z", "--index-info"], env=env, stdin=index_info)
-            tree = run(["write-tree"], env=env).strip()
-        # end with
-
-        if tree == run(["rev-parse", f"{head}^{{tree}}"], env=literal).strip():
-            return None
-        # end if
-        new_sha = run(["commit-tree", tree, "-p", head, "-m", RESYNC_COMMIT_MESSAGE], env=literal).strip()
-        run(["update-ref", "-m", RESYNC_COMMIT_MESSAGE, "HEAD", new_sha, head], env=literal)
-    except subprocess.CalledProcessError as e:
-        print(f"committing the re-synced links failed, left staged: {e.stderr.strip()}", file=sys.stderr)
-        return None
-    # end try
-    print(f"committed re-synced links as {new_sha}")
     return new_sha
 # end def
 

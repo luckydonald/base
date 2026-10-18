@@ -47,7 +47,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 - [x] checkout.sh: skip symlinked hooks in repair_git_lfs_hooks_path — `todo:56f6ee1a-63c7-4c77-9588-174c3f48d98d` _(done)_
   > `scripts/°base/init/checkout.sh` `repair_git_lfs_hooks_path()` rewrote symlinked hooks (e.g. `.git/hooks/pre-push` -> tracked `.hooks/pre-push.bash`) through the link, stripping the repo's own hook content on every Claude session start.
   > Fixed in luckydonald/docker-tg-bot with a `[ -L "$hook_file" ] && continue` guard plus `scripts/°base/tests/test_checkout_lfs_hooks.py`; bring the same change into luckydonald/base.
-- [ ] design auto-commit to be scoped only to the link paths, bypass hooks, skip during merges/rebases/detached HEAD, and safely fall back to staged-but-uncommitted if anything fails — `todo:163fb511-e999-42c1-b288-818da77d2e40`
+- [x] design auto-commit to be scoped only to the link paths, bypass hooks, skip during merges/rebases/detached HEAD, and safely fall back to staged-but-uncommitted if anything fails — `todo:163fb511-e999-42c1-b288-818da77d2e40` _(done)_
   > - ˋlink_subproject.pyˋ already does it now
   > - the other things should do that too
   > - ideally a shared python function

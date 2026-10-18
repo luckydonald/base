@@ -15,7 +15,6 @@ from __future__ import annotations
 import html
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -32,6 +31,7 @@ from _lib import (  # noqa: E402
     read_payload,
     resolve_log_path,
     slugify,
+    stage_and_commit,
 )
 
 PREFIXES = {"claude": "❯", "codex": "›", "copilot": "◆"}
@@ -885,12 +885,7 @@ def _handle_compact_prompt(
 
     cwd = Path.cwd()
     autoloads_rel = str(autoloads_file.relative_to(cwd))
-    subprocess.run(["git", "add", "--", autoloads_rel], capture_output=True)
-    subprocess.run(
-        ["git", "commit", "--no-verify", "--only", autoloads_rel,
-         "-m", base_ai_commit_subject(f"ai: compact {dir_name} autoloads")],
-        capture_output=True,
-    )
+    stage_and_commit([autoloads_rel], base_ai_commit_subject(f"ai: compact {dir_name} autoloads"))
 
     rel_autoloads = f"output/compact/{dir_name}/autoloads.md"
     autoload_chars = len(autoloads_text)

@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _lib import flush_pending_rejections, read_payload  # noqa: E402
+from _lib import flush_pending_rejections, read_payload, stage_and_commit  # noqa: E402
 
 memory_lib = importlib.import_module("°memory_lib")
 
@@ -486,20 +486,7 @@ def commit_project_memory(root: Path, paths: list[str]) -> bool:
         return False
     # end if
     relative = str(memory.relative_to(root))
-    staged = subprocess.run(
-        ["git", "add", "--all", "--", relative], cwd=root, capture_output=True, text=True
-    )
-    if staged.returncode != 0:
-        raise RuntimeError(staged.stderr.strip() or "git add failed for project memory")
-    # end if
-    committed = subprocess.run(
-        ["git", "commit", "--no-verify", "--only", relative, "-m", "ai: sync codex memory"],
-        cwd=root, capture_output=True, text=True,
-    )
-    if committed.returncode != 0:
-        raise RuntimeError(committed.stderr.strip() or committed.stdout.strip() or "git commit failed for project memory")
-    # end if
-    return True
+    return stage_and_commit([relative], "ai: sync codex memory", cwd=root) is not None
 # end def
 
 

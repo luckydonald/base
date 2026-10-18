@@ -36,6 +36,7 @@ from _lib import (  # noqa: E402
     render_decision_block,
     resolve_log_path,
     slugify,
+    stage_and_commit,
 )
 from importlib import import_module  # noqa: E402
 
@@ -523,12 +524,9 @@ def _next_prefix(plans_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 def _commit(paths: list[str], msg: str) -> None:
-    for p in paths:
-        if Path(p).exists():
-            subprocess.run(["git", "add", "--", p], capture_output=True)
-        # Deleted paths are already staged by _git_rm; no add needed.
+    # Deleted paths are already staged by _git_rm; `stage_and_commit` still commits those.
     msg = commit_message("ai/commit-templates/plan", msg)
-    subprocess.run(["git", "commit", "--no-verify", "--only", *paths, "-m", msg], capture_output=True)
+    stage_and_commit(paths, msg)
 
 
 def _git_rm(path: str) -> None:

@@ -27,6 +27,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from merge_staged import merge as _merge_lines  # noqa: E402
 from importlib import import_module  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "git"))
+stage_and_commit = import_module("°scoped_commit_lib").stage_and_commit
+
 _commit_style = import_module("°commit_style_lib")
 base_ai_commit_subject = _commit_style.base_ai_commit_subject
 _commit_message = _commit_style.commit_message
@@ -771,13 +774,7 @@ def append_and_commit(
         f.write(content)
 
     msg = _commit_message(commit_template_relpath, default_commit_msg)
-    # `git commit --only` requires the path to be tracked, so make sure the
-    # file is in the index first. Idempotent on already-tracked files.
-    subprocess.run(["git", "add", "--", relpath, *extra_relpaths], capture_output=True)
-    subprocess.run(
-        ["git", "commit", "--no-verify", "--only", relpath, *extra_relpaths, "-m", msg],
-        capture_output=True,
-    )
+    stage_and_commit([relpath, *extra_relpaths], msg)
 
     if snap is not None:
         _restore_staged(snap, relpath)

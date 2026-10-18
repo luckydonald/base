@@ -14,6 +14,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 base_ai_commit_subject = import_module("°commit_style_lib").base_ai_commit_subject  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "git"))
+stage_and_commit = import_module("°scoped_commit_lib").stage_and_commit  # noqa: E402
+
 from .mentions import Mention, anchor_target, find_mentions  # noqa: E402
 
 
@@ -181,9 +184,6 @@ def process_referenced_files(
 # end def
 
 
-_IN_PROGRESS_MARKERS = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")
-
-
 def has_uncommitted_changes(relpath: str) -> bool:
     """True if `relpath` is untracked, or differs from `HEAD` in the index or the working tree."""
     result = subprocess.run(
@@ -194,23 +194,10 @@ def has_uncommitted_changes(relpath: str) -> bool:
 # end def
 
 
-def operation_in_progress() -> bool:
-    """True while a merge, rebase, cherry-pick or revert is underway, where `git commit --only` is refused."""
-    for marker in _IN_PROGRESS_MARKERS:
-        result = subprocess.run(["git", "rev-parse", "--git-path", marker], capture_output=True, text=True)
-        if result.returncode == 0 and Path(result.stdout.strip()).exists():
-            return True
-        # end if
-    # end for
-    return False
-# end def
-
-
 def stage_and_commit_mentions(resolved: list[ResolvedMention]) -> None:
     """Best-effort: commit the files in `resolved` that have changes -- untracked, staged, or modified previously-committed ones --
-    each on its own via `--only`, so other staged files stay staged. Respects .gitignore, leaves unchanged files alone, and only
-    stages (no commit) while a merge/rebase/cherry-pick is in progress. Failures are reported on stderr."""
-    busy: bool | None = None  # looked up lazily, once, on the first file that really needs it
+    each on its own through `°scoped_commit_lib`, so other staged files stay staged. Respects .gitignore, leaves unchanged files alone, and
+    only stages (no commit) while a merge/rebase/cherry-pick is in progress or on a detached HEAD. Failures are reported on stderr."""
     seen: set[str] = set()
     for mention in resolved:
         if mention.skill is not None or mention.relpath in seen:
@@ -226,26 +213,6 @@ def stage_and_commit_mentions(resolved: list[ResolvedMention]) -> None:
             continue
         # end if
 
-        added = subprocess.run(["git", "add", "--", mention.relpath], capture_output=True, text=True)
-        if added.returncode != 0:
-            print(f"reffiles: git add failed for {mention.relpath}: {added.stderr.strip()}", file=sys.stderr)
-            continue
-        # end if
-        if busy is None:
-            busy = operation_in_progress()
-        # end if
-        if busy:
-            continue
-        # end if
-
-        committed = subprocess.run(
-            ["git", "commit", "--no-verify", "--only", "-m", base_ai_commit_subject("ai: referenced file for task added."),
-             "--", mention.relpath],
-            capture_output=True, text=True,
-        )
-        if committed.returncode != 0:
-            print(f"reffiles: git commit failed for {mention.relpath}: {committed.stderr.strip() or committed.stdout.strip()}",
-                  file=sys.stderr)
-        # end if
+        stage_and_commit([mention.relpath], base_ai_commit_subject("ai: referenced file for task added."))
     # end for
 # end def
