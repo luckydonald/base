@@ -260,13 +260,18 @@ def _dirty_names(dst_dir_rel: str, only: list[str] | None = None) -> list[str]:
     for entry in (result.stdout or "").split("\0"):
         if len(entry) < 4:
             continue
+        # end if
         name = Path(entry[3:]).name
         if not name.endswith(".md") or name in names:
             continue
+        # end if
         if only is not None and name not in only:
             continue
+        # end if
         names.append(name)
+    # end for
     return names
+# end def
 
 
 def _commit(dst_dir_rel: str, names: list[str]) -> None:
@@ -491,6 +496,7 @@ def main() -> int:
         linked = memory_lib.link_file(src_file, target_dir / rel)
         if linked or _dirty_names(target_rel, [str(rel)]):
             _commit(target_rel, [str(rel)])
+        # end if
         _check_memory_index_consistency(target_dir)
         return 0
 
@@ -508,6 +514,8 @@ def main() -> int:
     for name in _dirty_names(dst_dir_rel):
         if name not in changed:
             changed.append(name)
+        # end if
+    # end for
     _commit(dst_dir_rel, changed)
     _check_memory_index_consistency(dst_dir)
     compact_result.capture_session_start(payload)

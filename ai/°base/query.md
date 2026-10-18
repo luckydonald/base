@@ -7820,3 +7820,5 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 
 ❯ Plan accepted, auto mode.
 
+❯ [/code-style](../skills/code-style/SKILL.md) py
+

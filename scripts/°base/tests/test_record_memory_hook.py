@@ -16,6 +16,7 @@ HOOK = ROOT / "scripts" / "°base" / "ai" / "hooks" / "record-memory" / "hook.py
 
 def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True)
+# end def
 
 
 class RecordMemoryHookTest(unittest.TestCase):
@@ -38,11 +39,13 @@ class RecordMemoryHookTest(unittest.TestCase):
         self.src_dir.mkdir(parents=True)
         self.dst_dir = self.repo / "ai" / "°base" / "memory"
 
+    # end def
     def run_hook(self, event: str, file_path: Path | None = None) -> None:
         payload: dict = {"hook_event_name": event}
         if file_path is not None:
             payload["tool_name"] = "Write"
             payload["tool_input"] = {"file_path": str(file_path)}
+        # end if
         env = {
             **os.environ,
             "CLAUDE_CONFIG_DIR": str(self.config),
@@ -59,18 +62,22 @@ class RecordMemoryHookTest(unittest.TestCase):
             check=True,
         )
 
+    # end def
     def commit_count(self) -> int:
         return int(run_git(self.repo, "rev-list", "--count", "HEAD").stdout.strip())
 
+    # end def
     def dirty(self) -> str:
         return run_git(self.repo, "status", "--porcelain", "--", "ai").stdout.strip()
 
+    # end def
     def record_new(self, name: str, text: str = "one\n") -> Path:
         src = self.src_dir / name
         src.write_text(text, encoding="utf-8")
         self.run_hook("PostToolUse", src)
         return src
 
+    # end def
     def test_new_memory_is_committed(self) -> None:
         before = self.commit_count()
         self.record_new("a.md")
@@ -78,6 +85,7 @@ class RecordMemoryHookTest(unittest.TestCase):
         self.assertEqual((self.dst_dir / "a.md").read_text(encoding="utf-8"), "one\n")
         self.assertEqual(self.dirty(), "")
 
+    # end def
     def test_edited_hardlinked_memory_is_committed(self) -> None:
         src = self.record_new("a.md")
         before = self.commit_count()
@@ -87,6 +95,7 @@ class RecordMemoryHookTest(unittest.TestCase):
         self.assertEqual(self.dirty(), "")
         self.assertEqual(run_git(self.repo, "show", "HEAD:ai/°base/memory/a.md").stdout, "two\n")
 
+    # end def
     def test_edited_index_is_committed(self) -> None:
         src = self.record_new("MEMORY.md", "- [a](a.md)\n")
         before = self.commit_count()
@@ -95,12 +104,14 @@ class RecordMemoryHookTest(unittest.TestCase):
         self.assertEqual(self.commit_count(), before + 1)
         self.assertEqual(self.dirty(), "")
 
+    # end def
     def test_clean_memory_creates_no_commit(self) -> None:
         src = self.record_new("a.md")
         before = self.commit_count()
         self.run_hook("PostToolUse", src)
         self.assertEqual(self.commit_count(), before)
 
+    # end def
     def test_session_start_commits_leftover_dirty_memory(self) -> None:
         src = self.record_new("a.md")
         src.write_text("two\n", encoding="utf-8")
@@ -111,5 +122,10 @@ class RecordMemoryHookTest(unittest.TestCase):
         self.assertEqual(self.dirty(), "")
 
 
+    # end def
+# end class
+
+
 if __name__ == "__main__":
     unittest.main()
+# end if
