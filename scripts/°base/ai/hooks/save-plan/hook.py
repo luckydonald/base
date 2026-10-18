@@ -87,7 +87,7 @@ def _plan_from_write(tool_input: dict) -> str:
     file: Claude's ``~/.claude/plans/*.md`` or Copilot's
     ``~/.copilot/session-state/<session_id>/plan.md``."""
     file_path = tool_input.get("file_path") or tool_input.get("path") or ""
-    if not _is_plan_file_path(file_path):
+    if not is_plan_file_path(file_path):
         return ""
     return (tool_input.get("content") or tool_input.get("file_text") or "").strip()
 
@@ -97,7 +97,7 @@ def _plan_from_edit(tool_input: dict) -> str:
     file: Claude's ``~/.claude/plans/*.md`` or Copilot's
     ``~/.copilot/session-state/<session_id>/plan.md``."""
     file_path = tool_input.get("file_path") or tool_input.get("path") or ""
-    if not _is_plan_file_path(file_path):
+    if not is_plan_file_path(file_path):
         return ""
     try:
         return Path(file_path).read_text(encoding="utf-8").strip()
@@ -105,7 +105,7 @@ def _plan_from_edit(tool_input: dict) -> str:
         return ""
 
 
-def _is_plan_file_path(file_path: str) -> bool:
+def is_plan_file_path(file_path: str) -> bool:
     """True for Claude's ``.../.claude/plans/*.md`` (the harness's default),
     ``<CLAUDE_CONFIG_DIR>/plans/*.md`` when the config dir has been relocated
     (e.g. multi-account setups like ``~/.config/claude/accounts/<name>``,
@@ -124,6 +124,39 @@ def _is_plan_file_path(file_path: str) -> bool:
         if path.parent == plans_dir and path.suffix == ".md":
             return True
     return False
+
+
+def plan_from_disk(payload: dict, session: dict | None) -> str:
+    """Current text of Claude's plan file, read fresh from disk.
+
+    Bash edits (``echo``, a Python script) fire no ``Write``/``Edit`` hook, so at
+    ``ExitPlanMode`` neither ``tool_input.plan`` nor ``tool_response.plan`` is
+    guaranteed to match the file. Uses ``tool_response.filePath`` when it is a
+    plan file, else the session's recorded ``source`` name in the plans dir.
+    Returns ``""`` if the file is missing or unreadable.
+    """
+    tool_response = payload.get("tool_response")
+    file_path = ""
+    if isinstance(tool_response, dict):
+        file_path = tool_response.get("filePath") or ""
+    # end if
+    if not is_plan_file_path(file_path):
+        file_path = ""
+        source = (session or {}).get("source") or ""
+        if source:
+            config_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude").expanduser()
+            file_path = str(config_dir / "plans" / source)
+        # end if
+    # end if
+    if not file_path:
+        return ""
+    # end if
+    try:
+        return Path(file_path).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    # end try
+# end def
 
 
 def _plan_from_copilot_session(payload: dict) -> str:
@@ -624,7 +657,11 @@ def main() -> int:
     elif tool_name in ("Edit", "edit"):
         plan = _plan_from_edit(tool_input)
     elif tool_name in ("ExitPlanMode", "exit_plan_mode"):
-        plan = (tool_input.get("plan") or "").strip()
+        if ai_tool == "claude":
+            plan = plan_from_disk(payload, _load_state().get(session_id))
+        # end if
+        if not plan:
+            plan = (tool_input.get("plan") or "").strip()
         if not plan:
             plan = _plan_from_response(payload.get("tool_response"))
         if not plan:

@@ -1,5 +1,7 @@
 # Item 10 (`7eb9a977`): re-sync the plan file when a plan is confirmed
 
+**Commit style:** Skill `/commit-with-lplp-style` is active — auto-commit following it for this implementation.
+
 ## Context
 
 `save-plan/hook.py` snapshots the plan into `ai/°base/plans/NNN_slug.md` on `Write`/`Edit` of the harness plan file and on `ExitPlanMode`.
@@ -8,10 +10,11 @@ At `ExitPlanMode` the hook prefers `tool_input.plan`, then `tool_response.plan`,
 
 ## Change (`scripts/°base/ai/hooks/save-plan/hook.py`)
 
-1. New `_plan_from_disk(payload, session)` (Claude only): current text of the plan file, from `tool_response["filePath"]` when `_is_plan_file_path()` accepts it, else the session's recorded `source` filename in `<CLAUDE_CONFIG_DIR or ~/.claude>/plans/`. Returns `""` if missing or unreadable.
-2. In `main()`'s `ExitPlanMode` branch, try `_plan_from_disk` first, then fall back to the existing `tool_input.plan`, `tool_response.plan`, Copilot order.
+1. New `plan_from_disk(payload: dict[str, Any], session: dict[str, Any]) -> str` (Claude only, public name, no leading underscore): current text of the plan file, from `tool_response["filePath"]` when `is_plan_file_path()` accepts it, else the session's recorded `source` filename in `<CLAUDE_CONFIG_DIR or ~/.claude>/plans/`. Returns `""` if missing or unreadable.
+2. In `main()`'s `ExitPlanMode` branch, try `plan_from_disk` first, then fall back to the existing `tool_input.plan`, `tool_response.plan`, Copilot order.
    The existing dedup (identical skips, changed commits `ai: save plan NNN_slug`, renames on slug change) does the re-sync.
-3. Unchanged: Codex and Copilot paths, `Write`/`Edit` handling, `done` marker.
+3. Rename the existing `_is_plan_file_path` to `is_plan_file_path` (and its callers in `hook.py`), so the new code does not depend on an underscore function.
+4. Unchanged: Codex and Copilot paths, `Write`/`Edit` handling, `done` marker.
 
 ## Tests (`scripts/°base/tests/test_save_plan_decisions.py`)
 

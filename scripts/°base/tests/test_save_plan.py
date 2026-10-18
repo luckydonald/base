@@ -70,7 +70,7 @@ class RelocatedConfigDirPlanPathTests(unittest.TestCase):
     def test_matches_plan_under_relocated_config_dir(self):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": "/home/x/.config/claude/accounts/private/"}):
             self.assertTrue(
-                _hook._is_plan_file_path(
+                _hook.is_plan_file_path(
                     "/home/x/.config/claude/accounts/private/plans/nifty-spinning-pearl.md"
                 )
             )
@@ -78,12 +78,12 @@ class RelocatedConfigDirPlanPathTests(unittest.TestCase):
     def test_rejects_other_files_under_relocated_config_dir(self):
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": "/home/x/.config/claude/accounts/private/"}):
             self.assertFalse(
-                _hook._is_plan_file_path(
+                _hook.is_plan_file_path(
                     "/home/x/.config/claude/accounts/private/plans/sub/plan.md"
                 )
             )
             self.assertFalse(
-                _hook._is_plan_file_path(
+                _hook.is_plan_file_path(
                     "/home/x/.config/claude/accounts/private/settings.json"
                 )
             )
@@ -91,7 +91,7 @@ class RelocatedConfigDirPlanPathTests(unittest.TestCase):
     def test_ignores_config_dir_when_unset(self):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("CLAUDE_CONFIG_DIR", None)
-            self.assertFalse(_hook._is_plan_file_path("/home/x/some/plans/plan.md"))
+            self.assertFalse(_hook.is_plan_file_path("/home/x/some/plans/plan.md"))
 
 
 class PlanFromEditContentTests(unittest.TestCase):
@@ -162,16 +162,16 @@ class CopilotPlanPathTests(unittest.TestCase):
         plan_dir.mkdir(parents=True)
         return plan_dir / "plan.md"
 
-    def test_is_plan_file_path_accepts_copilot_session_path(self):
+    def testis_plan_file_path_accepts_copilot_session_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             plan_path = self._copilot_plan_path(tmp)
-            self.assertTrue(_hook._is_plan_file_path(str(plan_path)))
+            self.assertTrue(_hook.is_plan_file_path(str(plan_path)))
 
-    def test_is_plan_file_path_rejects_non_plan_copilot_path(self):
+    def testis_plan_file_path_rejects_non_plan_copilot_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             other = Path(tmp) / ".copilot" / "session-state" / "abc-123" / "notes.md"
             other.parent.mkdir(parents=True)
-            self.assertFalse(_hook._is_plan_file_path(str(other)))
+            self.assertFalse(_hook.is_plan_file_path(str(other)))
 
     def test_plan_from_write_reads_copilot_create_tool_input(self):
         with tempfile.TemporaryDirectory() as tmp:

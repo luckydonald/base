@@ -504,6 +504,78 @@ class PlanSlugRenameTests(unittest.TestCase):
             self.assertIn("Do a different thing.", plans_after[0].read_text(encoding="utf-8"))
 
 
+class PlanReadFromDiskTests(unittest.TestCase):
+    """`ExitPlanMode` re-reads the plan file from disk, so Bash edits that fired no `Write`/`Edit` hook still land."""
+
+    def _write_payload(self, session_id: str, plan_file: Path, content: str) -> dict:
+        return {
+            "hook_event_name": "PostToolUse",
+            "session_id": session_id,
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(plan_file), "content": content},
+        }
+
+    def _exit_payload(self, session_id: str, plan_file: Path, stale_plan: str) -> dict:
+        return {
+            "hook_event_name": "PostToolUse",
+            "session_id": session_id,
+            "tool_name": "ExitPlanMode",
+            "tool_input": {},
+            "tool_response": {"plan": stale_plan, "isAgent": False, "filePath": str(plan_file)},
+        }
+
+    def _plan_texts(self, repo: Path) -> list[str]:
+        return [p.read_text(encoding="utf-8") for p in sorted((repo / "ai" / "plans").glob("*.md"))]
+
+    def test_exit_plan_mode_commits_the_on_disk_text_after_a_bash_edit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            session_id = f"s-disk-{uuid.uuid4().hex}"
+            plan_file = Path(tmp) / ".claude" / "plans" / "plan.md"
+            plan_file.parent.mkdir(parents=True)
+            plan_file.write_text("# Plan A\n\nOriginal.", encoding="utf-8")
+
+            run_hook(repo, PLAN_HOOK, self._write_payload(session_id, plan_file, "# Plan A\n\nOriginal."), "claude")
+            plan_file.write_text("# Plan A\n\nEdited via bash.", encoding="utf-8")
+            run_hook(repo, PLAN_HOOK, self._exit_payload(session_id, plan_file, "# Plan A\n\nOriginal."), "claude")
+
+            self.assertEqual(self._plan_texts(repo), ["# Plan A\n\nEdited via bash.\n"])
+            self.assertEqual(last_subject(repo).split(" ", 1)[0], "ai:")
+
+    def test_exit_plan_mode_with_unchanged_file_adds_no_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            session_id = f"s-same-{uuid.uuid4().hex}"
+            plan_file = Path(tmp) / ".claude" / "plans" / "plan.md"
+            plan_file.parent.mkdir(parents=True)
+            plan_file.write_text("# Plan A\n\nSame.", encoding="utf-8")
+
+            run_hook(repo, PLAN_HOOK, self._write_payload(session_id, plan_file, "# Plan A\n\nSame."), "claude")
+            commits_before = run_git(repo, "log", "--format=%H", "--", "ai/plans").stdout
+            run_hook(repo, PLAN_HOOK, self._exit_payload(session_id, plan_file, "# Plan A\n\nSame."), "claude")
+
+            commits_after = run_git(repo, "log", "--format=%H", "--", "ai/plans").stdout
+            self.assertEqual(commits_before, commits_after)
+
+    def test_file_path_outside_a_plans_dir_falls_back_to_the_response_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "consumer"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            other = Path(tmp) / "elsewhere" / "plan.md"
+            other.parent.mkdir(parents=True)
+            other.write_text("# Wrong\n\nNot a plan file.", encoding="utf-8")
+
+            run_hook(
+                repo, PLAN_HOOK,
+                self._exit_payload(f"s-out-{uuid.uuid4().hex}", other, "# Plan C\n\nFrom the response."),
+                "claude",
+            )
+
+            self.assertEqual(self._plan_texts(repo), ["# Plan C\n\nFrom the response.\n"])
+
+
 class CopilotPlanDecisionRecordingTests(unittest.TestCase):
     def _write_events(self, home: Path, session_id: str, events: list[dict]) -> None:
         path = home / ".copilot" / "session-state" / session_id / "events.jsonl"
