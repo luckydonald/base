@@ -1,0 +1,1 @@
+Background command "Run full tests, settings check and ruff" failed with exit code 144

@@ -17,7 +17,7 @@ Fires on:
     `scripts/°base/ai/memory/delete.py` uses. This is the only place a
     deletion is ever *originated* from an observed event; a missing source
     file discovered later (e.g. during `SessionStart`) is never treated as a
-    deletion request (see `_sync_all` below and
+    deletion request (see `sync_all` below and
     `ai/°base/plans/007_prevent-accidental-memory-deletion.md`).
   - SessionStart: bulk-sync every `*.md` under the source memory dir as a
     catch-up, then capture the compact summary from the transcript on older
@@ -56,7 +56,7 @@ memory_lib = importlib.import_module("°memory_lib")
 commit_message = importlib.import_module("°commit_style_lib").commit_message
 
 
-def _memory_src_dirs(subproject: Path, git_root: Path) -> list[Path]:
+def memory_src_dirs(subproject: Path, git_root: Path) -> list[Path]:
     """Directories Claude Code's own auto-memory might have written into for
     this session. Its `~/.claude.json` "projects" registry has no separate
     entry for a subdirectory of an already-registered repo (confirmed: no
@@ -77,10 +77,10 @@ def _memory_src_dirs(subproject: Path, git_root: Path) -> list[Path]:
 
 
 
-_SHELL_OPERATORS = {"&&", "||", ";"}
+SHELL_OPERATORS = {"&&", "||", ";"}
 
 
-def _split_on_shell_operators(argv: list[str]) -> list[list[str]]:
+def split_on_shell_operators(argv: list[str]) -> list[list[str]]:
     """Split a shlex-parsed argv on shell operators (&&, ||, ;) into
     sub-commands. Mirrors `.claude/hooks/permission-check.py`'s helper of the
     same shape -- shlex treats these as regular tokens, so they must be split
@@ -88,7 +88,7 @@ def _split_on_shell_operators(argv: list[str]) -> list[list[str]]:
     sub_commands: list[list[str]] = []
     current: list[str] = []
     for token in argv:
-        if token in _SHELL_OPERATORS:
+        if token in SHELL_OPERATORS:
             if current:
                 sub_commands.append(current)
             current = []
@@ -99,7 +99,7 @@ def _split_on_shell_operators(argv: list[str]) -> list[list[str]]:
     return sub_commands
 
 
-def _rm_targets(command: str) -> list[Path]:
+def rm_targets(command: str) -> list[Path]:
     """Absolute `.md` paths passed as plain arguments to a plain `rm`
     invocation anywhere in `command` (chained via &&/||/;).
 
@@ -113,7 +113,7 @@ def _rm_targets(command: str) -> list[Path]:
         return []
 
     targets: list[Path] = []
-    for sub_argv in _split_on_shell_operators(argv):
+    for sub_argv in split_on_shell_operators(argv):
         if not sub_argv or sub_argv[0] != "rm":
             continue
         only_paths = False
@@ -129,33 +129,33 @@ def _rm_targets(command: str) -> list[Path]:
     return targets
 
 
-def _git_text(*args: str) -> str:
+def git_text(*args: str) -> str:
     result = subprocess.run(["git", *args], capture_output=True, text=True)
     return (result.stdout or "").strip()
 
 
-def _has_memory_delete_marker(commit: str, name: str) -> bool:
+def has_memory_delete_marker(commit: str, name: str) -> bool:
     marker = f"Deleted Memory: {name}"
-    message = _git_text("show", "-s", "--format=%B", commit)
+    message = git_text("show", "-s", "--format=%B", commit)
     return any(line.rstrip("\r") == marker for line in message.splitlines())
 
 
-def _is_marked_deleted(dst_dir_rel: str, name: str) -> bool:
+def is_marked_deleted(dst_dir_rel: str, name: str) -> bool:
     relpath = f"{dst_dir_rel}/{name}"
-    commits = _git_text("log", "--diff-filter=D", "--format=%H", "--", relpath)
+    commits = git_text("log", "--diff-filter=D", "--format=%H", "--", relpath)
     for commit in commits.splitlines():
-        return _has_memory_delete_marker(commit, name)
+        return has_memory_delete_marker(commit, name)
     return False
 
 
-def _unlink_file(path: Path) -> bool:
+def unlink_file(path: Path) -> bool:
     if path.is_symlink() or path.exists():
         path.unlink()
         return True
     return False
 
 
-def _sync_all(
+def sync_all(
     src_dir: Path,
     dst_dir: Path,
     secondary_dir: Path,
@@ -184,7 +184,7 @@ def _sync_all(
 
     ``recreate_missing_src`` gates only the dst -> src recreation direction:
     when multiple candidate source dirs are synced in one run (a monorepo
-    subproject session -- see `_memory_src_dirs`), a file missing from every
+    subproject session -- see `memory_src_dirs`), a file missing from every
     candidate should only be recreated into the one Claude Code actually
     reads, not into every candidate; pass ``False`` for the others.
     """
@@ -200,8 +200,8 @@ def _sync_all(
                     if not memory_lib.same_inode(secondary, src):
                         memory_lib.link_file(secondary, src)
                     continue
-                if _is_marked_deleted(dst_dir_rel, src.name):
-                    _unlink_file(src)
+                if is_marked_deleted(dst_dir_rel, src.name):
+                    unlink_file(src)
                     continue
                 if memory_lib.link_file(src, dst):
                     changed.append(src.name)
@@ -217,10 +217,10 @@ def _sync_all(
     return changed
 
 
-_MEMORY_LINK_RE = re.compile(r"\(([^()\s]+\.md)\)")
+MEMORY_LINK_RE = re.compile(r"\(([^()\s]+\.md)\)")
 
 
-def _check_memory_index_consistency(dst_dir: Path) -> None:
+def check_memory_index_consistency(dst_dir: Path) -> None:
     """Warn (never auto-fix) when MEMORY.md's index and the files actually on
     disk in ``dst_dir`` disagree: an orphaned file with no index entry, or an
     index entry pointing at a file that no longer exists. Purely diagnostic —
@@ -230,7 +230,7 @@ def _check_memory_index_consistency(dst_dir: Path) -> None:
     memory_md = dst_dir / "MEMORY.md"
     if not memory_md.is_file():
         return
-    referenced = set(_MEMORY_LINK_RE.findall(memory_md.read_text(encoding="utf-8")))
+    referenced = set(MEMORY_LINK_RE.findall(memory_md.read_text(encoding="utf-8")))
     on_disk = {p.name for p in dst_dir.glob("*.md") if p.name != "MEMORY.md"}
 
     for name in sorted(on_disk - referenced):
@@ -275,7 +275,7 @@ def dirty_names(dst_dir_rel: str, only: list[str] | None = None) -> list[str]:
 # end def
 
 
-def _commit(dst_dir_rel: str, names: list[str]) -> None:
+def commit(dst_dir_rel: str, names: list[str]) -> None:
     if not names:
         return
     if len(names) == 1:
@@ -288,7 +288,7 @@ def _commit(dst_dir_rel: str, names: list[str]) -> None:
     stage_and_commit([dst_dir_rel], msg)
 
 
-def _git_root() -> Path | None:
+def find_git_root() -> Path | None:
     result = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True
     )
@@ -297,7 +297,7 @@ def _git_root() -> Path | None:
     return Path(result.stdout.strip())
 
 
-def _is_bind_mount(p: Path) -> bool:
+def is_bind_mount(p: Path) -> bool:
     """Best-effort detect of a bind mount at ``p``."""
     try:
         result = subprocess.run(
@@ -321,12 +321,12 @@ def _is_bind_mount(p: Path) -> bool:
 # don't duplicate state. Sounds innocent — it isn't. Things you must NOT
 # "simplify":
 #
-# 1. `_legacy_link_candidates` uses `.absolute()`, not `.resolve()`.
+# 1. `legacy_link_candidates` uses `.absolute()`, not `.resolve()`.
 #    `.resolve()` follows symlinks, so a candidate `<root>/.claude/memory` that
 #    IS a symlink to the source dir resolves to the source itself — and we'd
 #    happily delete it.
 #
-# 2. `_uninstall_legacy` checks the symlink case FIRST and short-circuits with
+# 2. `uninstall_legacy` checks the symlink case FIRST and short-circuits with
 #    `legacy.unlink()` (which removes the symlink, not its target). Don't move
 #    this check below the directory branches, and don't replace `unlink` with
 #    anything that recurses.
@@ -344,7 +344,7 @@ def _is_bind_mount(p: Path) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _legacy_link_candidates(subproject: Path) -> list[Path]:
+def legacy_link_candidates(subproject: Path) -> list[Path]:
     """Plausible legacy locations where ``hardlink_memories.sh`` would have
     planted a whole-folder link to the source memory dir.
 
@@ -353,7 +353,7 @@ def _legacy_link_candidates(subproject: Path) -> list[Path]:
     follows to."""
     seen: set[Path] = set()
     out: list[Path] = []
-    git_root = _git_root()
+    git_root = find_git_root()
     for base in (subproject, git_root):
         if base is None:
             continue
@@ -365,7 +365,7 @@ def _legacy_link_candidates(subproject: Path) -> list[Path]:
     return out
 
 
-def _uninstall_legacy(legacy: Path, src_dir: Path) -> bool | None:
+def uninstall_legacy(legacy: Path, src_dir: Path) -> bool | None:
     """Remove a legacy whole-folder link at ``legacy`` pointing at ``src_dir``.
 
     See the DANGER ZONE notice above before changing this function.
@@ -405,7 +405,7 @@ def _uninstall_legacy(legacy: Path, src_dir: Path) -> bool | None:
     except OSError:
         pass
 
-    if _is_bind_mount(legacy):
+    if is_bind_mount(legacy):
         return None
 
     # Directory hardlink: same inode as source. We CANNOT remove this from
@@ -417,9 +417,9 @@ def _uninstall_legacy(legacy: Path, src_dir: Path) -> bool | None:
     return False
 
 
-def _uninstall_legacy_all(subproject: Path, src_dir: Path) -> None:
-    for legacy in _legacy_link_candidates(subproject):
-        result = _uninstall_legacy(legacy, src_dir)
+def uninstall_legacy_all(subproject: Path, src_dir: Path) -> None:
+    for legacy in legacy_link_candidates(subproject):
+        result = uninstall_legacy(legacy, src_dir)
         if result is True:
             print(
                 f"record-memory: removed legacy whole-folder memory symlink at {legacy}",
@@ -444,11 +444,11 @@ def main() -> int:
     # duplicated) work that can never find a source directory.
     if running_copilot():
         return 0
-    git_root = _git_root()
+    git_root = find_git_root()
     if git_root is None:
         return 0
     subproject = _subproject_root()
-    src_dirs = _memory_src_dirs(subproject, git_root)
+    src_dirs = memory_src_dirs(subproject, git_root)
     dst_dir, secondary_dir = memory_lib.memory_dirs(subproject)
     _chdir_to_git_root()
     dst_dir_rel = str(dst_dir.relative_to(Path.cwd()))
@@ -462,7 +462,7 @@ def main() -> int:
         tool_input = payload.get("tool_input") or {}
         command = tool_input.get("command") or ""
         if command:
-            for target in _rm_targets(command):
+            for target in rm_targets(command):
                 matched_src_dir = next(
                     (d for d in src_dirs if target.parent.resolve() == d.resolve()), None
                 )
@@ -473,7 +473,7 @@ def main() -> int:
                 memory_lib.delete_memory(
                     target.name, src_dir=matched_src_dir, dst_dir=dst_dir, dst_dir_rel=dst_dir_rel
                 )
-            _check_memory_index_consistency(dst_dir)
+            check_memory_index_consistency(dst_dir)
             return 0
 
         raw = tool_input.get("file_path") or ""
@@ -495,20 +495,20 @@ def main() -> int:
         target_rel = str(target_dir.relative_to(Path.cwd()))
         linked = memory_lib.link_file(src_file, target_dir / rel)
         if linked or dirty_names(target_rel, [str(rel)]):
-            _commit(target_rel, [str(rel)])
+            commit(target_rel, [str(rel)])
         # end if
-        _check_memory_index_consistency(target_dir)
+        check_memory_index_consistency(target_dir)
         return 0
 
     # SessionStart (and any other event) — full catch-up sync. Clean up any
     # legacy whole-folder link planted by `hardlink_memories.sh` so the new
     # per-file hardlinks don't duplicate memory state in the repo. Only the
     # first (git-root) candidate gets a missing file recreated into it --
-    # see `_sync_all`'s `recreate_missing_src`.
+    # see `sync_all`'s `recreate_missing_src`.
     changed: list[str] = []
     for i, src_dir in enumerate(src_dirs):
-        _uninstall_legacy_all(subproject, src_dir)
-        for name in _sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel, recreate_missing_src=(i == 0)):
+        uninstall_legacy_all(subproject, src_dir)
+        for name in sync_all(src_dir, dst_dir, secondary_dir, dst_dir_rel, recreate_missing_src=(i == 0)):
             if name not in changed:
                 changed.append(name)
     for name in dirty_names(dst_dir_rel):
@@ -516,8 +516,8 @@ def main() -> int:
             changed.append(name)
         # end if
     # end for
-    _commit(dst_dir_rel, changed)
-    _check_memory_index_consistency(dst_dir)
+    commit(dst_dir_rel, changed)
+    check_memory_index_consistency(dst_dir)
     compact_result.capture_session_start(payload)
     return 0
 
