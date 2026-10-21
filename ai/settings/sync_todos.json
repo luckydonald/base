@@ -10,7 +10,8 @@
       "name": "DockerTgBot",
       "tags": [
         "DockerTgBot",
-        "DjangoTgBot"
+        "DjangoTgBot",
+        "roleplayBot"
       ],
       "todo_file": "ai/todos.md"
     },

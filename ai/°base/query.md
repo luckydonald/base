@@ -8053,3 +8053,43 @@ Also move this into the ai/settings folder.
 
 ❯ Plan accepted, auto mode.
 
+❯ [/todo-loop](../skills/todo-loop/SKILL.md)
+
+❯ Add #roleplayBot to the sync destination in DockerTgBot (subproject there).
+Prepare the local file for post merge, and edit the current non-local one to work correctly
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. Which folder inside DockerTgBot is the roleplayBot subproject (for the local `path`, relative to the DockerTgBot git root)?
+>> 2. Should roleplayBot todos go to their own todo file or into DockerTgBot's?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Folder** (1/2) <kbd>Single Select</kbd><br>
+>> Which folder inside DockerTgBot is the roleplayBot subproject (for the local `path`, relative to the DockerTgBot git root)?
+> - [x] 1\. rp_alias
+>   - _Existing DockerTgBot/rp_alias directory (guess, it has no ai/ or CLAUDE.md of its own)._
+> - [ ] 2\. roleplay_bot
+>   - _A new folder that does not exist yet; path is set for after the merge._
+> - [ ] 3\. Not yet decided
+>   - _Add the project to the tracked file and write the local entry with a null path._
+> - [ ] 4\. _Type something._
+>
+>> **Todo file** (2/2) <kbd>Single Select</kbd><br>
+>> Should roleplayBot todos go to their own todo file or into DockerTgBot's?
+> - [ ] 1\. Own file in subproject (Recommended)
+>   - _New project entry `roleplayBot` with tag `roleplayBot`, todo_file [`ai/todos.md`](../todos.md) under the subproject path, commit_prefix `[roleplayBot] `._
+> - [x] 2\. DockerTgBot's file
+>   - _Just add the tag `roleplayBot` to the existing DockerTgBot project, so those todos land in DockerTgBot/ai/todos.md._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
+❯ squash unpushed
+
+❯ [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md) clean all unpushed `ai:` and `[base] ai:` and `[base] [TODOs]` into the matching task commits.
+
