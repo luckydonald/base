@@ -7921,3 +7921,5 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 ❯ Plan denied:
 > This rile applies to any limited-size number storage, including variable declarations in some languages.
 
+❯ Plan accepted, auto mode.
+

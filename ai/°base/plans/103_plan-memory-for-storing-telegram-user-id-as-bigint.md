@@ -16,7 +16,9 @@ Memories for this repo live in `ai/memory/` with an index line in `ai/memory/MEM
 1. Download the Telegram Bot API page with `scripts/download_ref.py --no-ide --no-git https://core.telegram.org/bots/api` (skill `download-ref`), so the file lands in this task's commit.
    Check that the `User` / `id` section ("up to 52 significant bits ... a signed 64-bit integer or double-precision float type are safe for storing this identifier") is in the written file, and note the exact `wrote:` path.
    If the page is huge or the script fails, report the reason and fall back to a narrower page instead of retrying blindly.
-2. Write `ai/memory/project_telegram_user_id_bigint.md` with the usual frontmatter (`name`, `description`, `metadata.type: project`), stating the rule (Telegram `user_id` / chat ids: `BIGINT` / signed 64-bit, never 32-bit `INTEGER`; in SQLAlchemy `BigInteger`, in alembic `sa.BigInteger()`), a **Why:** and a **How to apply:** line, and the reference to `@ai/references/https/core.telegram.org/bots/api.md`.
+2. Write `ai/memory/project_telegram_user_id_bigint.md` with the usual frontmatter (`name`, `description`, `metadata.type: project`), stating the rule (Telegram `user_id` / chat ids: `BIGINT` / signed 64-bit, never 32-bit `INTEGER`), a **Why:** and a **How to apply:** line, and the reference to `@ai/references/https/core.telegram.org/bots/api.md`.
+   Per the user's correction, the rule is not db-only: it applies to any limited-size number storage, including variable and field declarations in languages with fixed-width integers (e.g. `int32`/`i32`/`int` in Java, C, Rust, Go, Kotlin).
+   So the "How to apply" covers columns (SQLAlchemy `BigInteger`, alembic `sa.BigInteger()`, SQL `BIGINT`) and in-code declarations (`i64`/`int64`/`long`), and the `description` says so too.
 3. Add one index line to `ai/memory/MEMORY.md`.
 4. Complete the todo: tick `- [x]` with `_(done)_` in `ai/todo.md`, `complete_todo(calendar_id=7, uid=2d6a17a2-...)`, then re-read the file.
    The skill's `uv run scripts/sync_todos.py --project` step is skipped, since this repo's todos are synced by the user and no `sync_todos.py` was found here.

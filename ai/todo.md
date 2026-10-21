@@ -107,7 +107,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > • That `ai/.subDir` file is added to `.gitignore`
 - [x] make sure `?plain=1` and `?preview=1` is properly ignored for github links in [`scripts/download_ref.py`](../scripts/°base/ai/references/download-link.py). — `todo:71a4bb57-51ba-4875-91f2-d5b1451aa801` _(done)_
   > • e.g. https://github.com/mdn/content/blob/main/files/en-us/web/api/navigator/registerprotocolhandler/index.md?plain=1
-- [ ] add memory for storing telegram `user_id` to db or fixed integer size to be BIGINT. — `todo:2d6a17a2-5d9a-44d2-93a3-245ae8215388`
+- [x] add memory for storing telegram `user_id` to db or fixed integer size to be BIGINT. — `todo:2d6a17a2-5d9a-44d2-93a3-245ae8215388` _(done)_
   > • reference the specific `ai/references/` markdown file for this in the memory's body.
 - [ ] allow `/code-style` and suffix like `/code-style .md .py` or `/code-style md` in the query-autocommit hook to not be displayed — `todo:2eaeb8ce-67be-4878-a8df-3fb3311a4be8`
   > • there's an array to fill
