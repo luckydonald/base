@@ -9,7 +9,7 @@ from .html import final_output_path, html_to_markdown
 from .http import fetch_url
 from .log import log
 from .models import DownloadError, DownloadPlan, DownloadResult, Fetch, Response
-from .paths import output_path_for_url, strip_fragment, unique
+from .paths import output_path_for_url, strip_fragment, strip_github_view_params, unique
 from .providers import generic_forge_plan, github_plan, unsupported_forge_reason
 
 
@@ -52,7 +52,7 @@ def looks_markdown(response: Response) -> bool:
 
 
 def resolve_plan(url: str, output_root: Path, fetch: Fetch = fetch_url) -> DownloadPlan:
-    cleaned = strip_fragment(url)
+    cleaned = strip_github_view_params(strip_fragment(url))
     for resolver in (github_plan,):
         plan = resolver(cleaned, output_root, fetch)
         if plan is not None:

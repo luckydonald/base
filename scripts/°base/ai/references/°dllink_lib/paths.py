@@ -10,6 +10,19 @@ def strip_fragment(url: str) -> str:
     return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ""))
 
 
+GITHUB_VIEW_PARAMS: frozenset[str] = frozenset({"plain", "preview"})
+
+
+def strip_github_view_params(url: str) -> str:
+    parts = urllib.parse.urlsplit(url)
+    if parts.netloc.lower() != "github.com" or not parts.query:
+        return url
+    # end if
+    kept = [(key, value) for key, value in urllib.parse.parse_qsl(parts.query, keep_blank_values=True) if key not in GITHUB_VIEW_PARAMS]
+    return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(kept)))
+# end def
+
+
 def sanitize_path_segment(value: str) -> str:
     value = urllib.parse.unquote(value)
     value = value.replace("\x00", "")

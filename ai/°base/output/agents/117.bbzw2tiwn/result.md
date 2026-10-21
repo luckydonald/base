@@ -1,0 +1,26 @@
+…
+ng_main_branch (test_git_split_branches.DetectMainBranchTests.test_falls_back_to_existing_main_branch) ... ok
+test_falls_back_to_master_when_nothing_found (test_git_split_branches.DetectMainBranchTests.test_falls_back_to_master_when_nothing_found) ... ok
+test_base_name_from_history_returns_none_for_non_matching_ref (test_git_split_branches.NameHelperTests.test_base_name_from_history_returns_none_for_non_matching_ref) ... ok
+test_base_name_from_unclean_returns_none_for_non_matching_ref (test_git_split_branches.NameHelperTests.test_base_name_from_unclean_returns_none_for_non_matching_ref) ... ok
+test_history_name (test_git_split_branches.NameHelperTests.test_history_name) ... ok
+test_round_trip_history (test_git_split_branches.NameHelperTests.test_round_trip_history) ... ok
+test_round_trip_unclean (test_git_split_branches.NameHelperTests.test_round_trip_unclean) ... ok
+test_unclean_name (test_git_split_branches.NameHelperTests.test_unclean_name) ... ok
+test_does_not_match_unrelated_subjects (test_git_split_classify.AiSubjectRegexTests.test_does_not_match_unrelated_subjects) ... ok
+test_matches_bracketed_topic_convention (test_git_split_classify.AiSubjectRegexTests.test_matches_bracketed_topic_convention) ... ok
+test_matches_plain_ai_prefix (test_git_split_classify.AiSubjectRegexTests.test_matches_plain_ai_prefix) ... ok
+test_ai_only_commit (test_git_split_classify.ClassifyCommitTests.test_ai_only_commit) ... ok
+test_code_commit_with_ai_flavored_subject_is_tainted_by_subject (test_git_split_classify.ClassifyCommitTests.test_code_commit_with_ai_flavored_subject_is_tainted_by_subject) ... ok
+test_empty_paths_with_ai_subject_is_tainted_but_not_ai_only (test_git_split_classify.ClassifyCommitTests.test_empty_paths_with_ai_subject_is_tainted_but_not_ai_only) ... ok
+test_empty_paths_with_plain_subject_is_untainted (test_git_split_classify.ClassifyCommitTests.test_empty_paths_with_plain_subject_is_untainted) ... ok
+test_mixed_commit_is_ai_tainted_and_code_containing (test_git_split_classify.ClassifyCommitTests.test_mixed_commit_is_ai_tainted_and_code_containing) ... ok
+test_pure_code_commit (test_git_split_classify.ClassifyCommitTests.test_pure_code_commit) ... ok
+test_path_classification_matrix (test_git_split_classify.IsAiBasePathTests.test_path_classification_matrix) ... ok
+test_deep_flow_repo_variant_1 (test_git_split_e2e_deep_flow.DeepFlowTests.test_deep_flow_repo_variant_1) ... ok
+test_deep_flow_repo_variant_2 (test_git_split_e2e_deep_flow.DeepFlowTests.test_deep_flow_repo_variant_2) ... ok
+test_deep_flow_repo_variant_3 (test_git_split_e2e_deep_flow.DeepFlowTests.test_deep_flow_repo_variant_3) ... ok
+test_deep_flow_repo_variant_4 (test_git_split_e2e_deep_flow.DeepFlowTests.test_deep_flow_repo_variant_4) ... ok
+test_deep_flow_repo_variant_5 (test_git_split_e2e_deep_flow.DeepFlowTests.test_deep_flow_repo_variant_5) ... ok
+test_deep_flow_repo_variant_6 (test_git_split_e2e_deep_flow.DeepFlowTests.test_deep_flow_repo_variant_6) ... 
+[exited with code 144]

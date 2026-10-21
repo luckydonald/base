@@ -302,6 +302,29 @@ class DownloadLinkSymlinkTests(unittest.TestCase):
         plan = MODULE.resolve_plan("https://example.com/docs/page.md", Path("ai/references"), FakeFetch({}))
         self.assertEqual(plan.link_paths, ())
 
+    def test_github_blob_ignores_plain_and_preview_params(self):
+        sha = "3010d119bca3a48eced460e8f51f52cda4b51d5b"
+        base = f"https://github.com/mdn/content/blob/{sha}/files/index.md"
+        expected = MODULE.resolve_plan(base, Path("ai/references"), FakeFetch({}))
+        for query in ("?plain=1", "?preview=1", "?plain=1&preview=1"):
+            with self.subTest(query=query):
+                plan = MODULE.resolve_plan(base + query, Path("ai/references"), FakeFetch({}))
+                self.assertEqual(plan, expected)
+            # end with
+        # end for
+
+    def test_github_other_page_drops_view_params_but_keeps_the_rest(self):
+        plan = MODULE.resolve_plan(
+            "https://github.com/mdn/content/issues?plain=1&q=is%3Aopen&preview=1",
+            Path("ai/references"),
+            FakeFetch({}),
+        )
+        self.assertEqual(plan.download_url, "https://github.com/mdn/content/issues?q=is%3Aopen")
+
+    def test_non_github_host_keeps_plain_param(self):
+        plan = MODULE.resolve_plan("https://example.com/docs/page.md?plain=1", Path("ai/references"), FakeFetch({}))
+        self.assertEqual(plan.download_url, "https://example.com/docs/page.md?plain=1")
+
     def test_main_creates_github_symlinks_even_without_git(self):
         sha = "3010d119bca3a48eced460e8f51f52cda4b51d5b"
         url = "https://github.com/owner/repo/blob/main/docs/a.md"
