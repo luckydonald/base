@@ -7926,3 +7926,11 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 ❯ Cherry pick the /todo-plan skill from ˋ/Users/user/Documents/programming/Python/DockerTgBot/ai/skills/sync-todo-mcp/SKILL.mdˋ and ˋ/Users/user/Documents/programming/Python/DockerTgBot/ai/skills/todo-loop/SKILL.mdˋ up into this base repo.
 This shall include meaningful revisions leading up to it.
 
+❯ The problem is that those projects use my filesystem as path, so sync_todos.json would immediately be wrong for another system, another user, another computer, a different checkout path, or, most importantly the merged-into repo would no longer be ˋbase/baseˋ either.
+
+❯ Alright, look at DockerTgBot's current config. The general tags to project mappings kinda make sense, just the filepaths not.
+So, keep those and have an untracked project-filepath mapping? With is generated form that automatically, kept null by default and hence also tells the scope of what a project allows to access?
+
+❯ Commit prefix stays global, but allow overrides.
+Also move this into the ai/settings folder.
+

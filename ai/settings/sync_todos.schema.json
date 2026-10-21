@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "Project": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Label, also used by --project.",
+          "title": "Name",
+          "type": "string"
+        },
+        "tags": {
+          "description": "`#Tag` summary prefixes / categories that belong to this project (matched case-insensitively).",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Tags",
+          "type": "array"
+        },
+        "todo_file": {
+          "default": "ai/todos.md",
+          "description": "Todo markdown file, relative to `path`.",
+          "title": "Todo File",
+          "type": "string"
+        },
+        "commit_prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Prefix of the commit message for this project, e.g. `[sync_todo] ` for a subproject. Overrides the global one, and is itself overridden by the local config; null inherits it.",
+          "title": "Commit Prefix"
+        }
+      },
+      "required": [
+        "name",
+        "tags"
+      ],
+      "title": "Project",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "url_env": {
+      "default": "SYNC_TODO_MCP_URL",
+      "description": "Env var holding the MCP server URL.",
+      "title": "Url Env",
+      "type": "string"
+    },
+    "token_env": {
+      "default": "SYNC_TODO_MCP_TOKEN",
+      "description": "Env var holding the bare `sytd_...` token.",
+      "title": "Token Env",
+      "type": "string"
+    },
+    "env_file": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "ai/.env",
+      "description": "Env file (relative to the git root) to load first.",
+      "title": "Env File"
+    },
+    "commit_prefix": {
+      "default": "",
+      "description": "Default prefix of the commit messages, e.g. `[root] `.",
+      "title": "Commit Prefix",
+      "type": "string"
+    },
+    "calendar_id": {
+      "default": 7,
+      "description": "Calendar to read (7 = `TODO: Today`).",
+      "title": "Calendar Id",
+      "type": "integer"
+    },
+    "projects": {
+      "items": {
+        "$ref": "#/$defs/Project"
+      },
+      "minItems": 1,
+      "title": "Projects",
+      "type": "array"
+    }
+  },
+  "required": [
+    "projects"
+  ],
+  "title": "Config",
+  "type": "object"
+}

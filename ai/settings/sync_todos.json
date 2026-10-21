@@ -1,0 +1,96 @@
+{
+  "$schema": "./sync_todos.schema.json",
+  "url_env": "SYNC_TODO_MCP_URL",
+  "token_env": "SYNC_TODO_MCP_TOKEN",
+  "env_file": "ai/.env",
+  "calendar_id": 7,
+  "commit_prefix": "",
+  "projects": [
+    {
+      "name": "DockerTgBot",
+      "tags": [
+        "DockerTgBot",
+        "DjangoTgBot"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "SyncTodoBot",
+      "tags": [
+        "SyncTodoBot",
+        "SyncTodoList",
+        "TodoSyncBot"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "derpiscript",
+      "tags": [
+        "derpiscript",
+        "derpiScript2"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "base",
+      "tags": [
+        "base",
+        "baseBase"
+      ],
+      "todo_file": "ai/todo.md"
+    },
+    {
+      "name": "aiUsage",
+      "tags": [
+        "aiUsage"
+      ],
+      "todo_file": "ai/todo.md"
+    },
+    {
+      "name": "botManager",
+      "tags": [
+        "botManager"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "cum_time",
+      "tags": [
+        "cumRobot"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "hydrus-viewer",
+      "tags": [
+        "hydrus-viewer",
+        "hydrusViewer",
+        "hydrusMobile"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "AllMyStorage",
+      "tags": [
+        "AllMyStorage",
+        "AMS"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "ProductDL",
+      "tags": [
+        "ProductDL"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "luckydonaldUtils",
+      "tags": [
+        "luckydonaldUtils",
+        "luckydonald-utils"
+      ],
+      "todo_file": "ai/todos.md"
+    }
+  ]
+}

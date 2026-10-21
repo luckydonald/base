@@ -4,6 +4,9 @@
 `scripts/°base/ai/settings/sync.py` reads it, preserves non-native metadata there, and renders the native files
 under `.claude/` and `.codex/`.
 
+`sync_todos.json` is the tracked tag to project mapping of `scripts/°base/ai/todos/sync_todos.py`.
+The ignored `sync_todos.local.json` holds each project's `path` on this machine (`null` skips the project, relative paths are relative to the git root) and an optional `commit_prefix` override; the script adds missing projects there with `null` values.
+
 Core keys:
 
 - `$schema`: IDE-visible JSON Schema for this settings layer
