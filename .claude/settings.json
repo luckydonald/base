@@ -377,7 +377,9 @@
       "Read(**/secrets/**)",
       "Read(**/credentials/**)",
       "Read(**/.aws/**)",
-      "Read(**/.ssh/**)"
+      "Read(**/.ssh/**)",
+      "Bash(find /)",
+      "Bash(find / :*)"
     ]
   },
   "enabledPlugins": {

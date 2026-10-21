@@ -385,7 +385,9 @@
       {"type": "read", "path": "**/secrets/**"},
       {"type": "read", "path": "**/credentials/**"},
       {"type": "read", "path": "**/.aws/**"},
-      {"type": "read", "path": "**/.ssh/**"}
+      {"type": "read", "path": "**/.ssh/**"},
+      {"type": "bash", "command": "find /"},
+      {"type": "bash", "command": "find / :*"}
     ]
   },
   "plugins": {

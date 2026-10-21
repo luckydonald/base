@@ -107,6 +107,8 @@ prefix_rule(pattern = ["../scripts/°base/init/link-subproject-claude.sh"], deci
 prefix_rule(pattern = ["echo", "---"], decision = "allow")
 prefix_rule(pattern = ["echo", "---"], decision = "allow")
 prefix_rule(pattern = ["echo", "---"], decision = "allow")
+prefix_rule(pattern = ["find", "/"], decision = "forbidden")
+prefix_rule(pattern = ["find", "/"], decision = "forbidden")
 
 # 7 command permission(s) could not be translated to a Codex prefix rule and were skipped (compound/redirected/substituted commands).
 # {"type": "bash", "command": "echo \"exit: $?\""}

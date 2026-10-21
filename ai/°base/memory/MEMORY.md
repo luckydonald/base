@@ -8,3 +8,4 @@
 - [fix-subproject-memory-project-dir-name-override](fix-subproject-memory-project-dir-name-override.md) — TODO: summarize this file.
 - [push_checks.py clean-format misapplies to base branch](push_checks_clean_format_misapplies_to_base_branch.md) — don't re-chain split.py check-push into .git/hooks/pre-push.legacy for base's own branch without an exemption fix first.
 - [Fix preexisting errors separately](feedback_fix_preexisting_errors_separate_commit.md) — preexisting unittest/typing errors met during a task get fixed automatically as their own separate commit; never hunt for them.
+- [Never search from `/`](feedback_never_search_from_filesystem_root.md) — never run find/grep -r/fd/rg/Glob rooted at `/`; scope to the project; `find /` is denied in settings.json.
