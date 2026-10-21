@@ -8014,3 +8014,5 @@ Also move this into the ai/settings folder.
 > - [Answer (`3002` chars, `3 KB`)](output/agents/124.baj2oyhtm/result.md)
 > - [Raw log (`3571` chars, `3.57 KB`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/0849927e-9271-4c9f-a2ee-2b7d590c72b1/tasks/baj2oyhtm.output)
 
+❯ [/todo-loop](../skills/todo-loop/SKILL.md)
+
