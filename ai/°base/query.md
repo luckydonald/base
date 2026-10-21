@@ -8093,3 +8093,37 @@ Prepare the local file for post merge, and edit the current non-local one to wor
 
 ❯ [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md) clean all unpushed `ai:` and `[base] ai:` and `[base] [TODOs]` into the matching task commits.
 
+❯ Oooops, rebase the same commit range, and rewrite all [`ai/todos.md`](../todos.md) to go to [`ai/°base/todos.md`](./todos.md).
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. [`ai/°base/todos.md`](./todos.md) already exists (14 lines, old ticked todos, last touched before this range) and would be overwritten by [`ai/todos.md`](../todos.md) (117 lines). How should the path rewrite handle that?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Collision** (1/1) <kbd>Single Select</kbd><br>
+>> [`ai/°base/todos.md`](./todos.md) already exists (14 lines, old ticked todos, last touched before this range) and would be overwritten by [`ai/todos.md`](../todos.md) (117 lines). How should the path rewrite handle that?
+> - [ ] 1\. Replace it
+>   - _[`ai/todos.md`](../todos.md) content takes over [`ai/°base/todos.md`](./todos.md) in every commit of the range; the old 14-line content is dropped from the range's trees (still in older history)._
+> - [x] 2\. Merge into it
+>   - _Append the old 14 ticked items to the new file's content once, in the first commit that introduces [`ai/todos.md`](../todos.md), then follow [`ai/todos.md`](../todos.md) from there._
+> - [ ] 3\. Skip the rewrite
+>   - _Leave history as it is; I only update `sync_todos.json` and friends going forward._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+❯ Adapt @~/Documents/programming/Python/DockerTgBot/scripts/sync_todos.json to the new 2-file (+ `.local`) schema.
+
+❯ Squash this base/base, too
+
+❯ I meant @/Users/user/Documents/programming/Python/base/
+
+❯ Merge [@`ai/°base/todo.md`](./todo.md) into [@`ai/°base/todos.md`](./todos.md), opening caldav todos for the missing open ones. The closed ones can be moved over without a caldav equivalent.
+
+❯ Sync the todos.
+

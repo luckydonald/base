@@ -10,8 +10,7 @@
       "name": "DockerTgBot",
       "tags": [
         "DockerTgBot",
-        "DjangoTgBot",
-        "roleplayBot"
+        "DjangoTgBot"
       ],
       "todo_file": "ai/todos.md"
     },
@@ -90,6 +89,13 @@
       "tags": [
         "luckydonaldUtils",
         "luckydonald-utils"
+      ],
+      "todo_file": "ai/todos.md"
+    },
+    {
+      "name": "RpAliasBot",
+      "tags": [
+        "RpAliasBot"
       ],
       "todo_file": "ai/todos.md"
     }
