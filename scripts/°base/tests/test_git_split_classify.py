@@ -115,6 +115,36 @@ class IsAiBasePathTests(unittest.TestCase):
 # end class
 
 
+class GlobFallbackTests(unittest.TestCase):
+    """`glob_to_regex` stands in for `PurePosixPath.full_match`, which only exists since Python 3.13."""
+
+    def test_glob_matrix(self):
+        cases: dict[str, dict[str, bool]] = {
+            "a/**": {"a/b": True, "a/b/c": True, "b/c": False},
+            "**/a": {"a": True, "x/a": True, "x/y/a": True, "a/b": False},
+            "*.md": {"file.md": True, "d/file.md": False},
+            "a/**/b": {"a/b": True, "a/x/b": True, "a/x/y/b": True, "a/c": False},
+            "[ab]/c": {"a/c": True, "c/c": False},
+            "[!a]/c": {"b/c": True, "a/c": False},
+            "?/c": {"a/c": True, "ab/c": False},
+        }
+        for pattern, paths in cases.items():
+            for path, expected in paths.items():
+                with self.subTest(pattern=pattern, path=path):
+                    self.assertEqual(classify.glob_to_regex(pattern).fullmatch(path) is not None, expected)
+
+    def test_full_match_without_native_support(self):
+        class OldPath:
+            def __init__(self, path: str):
+                self.path = path
+
+            def as_posix(self) -> str:
+                return self.path
+
+        self.assertTrue(classify.full_match(OldPath("ai/x/y"), "ai/**"))
+        self.assertFalse(classify.full_match(OldPath("src/x"), "ai/**"))
+
+
 class AiSubjectRegexTests(unittest.TestCase):
     def test_matches_plain_ai_prefix(self):
         self.assertTrue(classify.AI_SUBJECT_RE.match("ai: updated prompt"))

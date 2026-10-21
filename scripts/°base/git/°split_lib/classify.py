@@ -126,6 +126,57 @@ def ai_ignore_files(path: PurePosixPath, root_ignore_file: Path | None = None) -
 # end def
 
 
+def glob_segment_to_regex(segment: str) -> str:
+    regex = ""
+    index = 0
+    while index < len(segment):
+        character = segment[index]
+        index += 1
+        if character == "*":
+            regex += "[^/]*"
+        elif character == "?":
+            regex += "[^/]"
+        elif character == "[" and "]" in segment[index + 1:]:
+            end = segment.index("]", index + 1)
+            body = segment[index:end]
+            if body.startswith("!"):
+                body = "^" + body[1:]
+            # end if
+            regex += f"[{body.replace(chr(92), chr(92) * 2)}]"
+            index = end + 1
+        else:
+            regex += re.escape(character)
+        # end if
+    # end while
+    return regex
+# end def
+
+
+@functools.lru_cache(maxsize=None)
+def glob_to_regex(pattern: str) -> re.Pattern[str]:
+    """Compiles a glob like `PurePosixPath.full_match` does, for Python before 3.13."""
+    segments = pattern.split("/")
+    regex = ""
+    for index, segment in enumerate(segments):
+        is_last = index == len(segments) - 1
+        if segment == "**":
+            regex += ".*" if is_last else "(?:[^/]+/)*"
+        else:
+            regex += glob_segment_to_regex(segment) + ("" if is_last else "/")
+        # end if
+    # end for
+    return re.compile(regex, re.DOTALL)
+# end def
+
+
+def full_match(path: PurePosixPath, pattern: str) -> bool:
+    if hasattr(path, "full_match"):
+        return path.full_match(pattern)
+    # end if
+    return glob_to_regex(pattern).fullmatch(path.as_posix()) is not None
+# end def
+
+
 def path_matches_glob(path: PurePosixPath, pattern: str) -> bool:
     pattern = pattern.removeprefix("/")
     if pattern.endswith("/"):
@@ -136,7 +187,7 @@ def path_matches_glob(path: PurePosixPath, pattern: str) -> bool:
     if "/" not in pattern and any(character in pattern for character in "*?["):
         patterns.append(f"**/{pattern}")
     # end if
-    return any(path.full_match(candidate) for candidate in patterns)
+    return any(full_match(path, candidate) for candidate in patterns)
 # end def
 
 
