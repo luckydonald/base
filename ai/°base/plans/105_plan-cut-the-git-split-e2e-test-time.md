@@ -19,11 +19,14 @@ They were previously hidden on Python 3.12 because they crashed early on `full_m
 
 ## Changes
 
-1. **Skip the redundant `HEAD` pass in `test_git_split_e2e_deep_flow.py`.** `BASE_REFS = ("base", "HEAD")` fetches the same commit twice whenever the checked-out commit is the `base` branch tip, as it is here. Resolve both refs once in `setUpClass` with `fixtures.resolve_this_repo_root()` and `git rev-parse`, and keep only `"base"` when they are equal. Coverage is unchanged, because the second pass tested the identical commit. It still runs on a feature branch where the two differ.
+1. **Revision after the user asked "can't we use a less historic repo?": replace the real `base` history with a small fixture base repo.** Nothing these tests check depends on the length of this repo's `base` history. They need the current `scripts/°base/git` tooling (get-base.py runs the `°split_lib` that sits in the fetched ref's worktree), `.ai-ignore`, a `README.md` and `.gitignore` (variant 3 conflicts with those), and at least three first-parent commits so `base/base~2` resolves.
+   - `fixtures.fixture_base_repo()` builds that repo once per process (thread-safe, removed at exit) from the working-tree files of `git ls-files scripts/°base/git .ai-ignore`, so uncommitted fixes are exercised too.
+   - `ensure_base_remote` and `add_and_fetch_base_branch` (renamed from `add_and_fetch_real_base_branch`) point at it.
+   - The `--base-ref HEAD` pass is dropped, since the fixture is built from the working tree and always covers it; this supersedes the earlier dedupe idea.
 2. **Run independent scenarios in a thread pool.**
    - In `test_git_split_e2e_smoke_matrix.py`, move the body of the inner loop into a `run_combination(repo_name, repo_builder, branch_name, branch_applier)` function that returns the `CompletedProcess` and the merge-state check result without asserting.
    - Submit all 54 combinations to a `concurrent.futures.ThreadPoolExecutor(max_workers=min(8, os.cpu_count()))`, then assert each result in the main thread inside `self.subTest(repo=..., branch=...)`, so failure reporting stays per combination.
-   - In `test_git_split_e2e_deep_flow.py`, pass the repo root into `_run_deep_flow` and its `_assert_*` helpers instead of using `self.repo_root`, so the base refs of one variant can run concurrently when they do differ.
+   - In `test_git_split_e2e_deep_flow.py`, pass the repo root into `_run_deep_flow` and its `_assert_*` helpers instead of using `self.repo_root`, and fold the six `test_deep_flow_repo_variant_N` methods into one `test_deep_flow_for_every_repo_variant` that runs the variants through the pool with a `subTest(repo=...)` each.
    - Threads are safe here: each combination uses its own `tempfile` directory, the helpers only spawn subprocesses, and `classify.ai_ignore_path()` only reads the cwd.
 3. **Add a worker-count override** through one module-level constant `E2E_WORKERS` in `_git_split_e2e_fixtures.py`, read from the env var `E2E_WORKERS` (default `min(8, os.cpu_count())`, `1` for serial debugging).
 

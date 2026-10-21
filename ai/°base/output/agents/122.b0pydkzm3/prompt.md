@@ -1,0 +1,1 @@
+Background command "Start full suite from repo root in background" completed (exit code 0)

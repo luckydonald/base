@@ -11,9 +11,14 @@ GitHub potentially being out of sync with local development.
 
 from __future__ import annotations
 
+import atexit
 import importlib
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -114,36 +119,94 @@ def resolve_this_repo_root() -> Path:
     return Path(result.stdout.strip())
 
 
-def ensure_base_remote(repo_root: Path, this_repo_root: Path | None = None) -> None:
-    """Make sure `repo_root` has a `base` remote pointed at this actual
-    repo's own path (never GitHub) -- a no-op if one already exists (e.g.
-    repo variants 4/5/6 already added one while building the fixture).
+# The e2e scenarios are independent and bound by spawning `git`, so they run in a thread pool.
+# `E2E_WORKERS=1` runs them serially, e.g. for debugging.
+E2E_WORKERS = int(os.environ.get("E2E_WORKERS") or min(8, os.cpu_count() or 1))
+
+
+# What the split tooling needs from the fetched `base` ref: get-base.py runs the `°split_lib` that sits in its worktree.
+BASE_TOOLING_PATHS = ("scripts/°base/git", ".ai-ignore")
+
+_fixture_base_repo: Path | None = None
+_fixture_base_repo_lock = threading.Lock()
+
+
+def _build_fixture_base_repo(this_repo_root: Path) -> Path:
+    repo = Path(tempfile.mkdtemp(prefix="split-e2e-base-"))
+    atexit.register(shutil.rmtree, repo, ignore_errors=True)
+    init_repo(repo, branch="base")
+
+    def commit_all(message: str) -> None:
+        git(["add", "--all"], repo)
+        git(["commit", "--no-verify", "-m", message], repo)
+
+    # `README.md` and `.gitignore` are what variant 3 conflicts with.
+    (repo / "README.md").write_text("base readme\n")
+    (repo / ".gitignore").write_text("*.base\n")
+    (repo / "ai").mkdir()
+    (repo / "ai" / "notes.md").write_text("base ai notes\n")
+    commit_all("base: initial readme, gitignore and ai notes")
+
+    # The tooling is copied from the working tree, so uncommitted fixes get exercised, too.
+    tracked = git(["ls-files", "-z", "--", *BASE_TOOLING_PATHS], this_repo_root).split("\0")
+    for relative in filter(None, tracked):
+        source = this_repo_root / relative
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_symlink():
+            target.symlink_to(os.readlink(source))
+        elif source.is_file():
+            shutil.copy2(source, target)
+        # end if
+    # end for
+    commit_all("base: split tooling")
+
+    (repo / "src").mkdir()
+    (repo / "src" / "base_code.py").write_text("print('base')\n")
+    commit_all("base: some code")
+
+    (repo / "ai" / "notes.md").write_text("base ai notes\nmore\n")
+    commit_all("base: more ai notes")
+    (repo / "src" / "base_code.py").write_text("print('base')\nprint('again')\n")
+    commit_all("base: more code")
+    return repo
+
+
+def fixture_base_repo() -> Path:
+    """A small local repo with a `base` branch, standing in for this repo's own thousands-of-commits-long `base`
+    history, which the e2e scenarios would otherwise fetch, merge and replay every single time.
+    Built once per process, thread-safe."""
+    global _fixture_base_repo
+    with _fixture_base_repo_lock:
+        if _fixture_base_repo is None:
+            _fixture_base_repo = _build_fixture_base_repo(resolve_this_repo_root())
+        # end if
+        return _fixture_base_repo
+
+
+def ensure_base_remote(repo_root: Path) -> None:
+    """Make sure `repo_root` has a `base` remote pointed at the fixture base repo (never GitHub) -- a no-op if one
+    already exists (e.g. repo variants 4/5/6 already added one while building the fixture).
     """
-    this_repo_root = this_repo_root or resolve_this_repo_root()
     existing = subprocess.run(
         ["git", "remote", "get-url", "base"], cwd=repo_root, capture_output=True
     )
     if existing.returncode != 0:
-        git(["remote", "add", "base", str(this_repo_root)], repo_root)
+        git(["remote", "add", "base", str(fixture_base_repo())], repo_root)
 
 
-def add_and_fetch_real_base_branch(repo_root: Path, *, this_repo_root: Path | None = None) -> str:
-    """Adds a `base` remote pointed at this actual repo's own path (never
-    GitHub, never a fixed clone) and fetches its `base` branch. Returns the
-    freshly-fetched tip ("now") -- resolved dynamically on every call rather
-    than pinned to a fixed sha, so tests keep working as this repo's own
-    `base` branch keeps evolving during/after this work.
-    """
-    this_repo_root = this_repo_root or resolve_this_repo_root()
-    ensure_base_remote(repo_root, this_repo_root)
+def add_and_fetch_base_branch(repo_root: Path) -> str:
+    """Adds a `base` remote pointed at the fixture base repo and fetches its `base` branch. Returns the freshly-fetched
+    tip ("now")."""
+    ensure_base_remote(repo_root)
     git(["fetch", "base", "base"], repo_root)
     return git(["rev-parse", "refs/remotes/base/base"], repo_root)
 
 
 def resolve_base_sha_two_commits_earlier(repo_root: Path) -> str:
     """`base/base`'s tip two first-parent commits back ("now-2") -- must be
-    called after `add_and_fetch_real_base_branch` has fetched. Real repos
-    have long first-parent histories, so `~2` is always resolvable."""
+    called after `add_and_fetch_base_branch` has fetched. The fixture base repo
+    has a longer first-parent history than that, so `~2` is always resolvable."""
     return git(["rev-parse", "refs/remotes/base/base~2"], repo_root)
 
 
@@ -221,7 +284,7 @@ def build_repo_variant_1_random_commits(repo_root: Path, empty_remote: Path) -> 
     # `.ai-ignore`) -- add the `base` remote so classify.py's fallback chain
     # can still find `.ai-ignore` via the fetched `base/base` ref, matching
     # realistic post-bootstrap state without a live network fetch.
-    add_and_fetch_real_base_branch(repo_root)
+    add_and_fetch_base_branch(repo_root)
     manifest: Manifest = []
     _random_commits(repo_root, manifest, 3, prefix="v1")
     return manifest
@@ -234,7 +297,7 @@ def build_repo_variant_2_empty_init_then_random(repo_root: Path, empty_remote: P
     git(["remote", "add", "empty", str(empty_remote)], repo_root)
     git(["fetch", "empty", "init"], repo_root)
     git(["checkout", "-b", "mane", "empty/init"], repo_root)
-    add_and_fetch_real_base_branch(repo_root)
+    add_and_fetch_base_branch(repo_root)
     manifest: Manifest = []
     _random_commits(repo_root, manifest, 3, prefix="v2")
     return manifest
@@ -242,7 +305,7 @@ def build_repo_variant_2_empty_init_then_random(repo_root: Path, empty_remote: P
 
 def build_repo_variant_3_readme_gitignore_conflict_setup(repo_root: Path, empty_remote: Path) -> Manifest:
     init_repo(repo_root, branch="mane")
-    add_and_fetch_real_base_branch(repo_root)
+    add_and_fetch_base_branch(repo_root)
     manifest: Manifest = []
     _random_commits(repo_root, manifest, 2, prefix="v3")
     readme_sha = make_commit(repo_root, "README.md", "consumer readme", content="consumer readme\n")
@@ -256,7 +319,7 @@ def build_repo_variant_4_based_on_real_base_tip(repo_root: Path, empty_remote: P
     # README.md "Setup: a) Checkout" recipe -- no merge commit, mane starts
     # literally at base/base's tip.
     _init_bare(repo_root)
-    base_sha = add_and_fetch_real_base_branch(repo_root)
+    base_sha = add_and_fetch_base_branch(repo_root)
     git(["checkout", "-b", "mane", base_sha], repo_root)
     manifest: Manifest = []
     _random_commits(repo_root, manifest, 3, prefix="v4")
@@ -283,7 +346,7 @@ def build_repo_variant_5_empty_and_base_merge(repo_root: Path, empty_remote: Pat
     # this fixture's empty/init stand-in is a fresh, hermetic repo, not a
     # clone of the real one, so it never shares real ancestry with this
     # repo's actual `base` branch regardless of the merge above.
-    base_sha = add_and_fetch_real_base_branch(repo_root)
+    base_sha = add_and_fetch_base_branch(repo_root)
     ours_before = git(["rev-parse", "HEAD"], repo_root)
     git(["merge", "--allow-unrelated-histories", "--no-ff", "--no-verify", "--no-edit", base_sha], repo_root)
     base_merge_sha = git(["rev-parse", "HEAD"], repo_root)
@@ -314,7 +377,7 @@ def build_repo_variant_6_double_base_merge(repo_root: Path, empty_remote: Path) 
     # "now") -- git merge --no-ff on an already-fully-merged ref is a no-op
     # ("Already up to date", no commit), so merging the identical tip twice
     # wouldn't actually produce two merge commits.
-    base_now = add_and_fetch_real_base_branch(repo_root)
+    base_now = add_and_fetch_base_branch(repo_root)
     base_earlier = resolve_base_sha_two_commits_earlier(repo_root)
 
     # Same reasoning as variant 5: this fixture's mane never shares real

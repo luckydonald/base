@@ -17,12 +17,10 @@ base/base is ever folded) combined with staying on `mane` (branch-checkout
 auto-resolve fix: if that fix is missing or broken, this is where the matrix
 first fails with a nonzero returncode (a real, unresolved MergeConflict).
 
-Note: this suite fetches `base/base` from THIS repo's own real, currently
-committed `base` branch (never GitHub) -- so it only ever exercises
-whatever's actually been committed there, not any local uncommitted changes
-to °split_lib itself. That's intentional (it tests the tool as a published
-consuming repo would experience it), but it does mean local, not-yet-
-committed fixes to °split_lib won't show up here until they land on `base`.
+Note: this suite fetches `base/base` from a small fixture base repo (see `fixtures.fixture_base_repo`), never GitHub
+and not this repo's own thousands-of-commits-long `base` history. The fixture carries the current working tree's
+°split_lib, so local, not-yet-committed fixes show up here, too. The combinations are independent and run concurrently
+(`fixtures.E2E_WORKERS`).
 """
 
 from __future__ import annotations
@@ -30,6 +28,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -47,26 +46,37 @@ class SmokeMatrixTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls._tmp.cleanup()
 
+    def run_combination(self, repo_name: str, repo_builder, branch_name: str, branch_applier) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            manifest = repo_builder(repo_root, self.empty_remote)
+            branch_applier(repo_root, manifest)
+
+            fixtures.ensure_base_remote(repo_root)
+
+            result = fixtures.run_fake_curl(repo_root, this_repo_root=self.this_repo_root)
+
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"get-base.py failed for repo={repo_name} branch={branch_name}:\n"
+                f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
+            )
+            fixtures.assert_no_unresolved_merge_state(repo_root)
+
     def test_all_repo_and_branch_variant_combinations_run_cleanly(self) -> None:
-        for repo_name, repo_builder in fixtures.REPO_VARIANTS:
-            for branch_name, branch_applier in fixtures.BRANCH_VARIANTS:
-                with self.subTest(repo=repo_name, branch=branch_name):
-                    with tempfile.TemporaryDirectory() as tmp:
-                        repo_root = Path(tmp)
-                        manifest = repo_builder(repo_root, self.empty_remote)
-                        branch_applier(repo_root, manifest)
-
-                        fixtures.ensure_base_remote(repo_root, self.this_repo_root)
-
-                        result = fixtures.run_fake_curl(repo_root, this_repo_root=self.this_repo_root)
-
-                        self.assertEqual(
-                            result.returncode,
-                            0,
-                            f"get-base.py failed for repo={repo_name} branch={branch_name}:\n"
-                            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
-                        )
-                        fixtures.assert_no_unresolved_merge_state(repo_root)
+        # The combinations only spawn `git`/`get-base.py` in their own temp repo, so they run concurrently.
+        with ThreadPoolExecutor(max_workers=fixtures.E2E_WORKERS) as pool:
+            futures = {
+                (repo_name, branch_name): pool.submit(
+                    self.run_combination, repo_name, repo_builder, branch_name, branch_applier
+                )
+                for repo_name, repo_builder in fixtures.REPO_VARIANTS
+                for branch_name, branch_applier in fixtures.BRANCH_VARIANTS
+            }
+        for (repo_name, branch_name), future in futures.items():
+            with self.subTest(repo=repo_name, branch=branch_name):
+                future.result()
 
 
 if __name__ == "__main__":
