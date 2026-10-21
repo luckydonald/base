@@ -1,4 +1,7 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luckydonald/base/ai/settings/sync_todos-local.schema.json",
+  "title": "Machine-local todo sync settings (project paths)",
   "$defs": {
     "LocalProject": {
       "additionalProperties": false,
@@ -57,6 +60,5 @@
       "type": "object"
     }
   },
-  "title": "LocalConfig",
   "type": "object"
 }

@@ -177,13 +177,26 @@ class LocalConfig(BaseModel):
 # end class
 
 
+def _schema_text(model: type[BaseModel], file_name: str, title: str) -> str:
+    """The model's JSON schema, headed like the `ai/settings/settings*.schema.json` files (draft, `$id`, title)."""
+    body = model.model_json_schema(by_alias=True)
+    body.pop("title", None)
+    head = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": f"https://github.com/luckydonald/base/ai/settings/{file_name}",
+        "title": title,
+    }
+    return json.dumps({**head, **body}, indent=2, ensure_ascii=False) + "\n"
+# end def
+
+
 def schema_text() -> str:
-    return json.dumps(Config.model_json_schema(by_alias=True), indent=2, ensure_ascii=False) + "\n"
+    return _schema_text(Config, SCHEMA_PATH.name, "Tracked todo sync mapping (tags to projects)")
 # end def
 
 
 def local_schema_text() -> str:
-    return json.dumps(LocalConfig.model_json_schema(by_alias=True), indent=2, ensure_ascii=False) + "\n"
+    return _schema_text(LocalConfig, LOCAL_SCHEMA_PATH.name, "Machine-local todo sync settings (project paths)")
 # end def
 
 

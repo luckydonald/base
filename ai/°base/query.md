@@ -7934,3 +7934,9 @@ So, keep those and have an untracked project-filepath mapping? With is generated
 ❯ Commit prefix stays global, but allow overrides.
 Also move this into the ai/settings folder.
 
+❯ Also add a json schema to both public and local like stettings.json themselves
+
+❯ Set up this project's ˋ ai/settings/todoˋ stuff, as #baseBase
+
+❯ Rename the file to ai/todos.md
+
