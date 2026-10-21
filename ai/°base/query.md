@@ -7923,3 +7923,6 @@ I actually want `bugsink` and `sync_todo` MCPs available in this repo locally (&
 
 ❯ Plan accepted, auto mode.
 
+❯ Cherry pick the /todo-plan skill from ˋ/Users/user/Documents/programming/Python/DockerTgBot/ai/skills/sync-todo-mcp/SKILL.mdˋ and ˋ/Users/user/Documents/programming/Python/DockerTgBot/ai/skills/todo-loop/SKILL.mdˋ up into this base repo.
+This shall include meaningful revisions leading up to it.
+

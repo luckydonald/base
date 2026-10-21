@@ -21,7 +21,7 @@ Auth resolution and scope checks live in `sync_todo/code/sync_todo_control/mcp/a
 | Scope | Grants |
 |---|---|
 | `mcp_todos_read` / `mcp_todos_write` | List/create/update/complete/delete todos on any of the token owner's subscribed calendars. |
-| `mcp_settings_user_read` / `mcp_settings_user_write` | Read/patch the same account-wide settings the Mini App's Settings page exposes (discoverability, invite-failure-reason reveal). |
+| `mcp_settings_user_read` / `mcp_settings_user_write` | Read/patch the same account-wide settings the Mini App's Settings page exposes (discoverability, invite-failure-reason reveal, notifications), and the user's own tags: `list_tags`, `create_tag`, `set_tag_color`, `delete_tag`, `add_tag_alias`, `remove_tag_alias` (colour and aliases live in the bot's DB, see `tags.py`). |
 | `mcp_settings_calendar_read` / `mcp_settings_calendar_write` | List/read/update CalDAV account config (name/url/username/readonly) -- **never** the password. |
 | `mcp_settings_calendar_password_read` / `mcp_settings_calendar_password_write` | Read/rotate the account's actual CalDAV password. Deliberately split out from the config scopes above -- treat these two as high-sensitivity; a token only needs them if it genuinely has to manage credentials, not just calendar settings. |
 
