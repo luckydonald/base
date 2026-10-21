@@ -1,6 +1,6 @@
 ---
 name: "sync-todo-mcp"
-description: "Use sync_todo's own /mcp server -- the Telegram-todo-CalDAV bot's admin-token-gated MCP server exposing todos/settings/calendar-account tools. Use this whenever the user asks to enable, register, or troubleshoot the sync_todo MCP server, wants Claude Code (or another MCP client) to read/write their sync_todo todos or CalDAV account config directly, or asks about mcp_todos_read/mcp_settings_* scopes or MCP tokens in sync_todo."
+description: "Use sync_todo's own /mcp server -- the Telegram-todo-CalDAV bot's admin-token-gated MCP server exposing todos/settings/calendar-account tools. Use this whenever the user asks to enable, register, or troubleshoot the sync_todo MCP server, wants Claude Code (or another MCP client) to read/write their sync_todo todos or CalDAV account config directly, or asks about mcp_todos_read/mcp_settings_* scopes or MCP tokens in sync_todo. Also use it to triage or grade new todos, where `scripts/sync_todos.py` and the project's `ai/todos.md` come before `list_todos`."
 ---
 
 # sync_todo MCP server
@@ -26,6 +26,14 @@ Auth resolution and scope checks live in `sync_todo/code/sync_todo_control/mcp/a
 | `mcp_settings_calendar_password_read` / `mcp_settings_calendar_password_write` | Read/rotate the account's actual CalDAV password. Deliberately split out from the config scopes above -- treat these two as high-sensitivity; a token only needs them if it genuinely has to manage credentials, not just calendar settings. |
 
 A token can hold any subset. Grant the minimum needed.
+
+## Reading and triaging todos: prefer `scripts/sync_todos.py`
+
+To triage or grade new todos, run `uv run scripts/sync_todos.py` from the repo root and then read the project's `{folder}/ai/todos.md`, instead of calling `list_todos`.
+The script copies the CalDAV todos through this same MCP server (read-only) into each project's todo file and commits them directly, so a plain file read is all that is left, while the full `list_todos` output of a calendar is large.
+`--dry-run` shows the diff without writing, and `--project NAME` limits it to one project (its name or any of its tags).
+The tag to project mapping is `scripts/sync_todos.json`, the other flags (`--purge-missing`, `--purge-complete`, `--include-completed`, `--reset-todo-file`, `--no-git`) are described in the repo `CLAUDE.md` under "Todo-list identifiers".
+The MCP tools stay the way to write: `create_todo`, `update_todo` and `complete_todo`, then run the sync once more so the file follows.
 
 ## Getting a token
 
