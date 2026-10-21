@@ -915,6 +915,8 @@ ai/git/rebase-msg.md
 **/ai/git/pending-commit.md
 **/ai/git/rebase-msg-*.md
 **/ai/git/rebase-msg.md
+**/ai/.subDir
+**/ai/°base/.subDir
 
 # AI docs: api/webpage downloads
 **/ai/apis/

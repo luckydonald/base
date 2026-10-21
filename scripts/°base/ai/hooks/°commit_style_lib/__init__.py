@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -83,6 +84,38 @@ def _read_by_issue(subproject: Path, ai_prefix: str) -> str:
     return ""
 
 
+def _read_sub_dir(subproject: Path, ai_prefix: str) -> str:
+    """Read the subproject path from <subproject>/<ai_prefix>/.subDir.
+
+    Returns the stripped content (a path relative to the git root, e.g.
+    ``sub/proj``) or ``""`` when the file is absent or empty."""
+    sub_dir = subproject / ai_prefix / ".subDir"
+    if sub_dir.is_file():
+        return sub_dir.read_text(encoding="utf-8").strip()
+    return ""
+
+
+def _ai_root() -> Path:
+    """The directory whose ``ai/`` folder receives the AI artifacts: the
+    subproject named by ``<launch dir>/<ai_prefix>/.subDir`` (relative to the
+    git root), else the launch directory itself (see `_subproject_root`).
+
+    A path outside the git root or a missing directory falls back to the
+    launch directory, so a stale file never breaks a hook."""
+    subproject = _subproject_root()
+    git_root_text = _git_text("rev-parse", "--show-toplevel")
+    git_root = Path(git_root_text).resolve() if git_root_text else subproject
+    is_base = _is_inside_base_repo(subproject) or _is_inside_base_repo(git_root)
+    sub_dir = _read_sub_dir(subproject, "ai/°base" if is_base else "ai")
+    if not sub_dir:
+        return subproject
+    target = (git_root / sub_dir).resolve()
+    if not target.is_dir() or not target.is_relative_to(git_root):
+        print(f"ignoring .subDir {sub_dir!r}: not a directory inside {git_root}", file=sys.stderr)
+        return subproject
+    return target
+
+
 def base_ai_commit_subject(msg: str) -> str:
     """Prefix AI auto-commit subjects with the base marker and issue key."""
     subproject = _subproject_root()
@@ -90,7 +123,7 @@ def base_ai_commit_subject(msg: str) -> str:
     git_root = Path(git_root_text) if git_root_text else subproject
     is_base = _is_inside_base_repo(subproject) or _is_inside_base_repo(git_root)
     ai_prefix = "ai/°base" if is_base else "ai"
-    issue = _read_by_issue(subproject, ai_prefix)
+    issue = _read_by_issue(_ai_root(), ai_prefix)
 
     subject = msg
     for _ in range(2):
@@ -153,7 +186,7 @@ def commit_message(template_relpath: str, msg: str, **extra: str) -> str:
     e.g. `"ai/commit-templates/prompt"` — templates live alongside the AI
     artifacts, so they're subproject-scoped (relevant in monorepos where cwd
     is the git root, not the subproject)."""
-    root = _subproject_root()
+    root = _ai_root()
     template_py = root / f"{template_relpath}.py"
     if template_py.is_file():
         formatted = _load_py_override(template_py, msg, extra)

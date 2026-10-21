@@ -35,6 +35,7 @@ base_ai_commit_subject = _commit_style.base_ai_commit_subject
 _commit_message = _commit_style.commit_message
 _is_inside_base_repo = _commit_style._is_inside_base_repo
 _read_by_issue = _commit_style._read_by_issue
+_ai_root = _commit_style._ai_root
 
 
 def read_payload() -> dict:
@@ -46,9 +47,9 @@ def read_payload() -> dict:
 
 
 def _ai_prefix_root() -> tuple[Path, str]:
-    """Return (subproject_root, ai_prefix), where ai_prefix is ``ai/°base``
+    """Return (ai_root, ai_prefix), where ai_prefix is ``ai/°base``
     inside the base repo itself and plain ``ai`` in a consuming repo."""
-    subproject = _subproject_root()
+    subproject = _ai_root()
     git_root_str = _git_text("rev-parse", "--show-toplevel")
     git_root = Path(git_root_str) if git_root_str else subproject
     is_base = _is_inside_base_repo(subproject) or _is_inside_base_repo(git_root)
@@ -681,22 +682,26 @@ def resolve_log_path(default_relpath: str, base_relpath: str) -> Path:
     applied) and cd to the git root so subsequent git operations resolve
     relpaths uniformly. Creates parent directories as needed.
 
+    When ``ai[/°base]/.subDir`` exists, the path is taken under that
+    subproject (relative to the git root) instead of the launch directory.
+
     When ``ai[/°base]/.by-issue`` exists and contains an issue key such as
     ``PROJ-1234``, every path is routed through
     ``ai[/°base]/by-issue/PROJ-1234/…`` instead of ``ai[/°base]/…``."""
     subproject = _subproject_root()
+    ai_root = _ai_root()
     git_root = _chdir_to_git_root()
     is_base = _is_inside_base_repo(subproject) or _is_inside_base_repo(git_root)
     ai_prefix = "ai/°base" if is_base else "ai"
     relpath = base_relpath if is_base else default_relpath
 
-    issue = _read_by_issue(subproject, ai_prefix)
+    issue = _read_by_issue(ai_root, ai_prefix)
     if issue:
         # Insert by-issue/<KEY>/ immediately after the ai prefix.
         rest = relpath[len(ai_prefix) + 1:]  # strip "ai[/°base]/"
         relpath = f"{ai_prefix}/by-issue/{issue}/{rest}"
 
-    log_path = (subproject / relpath).resolve()
+    log_path = (ai_root / relpath).resolve()
     log_path.parent.mkdir(parents=True, exist_ok=True)
     return log_path
 
@@ -767,7 +772,7 @@ def append_and_commit(
 
     reffiles_lib = import_module("°reffiles_lib")
     content, resolved_mentions = reffiles_lib.process_referenced_files(
-        content, _subproject_root(), log_path
+        content, _ai_root(), log_path
     )
 
     with log_path.open("a", encoding="utf-8") as f:

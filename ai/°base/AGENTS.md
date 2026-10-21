@@ -97,6 +97,9 @@ Skills follow the same pattern: the canonical file is `ai/skills/<slug>/SKILL.md
 
 Every Claude Code hook calls `resolve_log_path()`, which routes output based on whether it is running inside the base repo (`ai/°base/…`) or a consuming repo (`ai/…`). Detection: `_is_inside_base_repo()` — directory named `base` **and** origin URL matches `luckydonald/base`.
 
+An optional, gitignored `ai[/°base]/.subDir` in the launch directory holds a path relative to the git root, and then the output goes under that subproject's `ai/` folder instead (`_ai_root()`); a path outside the git root or a missing directory is ignored.
+Claude's own per-project state (memory, transcripts) stays keyed on the launch directory.
+
 Hooks:
 
 | Hook | Trigger | Output |

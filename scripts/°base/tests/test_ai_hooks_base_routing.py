@@ -487,6 +487,66 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
             self.assertEqual(last_subject(repo), "[base] BASE-123: ai: updated prompt")
 
+    def test_prompt_follows_sub_dir_file_into_subproject(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "myproject"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            (repo / "sub" / "proj").mkdir(parents=True)
+            sub_dir_file = repo / "ai" / ".subDir"
+            sub_dir_file.parent.mkdir(parents=True)
+            sub_dir_file.write_text("sub/proj\n", encoding="utf-8")
+
+            run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
+
+            self.assertEqual(
+                (repo / "sub" / "proj" / "ai" / "query.md").read_text(encoding="utf-8"),
+                "› Capture this prompt\n\n",
+            )
+            self.assertFalse((repo / "ai" / "query.md").exists())
+
+    def test_prompt_sub_dir_uses_by_issue_of_the_subproject(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "myproject"
+            init_repo(repo, "https://github.com/example/consumer.git")
+            issue_file = repo / "sub" / "proj" / "ai" / ".by-issue"
+            issue_file.parent.mkdir(parents=True)
+            issue_file.write_text("DEMO-42\n", encoding="utf-8")
+            sub_dir_file = repo / "ai" / ".subDir"
+            sub_dir_file.parent.mkdir(parents=True)
+            sub_dir_file.write_text("sub/proj", encoding="utf-8")
+
+            run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
+
+            self.assertTrue((repo / "sub" / "proj" / "ai" / "by-issue" / "DEMO-42" / "query.md").is_file())
+            self.assertEqual(last_subject(repo), "DEMO-42: ai: updated prompt")
+
+    def test_prompt_in_base_repo_follows_sub_dir_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "base"
+            init_repo(repo, "https://luckydonald@github.com/luckydonald/base.git")
+            (repo / "sub").mkdir()
+            sub_dir_file = repo / "ai" / "°base" / ".subDir"
+            sub_dir_file.parent.mkdir(parents=True)
+            sub_dir_file.write_text("sub\n", encoding="utf-8")
+
+            run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
+
+            self.assertTrue((repo / "sub" / "ai" / "°base" / "query.md").is_file())
+            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+
+    def test_prompt_ignores_sub_dir_file_pointing_nowhere_valid(self):
+        for value in ("does/not/exist", "../outside", "/tmp"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                repo = Path(tmp) / "myproject"
+                init_repo(repo, "https://github.com/example/consumer.git")
+                sub_dir_file = repo / "ai" / ".subDir"
+                sub_dir_file.parent.mkdir(parents=True)
+                sub_dir_file.write_text(value, encoding="utf-8")
+
+                run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
+
+                self.assertTrue((repo / "ai" / "query.md").is_file())
+
     def test_codex_prompt_in_base_repo_accepts_optional_existing_prefix_pieces(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "base"

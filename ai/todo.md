@@ -100,7 +100,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > [`ai/references/https/github.com/ChromeDevTools/chrome-devtools-mcp/blob/882f93e9a8809fe88eced35d793951fb456b7117/docs/advanced-usage.md`](./references/https/github.com/ChromeDevTools/chrome-devtools-mcp/blob/882f93e9a8809fe88eced35d793951fb456b7117/docs/advanced-usage.md) | download
   > `ai/references/https/github.com/ChromeDevTools/chrome-devtools-mcp/blop/main/docs/advanced-usage.md` | branch symlink
   > `ai/references/https/github.com/ChromeDevTools/chrome-devtools-mcp/latest/docs/advanced-usage.md` | latest symlink
-- [ ] Add a `ai/.subDir` file, instructing which [`ai/query.md`](./query.md) etc. is to be used. — `todo:6bc531bc-61bf-46b2-9bd1-2955685b80db`
+- [x] Add a `ai/.subDir` file, instructing which [`ai/query.md`](./query.md) etc. is to be used. — `todo:6bc531bc-61bf-46b2-9bd1-2955685b80db` _(done)_
   > • not present: as before
   > • present: contains the relative path from the git root to the subproject to use
   > • This would be an extension of the exisiting subproject detection in the path generation of `query.md` and generally the `ai/` folder to use
