@@ -25,7 +25,7 @@ Adopt these rules for every commit made this session:
    - `ai: agent <id> results` — subagent result record
    - `ai: record memory <slug>` — memory file written (e.g. `ai: record memory MEMORY`, `ai: record memory feedback_commit_amend_over_reset`)
    - `ai: save plan <NNN>_<slug>` — plan files
-   - `[<scope>] [TODOs] synced todos for <projects>.` — todo files written by `scripts/sync_todos.py` (the same hook family also commits `purged missing|completed todos …`, `reset todo file …` and `upgraded todo file header …` with that `[TODOs]` marker); always squash it into the last completed task's work commit that is not pushed yet (whatever todos the sync changed; with no unpushed work commit to fold into, it stays its own commit)
+   - `[<scope>] [TODOs] synced todos for <projects>.` — todo files written by `scripts/°base/ai/todos/sync_todos.py` (the same hook family also commits `purged missing|completed todos …`, `reset todo file …` and `upgraded todo file header …` with that `[TODOs]` marker); always squash it into the last completed task's work commit that is not pushed yet (whatever todos the sync changed; with no unpushed work commit to fold into, it stays its own commit)
    - Possibly others starting with plain `ai: `…
 
    **When to keep a commit separate instead of folding:**
@@ -126,7 +126,7 @@ Handles these hook-created commits, among others:
 - **`ai: save decision <slug>`** — one per resolved `AskUserQuestion` via hook; touches only `ai/query.md` or `ai/°base/query.md`. The slug is derived from the first question's text.
 - **`ai: agent <id> results`** — subagent result record, hook; touches only agent result files.
 - **`ai: record memory <slug>`** — memory file written, hook; touches only files under the memory directory.
-- **`[<scope>] [TODOs] synced todos for <projects>.`** — `scripts/sync_todos.py` (not a hook, but an auto-commit all the same); touches only `ai/todos.md`-style todo files. Always squashes into the last completed task's work commit that is not pushed yet (`git log @{upstream}..HEAD`), even when it also added or changed other todos; only when there is no unpushed work commit does it keep its own commit.
+- **`[<scope>] [TODOs] synced todos for <projects>.`** — `scripts/°base/ai/todos/sync_todos.py` (not a hook, but an auto-commit all the same); touches only `ai/todos.md`-style todo files. Always squashes into the last completed task's work commit that is not pushed yet (`git log @{upstream}..HEAD`), even when it also added or changed other todos; only when there is no unpushed work commit does it keep its own commit.
 - **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>` (hook); touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. The revision immediately preceding the implementation commit **always folds into it**, even if it's a genuine new version — note what changed in that final revision in the run commit's body when it differed from the last kept plan version. Every earlier revision of the same plan number (one followed by at least one further plan-file revision rather than directly by the implementation) stays its own commit, renamed to `ai: Plan: …` (first) / `ai: Plan update: …` (each later one) — never left as the raw hook message. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding kept version instead (or into the implementation, if it's the one immediately before it).
 
 ### Procedure
