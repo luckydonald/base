@@ -20,7 +20,7 @@ Auth resolution and scope checks live in `sync_todo/code/sync_todo_control/mcp/a
 
 | Scope | Grants |
 |---|---|
-| `mcp_todos_read` / `mcp_todos_write` | List/create/update/complete/delete todos on any of the token owner's subscribed calendars. |
+| `mcp_todos_read` / `mcp_todos_write` | List/create/update/complete/delete todos and add or remove single tags of a todo (`modify_todo_tags`, `add`/`remove` lists, no full list needed) on any of the token owner's subscribed calendars. |
 | `mcp_settings_user_read` / `mcp_settings_user_write` | Read/patch the same account-wide settings the Mini App's Settings page exposes (discoverability, invite-failure-reason reveal, notifications). |
 | `mcp_settings_tags_read` / `mcp_settings_tags_write` | The user's own tags (colour, aliases, implied tags, flags and renaming live in the bot's DB, see `tags.py`): `list_tags` (read); `create_tag`, `set_tag_color`, `set_tag_category`, `set_tag_additional`, `set_tag_ignore_for_grouping`, `set_tag_keep_last`, `delete_tag`, `add_tag_alias`, `remove_tag_alias`, `add_tag_implication`, `remove_tag_implication`, `rename_tag` (write). Split from the user scopes by migration `0036`, which gave it to every token that held those. |
 | `mcp_settings_calendar_read` / `mcp_settings_calendar_write` | List/read/update CalDAV account config (name/url/username/readonly) -- **never** the password. |
@@ -34,7 +34,7 @@ To triage or grade new todos, run `uv run scripts/sync_todos.py` from the repo r
 The script copies the CalDAV todos through this same MCP server (read-only) into each project's todo file and commits them directly, so a plain file read is all that is left, while the full `list_todos` output of a calendar is large.
 `--dry-run` shows the diff without writing, and `--project NAME` limits it to one project (its name or any of its tags).
 The tag to project mapping is `scripts/sync_todos.json`, the other flags (`--purge-missing`, `--purge-complete`, `--include-completed`, `--reset-todo-file`, `--no-git`) are described in the repo `CLAUDE.md` under "Todo-list identifiers".
-The MCP tools stay the way to write: `create_todo`, `update_todo` and `complete_todo`, then run the sync once more so the file follows.
+The MCP tools stay the way to write: `create_todo`, `update_todo`, `modify_todo_tags` and `complete_todo`, then run the sync once more so the file follows.
 
 ## Getting a token
 
