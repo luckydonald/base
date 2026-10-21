@@ -8,9 +8,9 @@ from typing import Any
 _PERMISSION_ENTRY = re.compile(r"^([A-Za-z_]\w*)\((.*)\)$", re.DOTALL)
 
 # Claude's MCP tool permission strings are bare (no parens), e.g.
-# `mcp__bugsink__list_projects` — server names are simple slugs with no
-# `__`; tool names may contain underscores.
-_MCP_TOOL_ENTRY = re.compile(r"^mcp__(?P<server>[^_]+)__(?P<tool>.+)$")
+# `mcp__bugsink__list_projects` — server names contain no `__` (but may
+# contain single underscores, like `sync_todo`); tool names may contain underscores.
+_MCP_TOOL_ENTRY = re.compile(r"^mcp__(?P<server>.+?)__(?P<tool>.+)$")
 
 # Type-specific field name used for the entry's main value, keyed by the
 # lowercased tool type. Anything not listed here falls back to `pattern`.

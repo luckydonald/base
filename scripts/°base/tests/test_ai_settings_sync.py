@@ -603,6 +603,11 @@ class CommandsTests(unittest.TestCase):
         self.assertEqual(entry, {"type": "mcp", "server": "bugsink", "tool": "list_projects"})
         self.assertEqual(commands._render_claude_permission_entry(entry), "mcp__bugsink__list_projects")
 
+    def test_parse_render_round_trip_mcp_tool_with_underscore_in_server_name(self):
+        entry = commands._parse_claude_permission_entry("mcp__sync_todo__list_calendars")
+        self.assertEqual(entry, {"type": "mcp", "server": "sync_todo", "tool": "list_calendars"})
+        self.assertEqual(commands._render_claude_permission_entry(entry), "mcp__sync_todo__list_calendars")
+
     def test_parse_malformed_string_is_lossless_raw(self):
         entry = commands._parse_claude_permission_entry("not-a-tool-call")
         self.assertEqual(entry, {"type": "raw", "value": "not-a-tool-call"})
