@@ -41,6 +41,24 @@ enabled = true
 command = "npx"
 args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "mcp-remote", "\"$SYNC_TODO_MCP_URL\"", "--header", "\"Authorization:Bearer $SYNC_TODO_MCP_TOKEN\""]
 
+[mcp_servers."sync_todo".tools."get_calendar_account"]
+approval_mode = "auto"
+
+[mcp_servers."sync_todo".tools."get_user_settings"]
+approval_mode = "auto"
+
+[mcp_servers."sync_todo".tools."list_calendar_accounts"]
+approval_mode = "auto"
+
+[mcp_servers."sync_todo".tools."list_calendars"]
+approval_mode = "auto"
+
+[mcp_servers."sync_todo".tools."list_tags"]
+approval_mode = "auto"
+
+[mcp_servers."sync_todo".tools."list_todos"]
+approval_mode = "auto"
+
 [mcp_servers."coolify"]
 enabled = false
 command = "npx"

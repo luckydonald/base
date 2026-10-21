@@ -366,6 +366,12 @@
       {"type": "mcp", "server": "bugsink", "tool": "get_event"},
       {"type": "mcp", "server": "bugsink", "tool": "get_stacktrace"},
       {"type": "mcp", "server": "bugsink", "tool": "test_connection"},
+      {"type": "mcp", "server": "sync_todo", "tool": "list_calendars"},
+      {"type": "mcp", "server": "sync_todo", "tool": "list_todos"},
+      {"type": "mcp", "server": "sync_todo", "tool": "list_tags"},
+      {"type": "mcp", "server": "sync_todo", "tool": "list_calendar_accounts"},
+      {"type": "mcp", "server": "sync_todo", "tool": "get_calendar_account"},
+      {"type": "mcp", "server": "sync_todo", "tool": "get_user_settings"},
       {"type": "bash", "command": "echo \"---\""},
       {"type": "bash", "command": "echo ---"},
       {"type": "bash", "command": "echo '---'"}

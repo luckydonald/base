@@ -358,6 +358,12 @@
       "mcp__bugsink__get_event",
       "mcp__bugsink__get_stacktrace",
       "mcp__bugsink__test_connection",
+      "mcp__sync_todo__list_calendars",
+      "mcp__sync_todo__list_todos",
+      "mcp__sync_todo__list_tags",
+      "mcp__sync_todo__list_calendar_accounts",
+      "mcp__sync_todo__get_calendar_account",
+      "mcp__sync_todo__get_user_settings",
       "Bash(echo \"---\")",
       "Bash(echo ---)",
       "Bash(echo '---')"

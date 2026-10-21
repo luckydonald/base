@@ -8016,3 +8016,32 @@ Also move this into the ai/settings folder.
 
 ❯ [/todo-loop](../skills/todo-loop/SKILL.md)
 
+❯ Plan denied:
+> If there are more we should add...?
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. None of the sync_todo MCP tools is allowed yet. Which read-only ones should I add next to list_calendars?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **sync_todo** (1/1) <kbd>Multi Select</kbd><br>
+>> None of the sync_todo MCP tools is allowed yet. Which read-only ones should I add next to list_calendars?
+> - [x] 1\. list_todos <sup><sub><kbd>#1</kbd></sub></sup>
+>   - _Read todos; the sync-todo-mcp skill already uses it for triage._
+> - [x] 2\. list_tags <sup><sub><kbd>#2</kbd></sub></sup>
+>   - _Read tags, aliases and implications._
+> - [x] 3\. list_calendar_accounts <sup><sub><kbd>#3</kbd></sub></sup>
+>   - _List the configured CalDAV accounts (read-only)._
+> - [x] 4\. get_calendar_account + get_user_settings <sup><sub><kbd>#4</kbd></sub></sup>
+>   - _Read one account's config and the user settings (read-only)._
+> - [ ] 5\. _Type something._
+>
+> </details>
+>
+
+❯ Plan accepted, auto mode.
+
