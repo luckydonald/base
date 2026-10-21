@@ -109,7 +109,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > • e.g. https://github.com/mdn/content/blob/main/files/en-us/web/api/navigator/registerprotocolhandler/index.md?plain=1
 - [x] add memory for storing telegram `user_id` to db or fixed integer size to be BIGINT. — `todo:2d6a17a2-5d9a-44d2-93a3-245ae8215388` _(done)_
   > • reference the specific `ai/references/` markdown file for this in the memory's body.
-- [ ] allow `/code-style` and suffix like `/code-style .md .py` or `/code-style md` in the query-autocommit hook to not be displayed — `todo:2eaeb8ce-67be-4878-a8df-3fb3311a4be8`
+- [x] allow `/code-style` and suffix like `/code-style .md .py` or `/code-style md` in the query-autocommit hook to not be displayed — `todo:2eaeb8ce-67be-4878-a8df-3fb3311a4be8` _(done)_
   > • there's an array to fill
 - [ ] add `mcp__sync_todo__list_calendars` to allowed calls in [`ai/settings/settings.json`](./settings/settings.json). — `todo:87dac3b4-331e-4043-8f5b-cc5e45c113ab`
 - [ ] add memory that if we stumble over preexisting errors in unittests or typing, those should be fixed as a separate commit automatically, too. No need to explicitly seach for those though. — `todo:8ae825eb-3ef2-4d84-8180-a937d7e2bb3c`

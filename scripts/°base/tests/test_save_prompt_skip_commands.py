@@ -27,6 +27,16 @@ class SavePromptSkipCommandsTests(unittest.TestCase):
             with self.subTest(prompt=prompt):
                 self.assertNotIn(prompt, self.logged_query(prompt))
 
+    def test_code_style_with_any_suffix_is_skipped(self):
+        for prompt in ("/code-style", "/code-style md", "/code-style .md .py", "$code-style md"):
+            with self.subTest(prompt=prompt):
+                self.assertNotIn("code-style", self.logged_query(prompt))
+
+    def test_lookalikes_are_still_logged(self):
+        for prompt in ("/code-style-other", "please run /code-style"):
+            with self.subTest(prompt=prompt):
+                self.assertIn(prompt, self.logged_query(prompt))
+
     def test_commit_is_skipped(self):
         self.assertNotIn("commit", self.logged_query("commit"))
 

@@ -99,6 +99,18 @@ SKIP_PROMPTS = {
     "/rename",
     "/compact",
 }
+# Commands skipped with any arguments, e.g. `/code-style .md .py` or `/code-style md`.
+SKIP_PROMPT_COMMANDS = {
+    "/code-style",
+    "$code-style",
+}
+
+
+def is_skipped_prompt(prompt: str) -> bool:
+    stripped = prompt.strip()
+    if stripped in SKIP_PROMPTS:
+        return True
+    return stripped.split(maxsplit=1)[0] in SKIP_PROMPT_COMMANDS
 
 
 class PromptLogEntry(NamedTuple):
@@ -1035,7 +1047,7 @@ def main() -> int:
         _capture_codex_commands(payload, prompt, prefix, log_path)
     elif ai_tool == "claude":
         _capture_claude_queued_commands(payload, prefix, log_path)
-    if prompt.strip() in SKIP_PROMPTS:
+    if is_skipped_prompt(prompt):
         return 0
     if prompt.strip().startswith(HARNESS_TASK_COMPLETE_REMINDER_PREFIX):
         return 0
