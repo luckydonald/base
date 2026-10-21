@@ -27,6 +27,7 @@ class DownloadPlan:
     download_url: str
     output_path: Path
     convert_html: bool
+    link_paths: tuple[Path, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)

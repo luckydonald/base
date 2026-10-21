@@ -56,6 +56,7 @@ def github_plan(url: str, output_root: Path, fetch: Fetch) -> DownloadPlan | Non
     if parsed is None:
         return None
     owner, repo, rest = parsed
+    link_ref: str | None = None
     if re.fullmatch(r"[0-9a-f]{40}", rest[0]):
         commit = rest[0]
         path = "/".join(rest[1:])
@@ -70,14 +71,23 @@ def github_plan(url: str, output_root: Path, fetch: Fetch) -> DownloadPlan | Non
             except DownloadError:
                 continue
             path = candidate_path
+            link_ref = ref
             break
         if not commit or not path:
             raise DownloadError(f"could not resolve GitHub blob URL: {url}")
     permalink = f"https://github.com/{owner}/{repo}/blob/{commit}/{path}"
     raw = f"https://raw.githubusercontent.com/{owner}/{repo}/{commit}/{path}"
+    link_labels = ["latest"] if link_ref is None else [link_ref, "latest"]
+    link_paths: list[Path] = []
+    for label in link_labels:
+        base = f"https://github.com/{owner}/{repo}"
+        link_url = f"{base}/blob/{label}/{path}" if label != "latest" else f"{base}/latest/{path}"
+        link_paths.append(output_path_for_url(output_root, link_url))
+    # end for
     return DownloadPlan(
         source_url=permalink,
         download_url=raw,
         output_path=output_path_for_url(output_root, permalink),
         convert_html=not path.endswith(".md"),
+        link_paths=tuple(link_paths),
     )

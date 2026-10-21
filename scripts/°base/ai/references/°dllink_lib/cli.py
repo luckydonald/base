@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .config import DownloadLinkSettings, load_download_link_settings, repo_root
 from .http import fetch_url
+from .links import write_symlink
 from .models import DownloadError
 from .planner import download, markdown_plan_if_available, resolve_plan
 
@@ -41,22 +42,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return args
 
 
-def _git_add(path: Path) -> None:
+def _git_add(paths: list[Path]) -> None:
     result = subprocess.run(
-        ["git", "-C", str(repo_root()), "add", "--", str(path.resolve())],
+        ["git", "-C", str(repo_root()), "add", "--", *(str(path.resolve()) for path in paths)],
         capture_output=True,
         text=True,
     )
     if result.returncode == 0:
         return
     details = (result.stderr or result.stdout or f"exit {result.returncode}").strip()
-    raise DownloadError(f"git add failed for {path}: {details}")
+    raise DownloadError(f"git add failed for {', '.join(str(path) for path in paths)}: {details}")
 
 
-def _git_commit(path: Path) -> None:
+def _git_commit(path: Path, paths: list[Path]) -> None:
     result = subprocess.run(
         [
-            "git", "-C", str(repo_root()), "commit", "--no-verify", "--only", str(path.resolve()),
+            "git", "-C", str(repo_root()), "commit", "--no-verify", "--only",
+            *(str(item.resolve()) for item in paths),
             "-m", f"ai/references: Downloaded `{path}`.",
         ],
         capture_output=True,
@@ -94,10 +96,14 @@ def main(argv: list[str] | None = None) -> int:
         path, content = result
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
+        for link in plan.link_paths:
+            write_symlink(path, link)
+        # end for
+        written = [path, *plan.link_paths]
         if not args.no_git_add:
-            _git_add(path)
+            _git_add(written)
         if not args.no_git_commit:
-            _git_commit(path)
+            _git_commit(path, written)
         opened = False
         if not args.no_open_ide:
             opened = _open_ide(path, args.open_ide or settings.ide)
@@ -110,6 +116,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"archive fallback: snapshot from {result.archive_timestamp}", file=sys.stderr)
     # end if
     print(f"wrote: {path}")
+    for link in plan.link_paths:
+        print(f"symlink: {link}")
+    # end for
     if not args.no_git_add:
         print(f"git add: {path}")
     if not args.no_git_commit:

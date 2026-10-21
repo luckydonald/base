@@ -1,0 +1,1 @@
+Background command "Run full suite, capture summary" completed (exit code 0)

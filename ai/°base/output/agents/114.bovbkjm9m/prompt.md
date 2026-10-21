@@ -1,0 +1,1 @@
+Background command "Run full tests and ruff" completed (exit code 0)

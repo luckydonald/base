@@ -56,7 +56,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > • rename them and their callers/tests
   > • or extract into a module instead of hiding them
   > • low prio, pure cleanup
-- [ ] for github links, which are turned into a git commit, keep a `latest` folder with symlinks. — `todo:3caf29dd-df53-4dd5-8f5f-3b99f41c0cf8`
+- [x] for github links, which are turned into a git commit, keep a `latest` folder with symlinks. — `todo:3caf29dd-df53-4dd5-8f5f-3b99f41c0cf8` _(done)_
   > • It should link the individual files each
   >   • because existing files are not updated to new versions automatically.
   >   • however pulling a new file which writes a new commit will overwrite that file's latest symlink with the new symlink target

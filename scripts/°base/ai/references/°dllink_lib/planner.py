@@ -100,6 +100,7 @@ def markdown_plan_if_available(plan: DownloadPlan, output_root: Path, fetch: Fet
                 download_url=candidate,
                 output_path=output_path_for_url(output_root, source_candidate),
                 convert_html=False,
+                link_paths=plan.link_paths,
             )
         # end if
     log(f"no markdown rewrite found for {plan.download_url}, converting HTML")

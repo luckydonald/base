@@ -21,6 +21,7 @@ providers = importlib.import_module("°dllink_lib.providers")
 generic_provider = importlib.import_module("°dllink_lib.providers.generic")
 config = importlib.import_module("°dllink_lib.config")
 http = importlib.import_module("°dllink_lib.http")
+links = importlib.import_module("°dllink_lib.links")
 
 ENTRYPOINT_PATH = LIB_ROOT / "download-link.py"
 SPEC = importlib.util.spec_from_file_location("download_link_entrypoint", ENTRYPOINT_PATH)
@@ -92,6 +93,8 @@ class DownloadLinkPathTests(unittest.TestCase):
             plan.download_url,
             f"https://raw.githubusercontent.com/j-shelfwood/bugsink-mcp/{sha}/README.md",
         )
+        base = "ai/references/https/github.com/j-shelfwood/bugsink-mcp"
+        self.assertEqual(plan.link_paths, (Path(f"{base}/blob/main/README.md"), Path(f"{base}/latest/README.md")))
 
     def test_github_commit_blob_does_not_call_api(self):
         sha = "3010d119bca3a48eced460e8f51f52cda4b51d5b"
@@ -104,6 +107,10 @@ class DownloadLinkPathTests(unittest.TestCase):
         self.assertEqual(
             plan.download_url,
             f"https://raw.githubusercontent.com/j-shelfwood/bugsink-mcp/{sha}/README.md",
+        )
+        self.assertEqual(
+            plan.link_paths,
+            (Path("ai/references/https/github.com/j-shelfwood/bugsink-mcp/latest/README.md"),),
         )
 
     def test_github_branch_with_slash_tries_prefixes_until_ref_resolves(self):
@@ -124,6 +131,13 @@ class DownloadLinkPathTests(unittest.TestCase):
         plan = MODULE.resolve_plan(url, Path("ai/references"), fetch)
 
         self.assertEqual(plan.download_url, f"https://raw.githubusercontent.com/owner/repo/{sha}/README.md")
+        self.assertEqual(
+            plan.link_paths,
+            (
+                Path("ai/references/https/github.com/owner/repo/blob/feature/docs/README.md"),
+                Path("ai/references/https/github.com/owner/repo/latest/README.md"),
+            ),
+        )
 
     def test_readthedocs_html_uses_footer_revision_filename(self):
         url = "https://pyte.readthedocs.io/en/latest/api.html"
@@ -243,6 +257,95 @@ class DownloadLinkPathTests(unittest.TestCase):
             plan.download_url,
             "https://git.example.test/group/project/-/raw/main/docs/readme.md",
         )
+
+
+class DownloadLinkSymlinkTests(unittest.TestCase):
+    def test_write_symlink_is_relative_and_resolves_to_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "blob" / "abc" / "docs" / "x.md"
+            target.parent.mkdir(parents=True)
+            target.write_text("x")
+            link = root / "blob" / "main" / "docs" / "x.md"
+
+            links.write_symlink(target, link)
+
+            self.assertTrue(link.is_symlink())
+            self.assertEqual(str(link.readlink()), "../../abc/docs/x.md")
+            self.assertEqual(link.read_text(), "x")
+
+    def test_write_symlink_overwrites_older_link(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            old, new = root / "blob" / "old.md", root / "blob" / "new.md"
+            old.parent.mkdir(parents=True)
+            old.write_text("old")
+            new.write_text("new")
+            link = root / "latest" / "x.md"
+
+            links.write_symlink(old, link)
+            links.write_symlink(new, link)
+
+            self.assertEqual(link.read_text(), "new")
+
+    def test_write_symlink_refuses_real_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "t.md"
+            target.write_text("t")
+            (root / "dir").mkdir()
+
+            with self.assertRaises(MODULE.DownloadError):
+                links.write_symlink(target, root / "dir")
+
+    def test_non_github_plan_has_no_links(self):
+        plan = MODULE.resolve_plan("https://example.com/docs/page.md", Path("ai/references"), FakeFetch({}))
+        self.assertEqual(plan.link_paths, ())
+
+    def test_main_creates_github_symlinks_even_without_git(self):
+        sha = "3010d119bca3a48eced460e8f51f52cda4b51d5b"
+        url = "https://github.com/owner/repo/blob/main/docs/a.md"
+        api = "https://api.github.com/repos/owner/repo/git/ref/heads/main"
+        raw = f"https://raw.githubusercontent.com/owner/repo/{sha}/docs/a.md"
+        fetch = FakeFetch({
+            (api, "GET"): MODULE.Response(url=api, status=200, content=f'{{"object": {{"sha": "{sha}"}}}}'.encode()),
+            (raw, "GET"): MODULE.Response(url=raw, status=200, content=b"# A\n", content_type="text/plain"),
+        })
+
+        with tempfile.TemporaryDirectory() as tmp:
+            refs = Path(tmp) / "refs"
+            with mock.patch.object(cli, "fetch_url", fetch):
+                status = cli.main(["--output-root", str(refs), "--no-git", "--no-open-ide", url])
+
+            repo = refs / "https" / "github.com" / "owner" / "repo"
+            self.assertEqual(status, 0)
+            self.assertEqual((repo / "blob" / "main" / "docs" / "a.md").read_text(), "# A\n")
+            self.assertEqual((repo / "latest" / "docs" / "a.md").read_text(), "# A\n")
+            self.assertEqual(str((repo / "latest" / "docs" / "a.md").readlink()), f"../../blob/{sha}/docs/a.md")
+
+    def test_main_git_add_and_commit_include_symlinks(self):
+        sha = "3010d119bca3a48eced460e8f51f52cda4b51d5b"
+        url = f"https://github.com/owner/repo/blob/{sha}/a.md"
+        raw = f"https://raw.githubusercontent.com/owner/repo/{sha}/a.md"
+        fetch = FakeFetch({(raw, "GET"): MODULE.Response(url=raw, status=200, content=b"# A\n", content_type="text/plain")})
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, capture_output=False, text=False):
+            calls.append(list(cmd))
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                mock.patch.object(cli.subprocess, "run", side_effect=fake_run),
+                mock.patch.object(cli, "fetch_url", fetch),
+            ):
+                status = cli.main(["--output-root", str(Path(tmp) / "refs"), "--no-open-ide", url])
+            # end with
+
+            latest = str((Path(tmp) / "refs" / "https" / "github.com" / "owner" / "repo" / "latest" / "a.md").resolve())
+            self.assertEqual(status, 0)
+            self.assertIn(latest, calls[0])
+            self.assertIn(latest, calls[1])
 
 
 class DownloadLinkInputTests(unittest.TestCase):
