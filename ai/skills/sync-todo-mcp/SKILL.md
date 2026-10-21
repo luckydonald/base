@@ -28,6 +28,8 @@ Auth resolution and scope checks live in `sync_todo/code/sync_todo_control/mcp/a
 
 A token can hold any subset. Grant the minimum needed.
 
+`get_version` (version, git commit, branch, build time of the running server, the same as `GET /api/version`) needs a valid token but no scope, so even a token with none can call it; use it after a deploy to check which build is live.
+
 ## Reading and triaging todos: prefer `scripts/sync_todos.py`
 
 To triage or grade new todos, run `uv run scripts/sync_todos.py` from the repo root and then read the project's `{folder}/ai/todos.md`, instead of calling `list_todos`.
