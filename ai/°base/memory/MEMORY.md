@@ -7,3 +7,4 @@
 - [Memory subsystem directory map](memory_subsystem_directory_map.md) — the 5 memory-related dirs under scripts/°base/ aren't redundant; only scripts/°base/memories/ was dead, now moved to ai/memory/legacy/.
 - [fix-subproject-memory-project-dir-name-override](fix-subproject-memory-project-dir-name-override.md) — TODO: summarize this file.
 - [push_checks.py clean-format misapplies to base branch](push_checks_clean_format_misapplies_to_base_branch.md) — don't re-chain split.py check-push into .git/hooks/pre-push.legacy for base's own branch without an exemption fix first.
+- [Fix preexisting errors separately](feedback_fix_preexisting_errors_separate_commit.md) — preexisting unittest/typing errors met during a task get fixed automatically as their own separate commit; never hunt for them.

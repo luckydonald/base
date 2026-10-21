@@ -8045,3 +8045,7 @@ Also move this into the ai/settings folder.
 
 ❯ Plan accepted, auto mode.
 
+❯ [/todo-loop](../skills/todo-loop/SKILL.md)
+
+❯ Plan accepted, auto mode.
+
