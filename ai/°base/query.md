@@ -8127,3 +8127,7 @@ Prepare the local file for post merge, and edit the current non-local one to wor
 
 ❯ Sync the todos.
 
+❯ Fixed the mapping file to use [`ai/°base/todos.md`](./todos.md) as expected.
+
+❯ There's still a [`ai/°base/todo.md`](./todo.md) file. I want that fully merged into the newer format [`ai/°base/todos.md`](./todos.md).
+
