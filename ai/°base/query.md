@@ -7940,3 +7940,15 @@ Also move this into the ai/settings folder.
 
 ❯ Rename the file to ai/todos.md
 
+❯ [/todo-loop](../skills/todo-loop/SKILL.md)
+
+❯ Plan accepted, auto mode.
+
+❯ That's a few long running ones. Can you investigate?
+
+❯ Hm,
+1. Keep it running
+2. Commit
+3. Fix errors
+4. Optimize test times
+

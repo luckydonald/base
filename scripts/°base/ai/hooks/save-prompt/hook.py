@@ -94,7 +94,7 @@ SKIP_PROMPTS = {
     # confirmations
     "yes", "ok", "okay",
     # fix it
-    "yes, fix this", "fix", "fix this", "fix it"
+    "yes, fix this", "fix", "fix this", "fix it",
     # misc commands
     "/rename",
     "/compact",
