@@ -9,9 +9,10 @@ Does the **next open todo** of one project, then stops so the user can `/clear` 
 
 ## Setup
 
-1. Work out the project (tag or name, from the user's message or a named todo file), its todo file, calendar id (default `7`), Bugsink ids and commit scope prefix. All come from the repo `CLAUDE.md` ("Todo-list identifiers", "Issue-tracker identifiers") and the project's own `CLAUDE.md`.
-2. Load `/commit-with-lplp-style` and `/code-style`.
-3. Read the todo file and take the first open `- [ ]` item, unless another is clearly more urgent (crash, blocker). A subtask comes before its parent; skip items that say so. Tell the user which todo (uid, summary) you take, and why if it is not the first.
+1. Sync first: run `uv run scripts/sync_todos.py` from the repo root, without `--purge-*`, so the todo files hold the current CalDAV state. It commits its own `ai: synced todos …` commits.
+2. Work out the project (tag or name, from the user's message or a named todo file), its todo file, calendar id (default `7`), Bugsink ids and commit scope prefix. All come from the repo `CLAUDE.md` ("Todo-list identifiers", "Issue-tracker identifiers") and the project's own `CLAUDE.md`.
+3. Load `/commit-with-lplp-style` and `/code-style`.
+4. Read the todo file and take the first open `- [ ]` item, unless another is clearly more urgent (crash, blocker). A subtask comes before its parent; skip items that say so. Tell the user which todo (uid, summary) you take, and why if it is not the first.
 
 ## The todo
 
