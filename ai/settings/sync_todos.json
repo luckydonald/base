@@ -37,7 +37,7 @@
         "base",
         "baseBase"
       ],
-      "todo_file": "ai/todo.md"
+      "todo_file": "ai/todos.md"
     },
     {
       "name": "aiUsage",
