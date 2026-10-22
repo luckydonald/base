@@ -8135,3 +8135,7 @@ Prepare the local file for post merge, and edit the current non-local one to wor
 
 ❯ Plan accepted, auto mode.
 
+❯ [/todo-loop](../skills/todo-loop/SKILL.md)
+
+❯ Plan accepted, auto mode.
+

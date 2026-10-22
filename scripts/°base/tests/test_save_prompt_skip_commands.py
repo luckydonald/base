@@ -43,6 +43,14 @@ class SavePromptSkipCommandsTests(unittest.TestCase):
     def test_squash_unpushed_is_skipped(self):
         self.assertNotIn("squash unpushed", self.logged_query("squash unpushed"))
 
+    def test_loop_continuations_are_skipped(self):
+        for prompt in ("continue loop", "resume loop", "/todo-loop", "$todo-loop", "  /todo-loop\n"):
+            with self.subTest(prompt=prompt):
+                self.assertEqual("", self.logged_query(prompt))
+
+    def test_longer_prompt_containing_a_skip_phrase_is_still_logged(self):
+        self.assertIn("continue loop please", self.logged_query("continue loop please"))
+
 
 if __name__ == "__main__":
     unittest.main()

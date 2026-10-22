@@ -92,6 +92,9 @@ SKIP_PROMPTS = {
     "rebase", "rebase it", "rebase it with lplp style",
     # bumping the AI to continue
     "continue", "go on", "bump",
+    # loop
+    "continue loop", "resume loop",
+    "/todo-loop", "$todo-loop",
     # confirmations
     "yes", "ok", "okay",
     # fix it
