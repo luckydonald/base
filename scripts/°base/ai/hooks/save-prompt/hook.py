@@ -21,8 +21,8 @@ from typing import NamedTuple
 from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import compact_result  # noqa: E402
-from _lib import (  # noqa: E402
+import compact_result
+from _lib import (
     append_and_commit,
     base_ai_commit_subject,
     dump_debug_payload,
@@ -520,8 +520,10 @@ def _online_query_artifact_text(
     lines.extend(
         [
             f"Event type: {event_type or 'unknown'}",
-            f"Trigger: @{trigger_username or 'unknown'}"
-            f" ({trigger_display_name or 'unknown'}) via {trigger_phrase or 'unknown'}",
+            (
+                f"Trigger: @{trigger_username or 'unknown'}"
+                f" ({trigger_display_name or 'unknown'}) via {trigger_phrase or 'unknown'}"
+            ),
             "",
             "## Trigger Comment",
             "",

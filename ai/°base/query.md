@@ -8139,3 +8139,30 @@ Prepare the local file for post merge, and edit the current non-local one to wor
 
 ❯ Plan accepted, auto mode.
 
+❯ Also fix it
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. What should I fix? "fix it" could mean several things from the last run.
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Fix what** (1/1) <kbd>Single Select</kbd><br>
+>> What should I fix? "fix it" could mean several things from the last run.
+> - [ ] 1\. Failing base tests
+>   - _The 12 failures and 67 errors in scripts/°base/tests that already fail without my change (get_base, tag_backup, link_subproject, git_split e2e, reffiles, memory rm)._
+> - [ ] 2\. Ruff findings in hook.py
+>   - _The 6 ruff findings in save-prompt/hook.py and my new test (unused noqa, implicit string concatenation at line 510, subprocess.run without check)._
+> - [ ] 3\. Something in my commit
+>   - _Something about da59bd4a7 itself (message, scope, the extra $todo-loop or comma fix). Tell me what in the free text._
+> - [x] 4\. _Type something:_
+>   - > 1 & 2
+>
+> </details>
+>
+
+❯ When trying to merge `base/base` into `deploy4`, I have diffs in the `°base` script dirs, etc. I believe because we improved some code. This should be commited back to that project following [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md). The repo is local at `../base/`, please also integrate this prompt and planning commits into `ai/°base/` accordingly there.
+
