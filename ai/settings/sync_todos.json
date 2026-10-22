@@ -12,7 +12,8 @@
         "DockerTgBot",
         "DjangoTgBot"
       ],
-      "todo_file": "ai/todos.md"
+      "todo_file": "ai/todos.md",
+      "commit_prefix": "[root] "
     },
     {
       "name": "SyncTodoBot",
@@ -21,7 +22,8 @@
         "SyncTodoList",
         "TodoSyncBot"
       ],
-      "todo_file": "ai/todos.md"
+      "todo_file": "ai/todos.md",
+      "commit_prefix": "[sync_todo] "
     },
     {
       "name": "derpiscript",
@@ -51,14 +53,16 @@
       "tags": [
         "botManager"
       ],
-      "todo_file": "ai/todos.md"
+      "todo_file": "ai/todos.md",
+      "commit_prefix": "[bot_manager] "
     },
     {
       "name": "cum_time",
       "tags": [
         "cumRobot"
       ],
-      "todo_file": "ai/todos.md"
+      "todo_file": "ai/todos.md",
+      "commit_prefix": "[cum_time] "
     },
     {
       "name": "hydrus-viewer",
