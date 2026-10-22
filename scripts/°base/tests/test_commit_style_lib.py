@@ -6,11 +6,13 @@ scripts/°base/ai/hooks/°commit_style_lib/__init__.py).
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 import importlib
 
@@ -219,7 +221,10 @@ class IsInsideBaseRepoTests(unittest.TestCase):
             init_repo(repo, "git@github.com:luckydonald/base.git")
 
             self.assertTrue(_is_inside_base_repo(repo))
-            self.assertTrue(base_ai_commit_subject("do a thing").startswith("[base] "))
+            # `base_ai_commit_subject` looks at CLAUDE_PROJECT_DIR / the cwd,
+            # which would otherwise be the repo running the tests.
+            with patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(repo)}):
+                self.assertTrue(base_ai_commit_subject("do a thing").startswith("[base] "))
         # end with
     # end def
 

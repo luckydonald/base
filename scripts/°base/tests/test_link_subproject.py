@@ -59,7 +59,10 @@ def build_merged_monorepo_fixture() -> tuple[TemporaryDirectory, Path]:
     git(["remote", "add", "base", str(REPO_ROOT)], repo_root)
     git(["fetch", "-q", "base", "base"], repo_root)
     git(["lfs", "install", "--local"], repo_root)
-    git(["merge", "-q", "--allow-unrelated-histories", "--no-verify", "base/base"], repo_root)
+    # `FETCH_HEAD`, not `base/base`: when this checkout only has `base` as a
+    # remote-tracking ref (any consumer repo), the fetch resolves it but
+    # creates no `base/base` ref in the throwaway repo.
+    git(["merge", "-q", "--allow-unrelated-histories", "--no-verify", "FETCH_HEAD"], repo_root)
     return tmp, repo_root
 # end def
 

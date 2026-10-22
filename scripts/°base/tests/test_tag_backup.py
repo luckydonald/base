@@ -68,12 +68,12 @@ class TagBackupTests(unittest.TestCase):
     # end def
 
     def test_no_remove_flag_keeps_tags_in_parent_history(self) -> None:
-        git(["tag", "old-backup", self.parent], self.repo)
+        git(["tag", "bak/old-backup", self.parent], self.repo)
 
         result = self.run_script("--no-rm")
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("old-backup", git(["tag"], self.repo).splitlines())
+        self.assertIn("bak/old-backup", git(["tag"], self.repo).splitlines())
     # end def
 
     def test_remove_and_no_remove_flags_conflict(self) -> None:

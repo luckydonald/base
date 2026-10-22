@@ -23,6 +23,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+# The fixtures fetch this repo's real `base` history into throwaway repos that
+# have no LFS remote, so a consumer repo's LFS files (e.g. r2tg's test gifs)
+# would fail to smudge. The tests never read LFS content.
+os.environ.setdefault("GIT_LFS_SKIP_SMUDGE", "1")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _git_test_helpers import git, init_repo, make_commit  # noqa: E402
 
