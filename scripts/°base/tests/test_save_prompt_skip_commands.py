@@ -40,6 +40,9 @@ class SavePromptSkipCommandsTests(unittest.TestCase):
     def test_commit_is_skipped(self):
         self.assertNotIn("commit", self.logged_query("commit"))
 
+    def test_squash_unpushed_is_skipped(self):
+        self.assertNotIn("squash unpushed", self.logged_query("squash unpushed"))
+
 
 if __name__ == "__main__":
     unittest.main()

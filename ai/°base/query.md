@@ -8131,3 +8131,7 @@ Prepare the local file for post merge, and edit the current non-local one to wor
 
 ❯ There's still a [`ai/°base/todo.md`](./todo.md) file. I want that fully merged into the newer format [`ai/°base/todos.md`](./todos.md).
 
+❯ Using @/Users/user/Documents/programming/Python/DockerTgBot/ai/skills/sync-todo-mcp/SKILL.md run the skill @/Users/user/Documents/programming/Python/DockerTgBot/ai/skills/todo-loop/SKILL.md to process the next todo item in *this* repo following ˋai/todos.mdˋ (or ˋai/todo.mdˋ, only if not found, you can check your entry in ˋ/Users/user/Documents/programming/Python/DockerTgBot/scripts/sync_todo.jsonˋ). No need to sync todos, I already did that. The plan must include to load the skills [/code-style](../skills/code-style/SKILL.md) for py (and follow md) and [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md).
+
+❯ Plan accepted, auto mode.
+
