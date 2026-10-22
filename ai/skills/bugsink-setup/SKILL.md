@@ -23,7 +23,7 @@ Read the guide(s) that match what's actually in the project — don't read both 
 
 - **`references/python.md`** — backend SDK init, ASGI lifespan gotcha, release/build metadata, the tunnel endpoint, sample-error route.
 - **`references/rust.md`** — backend SDK init, the pre-async-runtime init gotcha, release/build metadata, the tunnel endpoint, sample-error route.
-- **`references/vue.md`** — frontend SDK init, tunnel probe-and-fallback, Pinia state scrubbing, sourcemap upload, sample-error test view.
+- **`references/vue.md`** — frontend SDK init, capture before the Vue bundle loads (inline `index.html` script), event enrichment (client tags, stackless rejections, breadcrumb bursts, token redaction), tunnel probe-and-fallback, Pinia state scrubbing, sourcemap upload, sample-error test view.
 
 This skill only has those three so far.
 If a project needs another language or frontend framework, write a new `references/<name>.md` following the same shape (SDK init → release tagging → tunnel-if-needed → sourcemap upload) and list it here — don't bloat this dispatcher file with it.
@@ -72,12 +72,15 @@ environment:
   SENTRY_ENVIRONMENT: '${SENTRY_ENVIRONMENT:-production}'
 ```
 
+If the frontend uses the inline `index.html` script from `references/vue.md`, the `VITE_SENTRY_*` variables are read at **container start** (an entrypoint script rewrites the placeholders), so set them as runtime env on the frontend service, not as build args.
+
 If the user *did* confirm both sides share one Bugsink project, it's fine to collapse this to `VITE_SENTRY_DSN: '${VITE_SENTRY_DSN:-${SENTRY_DSN:-}}'` so one value drives both — just don't make that the default assumption.
 
 ## Verify before calling it done
 
 - With DSNs unset, confirm the app still starts and runs normally (Sentry must be fully inert, not an error, when not configured).
 - With DSNs set, hit the sample-error routes described in the language guides and confirm both events land in Bugsink with the right release/environment tags.
+- If you built the inline early-capture script, break the bundle on purpose (e.g. throw at the top of `main.ts`, or point the entry `<script>` at a missing file) and confirm an event still lands in Bugsink, then confirm a normal error is **not** reported twice.
 - If you built the tunnel, deliberately break the direct path (or just check the console logs from the probe) to confirm the fallback actually engages — an untested fallback path is the most common way this kind of setup silently regresses later.
 
 Once this is wired up, ongoing monitoring is a different task — if a `bugsink-triage` skill is available in this project, point the user at it for periodically checking what's actually failing in production.

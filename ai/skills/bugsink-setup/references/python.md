@@ -71,6 +71,11 @@ Two non-obvious placement details matter:
   The full `init_sentry()` in the app still re-initializes with the complete config afterwards.
   Test that the bootstrap module imports with none of the required variables set.
 
+- **Never put environment values into the missing-variable error.**
+  Startup failures are reported to Sentry (and land in container logs) now, so an `env()` helper that dumps the whole environment into its "required but not set" message leaks every secret of the shell, a deploy token included.
+  Name the missing variable and list only the *names* of set variables sharing its prefix (still useful to spot a typo like `POSTGRES_PASSWD`), never a value, not even redacted.
+  Add a test that a secret value doesn't appear in the message.
+
 Add the dependency with the extra matching the web framework, e.g. `sentry-sdk[fastapi]` (Flask/Django have their own extras).
 
 ## Release/build metadata

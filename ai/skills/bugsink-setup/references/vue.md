@@ -30,6 +30,123 @@ export function initSentry(app: VueApp, router: Router, apiBaseUrl: string): voi
 
 Add `@sentry/vue` as a runtime dependency.
 
+## Catching errors before the Vue bundle loads
+
+`initSentry` runs from `main.ts`, so it only exists once the whole bundle was downloaded, parsed and every import evaluated.
+A bundle that fails to load (stale cache, CDN hiccup, a syntax error in an old browser) or throws while its modules evaluate is never reported by it.
+Add an inline script to `index.html` that loads the Sentry browser bundle from the CDN and inits it on its own, independent of the Vue bundle.
+The DSN, environment and release can't be baked in at build time then, so they are placeholders that the container replaces at start (the inline-script variant of the `VITE_SENTRY_*` variables is therefore **runtime** env, not build args):
+
+```html
+<script>
+  (function () {
+    var dsn = "__VITE_SENTRY_DSN__";
+    if (!dsn || dsn.indexOf("__") === 0) return; // placeholder not replaced (dev): disabled
+    window.__APP_SENTRY__ = true; // tells src/sentry.ts that this script already set Sentry up
+    var script = document.createElement("script");
+    script.src = "https://browser.sentry-cdn.com/<same version as @sentry/vue>/bundle.min.js";
+    script.crossOrigin = "anonymous";
+    script.async = true;
+    script.onload = function () {
+      var environment = "__VITE_SENTRY_ENVIRONMENT__";
+      var release = "__VITE_SENTRY_RELEASE__";
+      window.Sentry.init({
+        dsn: dsn,
+        environment: environment.indexOf("__") === 0 ? undefined : environment,
+        release: release.indexOf("__") === 0 ? undefined : release,
+      });
+    };
+    document.head.appendChild(script);
+  })();
+</script>
+```
+
+Hand-off, so nothing is reported twice: declare `interface Window { __APP_SENTRY__?: boolean }` in `env.d.ts` and have `initSentry` return early with `if (!dsn || window.__APP_SENTRY__) return`.
+Name the flag after the project.
+The trade-off is that the inline instance has no Vue/router integration, Pinia plugin, tags or tunnel, so it is the safety net for the "bundle never ran" case, not a replacement.
+If the CDN script itself can't be loaded (ad blocker, offline), nothing is reported either; that is accepted.
+
+Replace the placeholders when the container starts, with a script in the nginx image's `/docker-entrypoint.d/`:
+
+```sh
+#!/bin/sh
+# Replaces the __VITE_SENTRY_*__ placeholders in index.html with the container's runtime env.
+# Unset variables keep their placeholder, which index.html treats as "Sentry disabled".
+set -e
+INDEX=/app/index.html
+
+# escape for the replacement side of sed s|..|..| (backslash, ampersand, delimiter)
+escape() { printf '%s' "$1" | sed -e 's/[\\&|]/\\&/g'; }
+
+for name in VITE_SENTRY_DSN VITE_SENTRY_ENVIRONMENT VITE_SENTRY_RELEASE; do
+  eval "value=\${$name:-}"
+  if [ -n "$value" ]; then
+    sed -i "s|__${name}__|$(escape "$value")|g" "$INDEX"
+    echo "40-sentry-env.sh: set $name in $INDEX"
+  fi
+done
+```
+
+```dockerfile
+COPY --chmod=755 docker/40-sentry-env.sh /docker-entrypoint.d/40-sentry-env.sh
+```
+
+The escaping matters: a DSN contains `?` and often `&`, which `sed` would otherwise treat as "the matched text".
+Default `VITE_SENTRY_RELEASE` to the platform's commit variable (`SOURCE_COMMIT` on Coolify) in the deployment config, so the inline script's events carry the same release as the bundle's.
+Verify by running the image with the variables set (the DSN lands in the served `index.html`) and without them (the placeholder stays, Sentry is off).
+
+## Enriching events
+
+A stack trace alone often can't be traced back to its cause; attach the context that is cheap to collect and free of secrets.
+
+**Client tags.**
+Put whatever tells clients apart on the initial scope, so every event can be filtered by it.
+For a Telegram Mini App: `telegram_platform` (`ios`, `android`, `tdesktop`, `weba`; `unknown` for a plain browser with the SDK loaded, `none` without it), `telegram_version` and `inside_telegram`, read from `window.Telegram?.WebApp`.
+Repeat the platform as `extra` on handled errors you report yourself (`Sentry.captureException(e, { extra: { stage: 'auth-network', platform } })`), since a tag only says what the client was at init time.
+
+**Stackless rejections.**
+A promise rejected with `undefined`/`null` produces `Non-Error promise rejection captured with value: undefined`, with no stack, so every occurrence lands in one useless issue.
+Tag and fingerprint those events by the route that was open, and attach the page state:
+
+```ts
+const ANONYMOUS_REJECTION = /^Non-Error promise rejection captured with value: (undefined|null)$/;
+
+export function takePageSnapshot() {
+  return {
+    // Ionic marks overlays that aren't presented with `overlay-hidden`; inline ones stay mounted while closed. Adapt the selector to the UI library.
+    overlays: Array.from(document.querySelectorAll('ion-modal, ion-alert, ion-popover, ion-action-sheet, ion-loading, ion-toast'))
+      .filter((el) => !el.classList.contains('overlay-hidden')).map((el) => el.tagName.toLowerCase()),
+    visibility_state: document.visibilityState,
+    online: navigator.onLine,
+    page_age_ms: Math.round(performance.now()),
+  };
+}
+
+export function tagAnonymousRejection<E extends Sentry.ErrorEvent>(event: E, route: { name?: unknown; path: string; params?: object }): E {
+  if (!ANONYMOUS_REJECTION.test(event.exception?.values?.[0]?.value ?? '')) return event;
+  const routeName = String(route.name ?? 'unnamed');
+  event.tags = { ...event.tags, anonymous_rejection: 'true', route_name: routeName, route_path: route.path };
+  event.contexts = { ...event.contexts, anonymous_rejection: { route: { name: routeName, path: route.path, params: route.params ?? {} }, ...takePageSnapshot() } };
+  event.fingerprint = ['anonymous-rejection', routeName]; // a recurrence on another view becomes its own issue
+  return event;
+}
+```
+
+Use `route.path`, never `fullPath`: the query string can hold a token.
+Wire it as `beforeSend: (event) => tagAnonymousRejection(event, router.currentRoute.value)`.
+Also register an `unhandledrejection` listener **before** `Sentry.init`, which `console.warn`s the route and open overlays for `undefined`/`null` reasons, so the line becomes a console breadcrumb ahead of the event; never call `preventDefault()` in it, Sentry's own handler must still report the rejection.
+
+**Breadcrumb bursts.**
+The default 100 breadcrumbs are easily filled by one second of prefetching (store actions, `fetch` calls), pushing out the click or navigation that matters.
+Set `maxBreadcrumbs: 300` and collapse bursts in `beforeSend` rather than dropping them up front, so nothing is lost:
+merge runs of at least 3 breadcrumbs with the same key (category plus message, or category plus method and URL without the query) whose gaps are at most 2 s into one breadcrumb at the time of the last one, with the message suffix ` (xN within T s)` and `count`/`first_timestamp`/`last_timestamp` in `data`.
+Never collapse `ui.*` (clicks) or `navigation` breadcrumbs, and don't mutate the input array.
+Keep it a pure exported function (`collapseBreadcrumbs(breadcrumbs, gapSeconds = 2, minRun = 3)`) so it is unit-testable.
+
+**Tokens.**
+Never log a JWT, `config.headers` or a whole axios config: console logging becomes breadcrumbs and ends up in every event.
+Log a redacted form instead (head and tail of the unsigned part plus the length, never the signature) together with the decoded, non-secret claims (scopes, expiry), and set it as a Sentry context (`Sentry.setContext('auth_token', …)`) when the token changes.
+
 ## Release/build metadata
 
 `__GIT_COMMIT_FULL__`/`__GIT_BRANCH__`/`__BUILD_TIME__` are compile-time globals injected via Vite's `define`, resolved with the same env-override → git → baked-file fallback chain used on the backend (see `python.md`'s "Release/build metadata" section — keep both sides in sync so a single deploy reports the same tags from both ends):
