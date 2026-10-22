@@ -25,6 +25,8 @@ Adopt these rules for every commit made this session:
    - `ai: agent <id> results` — subagent result record
    - `ai: record memory <slug>` — memory file written (e.g. `ai: record memory MEMORY`, `ai: record memory feedback_commit_amend_over_reset`)
    - `ai: save plan <NNN>_<slug>` — plan files
+   - `ai: sync codex memory` — Codex's memory mirrored into the repo's memory directory by another tool
+   - `ai: Updated log file to next issue.` — the issue-log rotation commit of older repos' tooling; fold it into the fix commit like any other auto-commit
    - `[<scope>] [TODOs] synced todos for <projects>.` — todo files written by `scripts/°base/ai/todos/sync_todos.py` (the same hook family also commits `purged missing|completed todos …`, `reset todo file …` and `upgraded todo file header …` with that `[TODOs]` marker); always squash it into the last completed task's work commit that is not pushed yet (whatever todos the sync changed; with no unpushed work commit to fold into, it stays its own commit)
    - Possibly others starting with plain `ai: `…
 
@@ -116,6 +118,13 @@ Adopt these rules for every commit made this session:
     The pre-commit hook `reject_co_authored_by.py` rejects such commits, and `allowCoAuthoredEtc: false` in `ai/settings/settings.json` already turns off Claude Code's own footer.
     The message ends after the body; the `pending-commit.md` file contains nothing but the summary line and body from rule 4.
 
+11. **Run the commands from the directory that is already right, and keep them on the whitelist.** A `cd <dir> && …` prefix makes the command stop matching the whitelisted ones and triggers a permission prompt.
+    - In the repo root, or in the subproject you are working in, run everything bare: `ai/git/pending-commit.md` is the `ai/git/` of that directory, so write the message there. A subproject has its own, usually empty, `ai/git/`.
+    - From a subproject, the tagger and the other repo-level scripts are one level up, e.g. `../scripts/tag_backup.py` instead of `./scripts/tag_backup.py`.
+    - If the shell is in the wrong directory, change it once with a `cd` call of its own, or pass absolute paths. Never prefix the commit command with it.
+    - Push only as `test "$(git rev-parse HEAD)" = "<expected sha>" && git push <remote> <branch>`, so that nothing which skipped the lplp style goes out.
+    - If the `ai-settings-sync` pre-commit hook fails, run `scripts/°base/ai/settings/sync.py` (from the repo root) and retry the commit.
+
 ## Cleaning up stray `ai:` auto-commits
 
 Run this procedure after every commit as rule 2, step 3, to fold that commit's immediately preceding `ai:` auto-commits. It also works standalone before merging or review when a branch has stray prompt/decision commits mixed further back into its history (rule 7).
@@ -126,6 +135,8 @@ Handles these hook-created commits, among others:
 - **`ai: save decision <slug>`** — one per resolved `AskUserQuestion` via hook; touches only `ai/query.md` or `ai/°base/query.md`. The slug is derived from the first question's text.
 - **`ai: agent <id> results`** — subagent result record, hook; touches only agent result files.
 - **`ai: record memory <slug>`** — memory file written, hook; touches only files under the memory directory.
+- **`ai: sync codex memory`** — Codex's memory mirrored into the memory directory; touches only files under the memory directory.
+- **`ai: Updated log file to next issue.`** — the issue-log rotation commit of older repos' tooling; touches only the log file. Fold it into the fix commit it belongs to.
 - **`[<scope>] [TODOs] synced todos for <projects>.`** — `scripts/°base/ai/todos/sync_todos.py` (not a hook, but an auto-commit all the same); touches only `ai/todos.md`-style todo files. Always squashes into the last completed task's work commit that is not pushed yet (`git log @{upstream}..HEAD`), even when it also added or changed other todos; only when there is no unpushed work commit does it keep its own commit.
 - **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>` (hook); touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. The revision immediately preceding the implementation commit **always folds into it**, even if it's a genuine new version — note what changed in that final revision in the run commit's body when it differed from the last kept plan version. Every earlier revision of the same plan number (one followed by at least one further plan-file revision rather than directly by the implementation) stays its own commit, renamed to `ai: Plan: …` (first) / `ai: Plan update: …` (each later one) — never left as the raw hook message. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding kept version instead (or into the implementation, if it's the one immediately before it).
 
@@ -145,6 +156,7 @@ done
 - **`ai: updated prompt`**, **`ai: save decision <slug>`**, **`ai: agent <id> results`**, and **`ai: record memory <slug>`** commits → fix up under the **preceding** code commit by default. Exception: a prompt commit that clearly starts a different/unrelated task should stay as its own `pick`.
 - **Plan commits** → the revision immediately preceding the implementation commit **always** fixes up into it — never kept as its own `pick`, even if it's a genuine new version — with a short body note on what changed in that revision when it differed from the last kept plan version. Plan-saves seconds apart with non-overlapping edits (one drafting burst) squash together into a single version first. Every earlier, genuinely distinct revision of the same plan number keeps its own `pick`, renamed — `ai: Plan: …` for the first, `ai: Plan update: …` for each later one up to (but excluding) the final pre-implementation revision — instead of leaving the raw `ai: save plan <NNN>_<slug>` hook message. Word each kept summary as the eventual `ai: Run: …` summary in current tense rather than past tense. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding version instead (or into the implementation, if it's the one immediately before it).
 - **Mislabeled commits** → flag commits whose message does not match the files they actually changed. Rename them as part of the rebase instead of silently folding them the wrong way.
+- **Fold direction** → check with `git log --oneline --reverse <base>..HEAD` (or the timestamps) which commit is older, and write the todo in history order. An `ai:` commit that already sits **after** the code commit (e.g. the decision commit of an `AskUserQuestion` answered after you committed) is a plain forward fold: `pick <code-commit>`, `fixup <ai-commit>`, then the `exec … --amend`. Reorder (`pick <ai-commit>` first, `fixup <code-commit>` second) only when the `ai:` commits really predate the target and there is no later code commit to fold forward into, e.g. prep prompts folded into the plan commit they informed. Reordering replays the code commit's patch onto a state that has not seen the `ai:` commit's later edit of `ai/query.md`, which produces avoidable conflicts.
 
 **3. Write renamed commit messages** to `ai/git/rebase-msg-<sha>.md` for any commits needing a label fix.
 
@@ -180,18 +192,33 @@ chmod +x ai/git/rebase-todo.sh
 
 Put `exec git commit --amend -F ...` after all fixups for that group to rename the squashed result. A plan revised more than twice repeats the `pick <plan-commit-vN>` + `exec ... --amend` pair for each additional kept earlier version, before the final revision's `fixup` line. A plan never revised at all skips the `pick <plan-commit-v1>` lines entirely — its single plan commit is just another entry in `<next-code-commit>`'s fixup group, alongside the prompt/decision/agent/memory commits.
 
+Git runs the `exec` lines from the **top of the working tree**, not from the subproject you started the rebase in. A relative `ai/git/rebase-msg-<sha>.md` or `ai/git/pending-commit.md` there reads the repo root's gitignored file, which can still hold the stale message of an unrelated earlier task. Use the **absolute path** of the subproject's file in every `exec git commit --amend -F …` line, and compare the amended commit's message with the intended one afterwards, since a diff of the content does not catch a message-only mistake.
+
 **6. Run**
 
 Gate the actual rebase on a `current commit = <expected sha>` precondition, using the tip sha confirmed in step 4 — never run the rebase itself unguarded:
 
 ```bash
 test "$(git rev-parse HEAD)" = "<expected-sha-from-step-4>" && \
-GIT_SEQUENCE_EDITOR=ai/git/rebase-todo.sh git rebase -i origin/<upstream>
+GIT_SEQUENCE_EDITOR=<absolute-path>/ai/git/rebase-todo.sh git rebase -i <fresh-origin-sha>
 ```
+
+`GIT_SEQUENCE_EDITOR` must be an **absolute path**. From a subproject whose `.git` lives in a parent directory, git resolves a relative or `./`-prefixed path against another directory and fails with `fatal: cannot exec '…': No such file or directory`, even though the script exists and is executable.
+
+The rebase base is the other end of the range that can go stale, too: run `git rev-parse origin/<upstream>` right before the rebase and use that literal value, not a sha noted earlier in the session, because the remote branch can advance when you or something else pushes in the meantime. Rebasing onto the stale sha replays a commit onto the wrong parent and conflicts on the very first `pick`. If a replay that should be clean conflicts, run `git rebase --abort` and check the base before retrying.
 
 `test ... &&` makes the rebase a no-op instead of running against a HEAD your plan wasn't built on: if any commit landed between step 4's audit and this call (however unlikely), the check fails, the rebase never starts, and you go back to step 1 for a fresh pass — instead of silently rewriting a HEAD your rebase-todo doesn't actually match.
 
 `ai/git/` is gitignored, so `rebase-todo.sh` and the `rebase-msg-<sha>.md` files never leak into a commit — clean them up (`rm ai/git/rebase-todo.sh ai/git/rebase-msg-*.md`) once the rebase lands.
+
+**Shortcut for one lone `ai:` commit:** when exactly one `ai:` auto-commit has to fold into the very next, already made commit and the working tree is clean (`git status --short` is empty), skip the interactive rebase:
+
+```bash
+git reset --soft <commit-before-the-ai-commit>
+git commit -F ai/git/pending-commit.md
+```
+
+`reset --soft` leaves index and working tree alone, so the combined diff of both commits is staged and gets recommitted under the original message. An interactive rebase replays the commits as patches, which can conflict on files with several near-identical blocks even without a real conflict. This does not work when some `ai:` commits have to stay separate (kept `ai: Plan:` versions); those still need the full procedure.
 
 **7. Re-audit once more after running**
 
