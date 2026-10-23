@@ -8166,3 +8166,10 @@ Prepare the local file for post merge, and edit the current non-local one to wor
 
 ❯ When trying to merge `base/base` into `deploy4`, I have diffs in the `°base` script dirs, etc. I believe because we improved some code. This should be commited back to that project following [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md). The repo is local at `../base/`, please also integrate this prompt and planning commits into `ai/°base/` accordingly there.
 
+❯ From `/Users/user/.home` pull in the commit luckydonald/.home@07e81f78d3540290e98b4a2d26b1b48ad6cd3924, and adapt to the `ai/°base/` and `scripts/°base/` + synlink layout.
+
+❯ Separate commit: Write a script which inspects which git opens a manager (wait until one is open, if none), and prepare that username change. `GIT_USERNAME` shall default to `luckydonald`, and the script should print that (taking a value or using the default & that you can set with `GIT_USERNAME='your-username' ./scripts/the-name-of-the-script.py`.
+Then once a open thingo is found it should confirm before rewriting: Print the old url, the new url, the command to run, then ask for `Confirm? [Y/n]`.
+
+❯ including the original query.
+
