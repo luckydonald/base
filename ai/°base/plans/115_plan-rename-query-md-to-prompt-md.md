@@ -119,3 +119,39 @@ I will not push anything myself, I only report this order.
 - Run `pre-commit run --all-files` for the renamed guard hook.
 - Manual check in a scratch git repo: an old `ai/query.md` log is renamed to `ai/prompt.md` by the next hook run, history intact (`git log --follow`).
 - `git grep -n "query\.md"` outside `ai/°base/{plans,errors,output}`, `ai/plans` and `ai/output` returns nothing.
+
+## Pushing
+
+The push guard (`check_base_prompt_md.py`) blocks every push that contains `ai/query.md` or `ai/prompt.md` in the base repo, so the pure rename commit has to be pushed without hooks, in between the other commits.
+Upstream is `base/base`, so the remote is `base` and the branch `base`.
+Each push is gated on the expected commit, so nothing that is not part of this plan goes out.
+
+Commits, oldest first (the todo syncs and the earlier work before them go out with the first push):
+
+| Commit | Content | Push |
+|---|---|---|
+| `4fca9e43f1a837da6217d441d2fae70404827dbd` | `ai: Plan:` and the decisions | with hooks |
+| `0e9a6ac2dfec4153b58b911805ffffd099e6aca3` | pure rename of the log files | `--no-verify` |
+| `cf732306b9598c515b5e2c31df3185797a158854` | code, migration, tests, docs | with hooks |
+
+```bash
+# 1. Everything up to the plan commit, i.e. before the rename.
+test "$(git rev-parse 4fca9e43f1a837da6217d441d2fae70404827dbd)" = "4fca9e43f1a837da6217d441d2fae70404827dbd" && \
+git push base 4fca9e43f1a837da6217d441d2fae70404827dbd:refs/heads/base
+
+# 2. The rename commit on its own, without the hooks (they would block it).
+test "$(git rev-parse 0e9a6ac2dfec4153b58b911805ffffd099e6aca3)" = "0e9a6ac2dfec4153b58b911805ffffd099e6aca3" && \
+git push --no-verify base 0e9a6ac2dfec4153b58b911805ffffd099e6aca3:refs/heads/base
+
+# 3. The rest, normally, as long as HEAD is still the commit that was checked.
+test "$(git rev-parse HEAD)" = "<expected sha of HEAD>" && git push base base
+```
+
+Notes:
+
+- The refspec `<sha>:refs/heads/base` pushes up to that commit and nothing after it, and it only fast-forwards.
+- Step 3 runs the guard on the range after the rename, which holds no `ai/query.md` / `ai/prompt.md` change, so it passes.
+  The log `ai/°base/prompt.md` is not matched by the guard's `^ai/(query|prompt)\.md$` filter.
+- Replace `<expected sha of HEAD>` by `git rev-parse HEAD` as it is when pushing.
+  The `ai: updated prompt` commits and the commit of this section go out with it.
+- Nothing was pushed when this section was written.

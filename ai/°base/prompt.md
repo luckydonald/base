@@ -8243,3 +8243,28 @@ Then once a open thingo is found it should confirm before rewriting: Print the o
 
 ❯ Plan accepted, auto mode.
 
+❯ Write me the needed git commands into the plan file in the repository. Also check if this message ends up in the correctly renamed file. Squash this message with the added commands.
+
+❯ The to-do sync commits should have been folded into tasks...
+Was the [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md) not updated on this?
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The skill already says todo syncs squash into the last completed unpushed task's commit, but three older [TODOs] sync commits (7988cdc3b, d4f908897, ed5bd7b5a) were left standalone by earlier runs. Fold them now?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Fold syncs** (1/1) <kbd>Single Select</kbd><br>
+>> The skill already says todo syncs squash into the last completed unpushed task's commit, but three older [TODOs] sync commits (7988cdc3b, d4f908897, ed5bd7b5a) were left standalone by earlier runs. Fold them now?
+> - [x] 1\. Fold into preceding tasks (Recommended)
+>   - _Interactive rebase over the unpushed range: each sync becomes a fixup of the nearest earlier completed task commit (2d5d997e1 for the first, 61ba83147 for the others, as applicable). Backup tag first, tree diff must be empty. Pushed hashes unaffected since nothing is pushed._
+> - [ ] 2\. Leave them
+>   - _Keep them as their own commits and only fix the habit going forward._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
