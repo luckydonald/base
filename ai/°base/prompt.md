@@ -8287,3 +8287,8 @@ In that special case of having multiple projects per repository, you are even al
 ❯ Plan denied:
 > That makes sense. `repo` variant shall be able to set all settings of _global_ and `local` combined. Usually the result is it not needing a local file any longer. In fact, migrate repo-internal pathes in `.local` into `.repo` if a specific flag is set. If that flag is not set, print a hint that the user may want to set it (or set `"no-add-to-repo-hint": true` in any of those 3 files (optional field, missing => default => false).
 
+❯ Plan denied.
+
+❯ The hint shall instruct the user to add those pathes either to `….repo.json` (full path) or `  "project": { "no-add-to-repo-hint": true, … }` to either of those files (print all 3 possible filenames).
+Probably `projects` should stay a dictionary like in the local file?
+
