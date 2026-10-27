@@ -27,18 +27,17 @@ Paths outside the repo stay machine-local, because they depend on the folder lay
 It can set everything that the committed `sync_todos.json` ("global") and the local file can set, combined:
 
 - Top-level: `url_env`, `token_env`, `env_file`, `commit_prefix`, `calendar_id`, all optional.
-- `projects`: a list of project objects.
-  `name` is required, and `tags`, `todo_file`, `commit_prefix` and `path` are optional.
+- `projects`: a dictionary from project name to settings, like in the local file.
+  The settings are `tags`, `todo_file`, `commit_prefix`, `path` and `no-add-to-repo-hint` (see below), all optional.
   An entry whose name exists in `sync_todos.json` overrides just the fields it sets; an unknown name adds a new project (then `tags` is required).
-- `no-add-to-repo-hint` (see below).
 
 The file is created empty by the script when missing:
 
 ```json
 {
   "$schema": "./sync_todos-repo.schema.json",
-  "projects": [
-  ]
+  "projects": {
+  }
 }
 ```
 
@@ -71,10 +70,11 @@ A local `path` is repo-internal when, after `~` expansion and resolving, it lies
   The local `commit_prefix` is moved the same way when set.
   A project whose repo entry already has a `path` is left alone and reported.
   The repo file is committed on its own as `{commit_prefix}[TODOs] moved local project paths into sync_todos.repo.json for <projects>.`; the local file is gitignored.
-- Without the flag, when at least one migratable path exists, print a hint naming the projects and the flag.
-- The hint is silenced by `"no-add-to-repo-hint": true` in any of the three files; the field is optional, missing means `false`.
-  It is added to all three models (alias, so the JSON key has hyphens) and thus to all three schemas.
-  The effective value is true when any of the three files sets it to true.
+- Without the flag, for each migratable project not silenced, print a hint that tells the user to either
+  - add the path to the repo file (absolute path of `sync_todos.repo.json` printed), as `"<name>": { "path": "./<relative>" }` under `projects`, which `--migrate-local-paths` does automatically, or
+  - silence the hint by setting `"no-add-to-repo-hint": true` in that project's entry in any one of the three files, and all three absolute paths are printed: `sync_todos.json` (there the entry is a list item, so `{ "name": "<name>", "no-add-to-repo-hint": true, … }`), `sync_todos.repo.json` and `sync_todos.local.json` (both `"<name>": { "no-add-to-repo-hint": true, … }` under `projects`).
+- `no-add-to-repo-hint` is a per-project, optional field (missing means `false`), added to the project models of all three files (alias, so the JSON key has hyphens) and thus to all three schemas.
+  A project is silenced when any of the three files sets it to true for it.
 
 ### Nothing to write
 
@@ -98,12 +98,12 @@ When `sync()` ends with every selected project skipped for a `null` path, print 
 ## Tests
 
 - Layering of `path`, `commit_prefix`, `calendar_id` and the other top-level fields: repo beats `sync_todos.json`, non-null local beats repo, local `null` falls through.
-- A repo project with an unknown name and `tags` adds a project; without `tags` it errors; duplicate tags across projects still error.
+- A repo `projects` entry with an unknown name and `tags` adds a project; without `tags` it errors; duplicate tags across projects still error.
 - Repo `path` validation: `..`, absolute, `~` and `foo/bar` rejected, `"."` and `./sub` accepted.
 - Projects with a repo path are not added to the local file as `null`.
 - `ensure_repo_file`: exact empty text, committed in a temp git repo, no-op when present, no commit with `--no-git`, nothing with `--dry-run`.
 - Migration: inside-repo absolute / `~` / relative local paths move to `./…` and local becomes `null`; outside-repo paths stay; existing repo path is not overwritten; commit is made.
-- Hint: shown when migratable paths exist and the flag is off; silenced by `no-add-to-repo-hint` in each of the three files; not shown with the flag.
+- Hint: shown per migratable project when the flag is off, naming the repo file and all three file paths; silenced per project by `no-add-to-repo-hint` in each of the three files; other projects still show it; not shown with the flag.
 - All-skipped instruction printed, and not printed when at least one project has a path.
 - Generated repo schema equals the file on disk, like the existing local-schema test.
 

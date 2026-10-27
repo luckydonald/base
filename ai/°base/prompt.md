@@ -8292,3 +8292,7 @@ In that special case of having multiple projects per repository, you are even al
 ❯ The hint shall instruct the user to add those pathes either to `….repo.json` (full path) or `  "project": { "no-add-to-repo-hint": true, … }` to either of those files (print all 3 possible filenames).
 Probably `projects` should stay a dictionary like in the local file?
 
+❯ Plan denied:
+> Actually the hint shall not be repeated, but the projects, and their file+line number(s) then listed.
+> Pretty print the automated adds in the usual 2-spaces way.
+
