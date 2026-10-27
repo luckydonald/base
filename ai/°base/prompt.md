@@ -8273,3 +8273,6 @@ Todo syncs of the current (sub)project shall always be squased in, either older 
 
 In that special case of having multiple projects per repository, you are even allowed to re-order them to pull your project todos into your current tasks.
 
+❯ Plan denied:
+> Create automated tests with a (or for parallism multiple) shallow-clone(s) of this repo, trying all of those cases.
+
