@@ -8211,3 +8211,35 @@ Then once a open thingo is found it should confirm before rewriting: Print the o
 
 ❯ Alright, now inspect the results of that and fix if anything needs fixing. Commit with lplp style.
 
+❯ Plan denied:
+> ˋai/plans/000_online_query.mdˋ may be renamed to ˋ000_online_prompt.mdˋ, as well.
+> In case 4, both files (old + new) exist, append to both. A user will eventually merge and migrate one of them to the other (or delete one).
+> Do not skip migration commits on dirty files, but migrate a clean one, commit as usual, then restore the dirty to the resulting file. Only if straight forward one file exists, and we can overwrite the clean migrated & commited one with the working tree changes under the new name. (If both exist, and at least one of them dirty, do not)
+> The base repo push test shall test for both old and new writing, this single rename commit shall be ignored (push all up to it, then push that rename without git hooks, then the rest normally)
+
+❯ Plan denied:
+> Oh, right, subprojects.
+> Those are sub folders of the git root, sharing the ˋai/query.mdˋ style.
+> Also probably detectable by the symlinks linking back to the root one.
+> Those must be looked for recursively in all sub folders, and migrated as well.
+
+❯ Plan denied:
+> For tests, I **additionally** want:
+> 1. a shallow clone of the current version of this repository.
+> 2. which renames ˋprompt.mdˋs back to ˋquery.mdˋ if already migrated so the test still can re run later
+> 3. Directly write 10-50 random lines to that root ˋ./ai/query.mdˋ, and ˋ./ai/°base/query.mdˋ, each, commit both.
+> 4. Create a subproject at ˋ./subproject/ˋ and use the script to link and write everything needed into it.
+> 5. Create another one at ˋ./longer/deeper/path/with/ai/in/its/name/but/its/actually/just/a/subproject/ˋ the same as **4.** populated with the same script to sync sub projects.
+> 6. Commit with ˋgit add ./subproject/ ./longer/ˋ (allow empty) just to be sure nothing is left uncommitted.
+> 7. Store the current ˋHEADˋ, and reuse (reset to) for each test, or do local clones for parallelism.
+> 8. Test the 4 cases + dirty variants of existing files for each of the locations (root, ˋ°baseˋ, both subprojects).
+>   Probably best as a for-loop fueled test matrix
+
+❯ Plan denied:
+> Ah, also write 10-50 lines in the subproject files too, depending on test setting committed or dirty, new file or old name or both or none
+
+❯ Plan denied:
+> Obviously, it should then check the resulting files for the exact expected results (file existence, commited content, dirty content)
+
+❯ Plan accepted, auto mode.
+
