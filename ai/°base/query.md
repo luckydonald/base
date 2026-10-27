@@ -8199,3 +8199,15 @@ Then once a open thingo is found it should confirm before rewriting: Print the o
 
 ❯ Plan accepted, auto mode.
 
+❯ Example for `[⧉ In todos.md]`. Reply only `k`, I'll add more examples, i'll tell you when ready.
+
+❯ That's `[⧉ 1 line selected]`
+
+❯ and what claude displays as `[⧉ 2 lines selected]`.
+
+❯ selection in file, displayed in claude as `[⧉ 1 line selected]`, too.
+
+❯ <kbd>cmd</kbd> + <kbd>A</kbd> resulting in all lines, selected, displayed as `[⧉ 284 lines selected]`.
+
+❯ Alright, now inspect the results of that and fix if anything needs fixing. Commit with lplp style.
+

@@ -17,6 +17,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import quote
@@ -131,15 +132,11 @@ class IdeContext(NamedTuple):
     last_line: int | None = None
 
 
-# Claude Code's IDE integrations prepend these tags to the submitted prompt.
-CLAUDE_IDE_SELECTION_RE = re.compile(
-    r"<ide_selection>\s*The user selected the lines (\d+) to (\d+) from ([^\n]+?):.*?</ide_selection>\s*",
-    re.DOTALL,
-)
-CLAUDE_IDE_OPENED_FILE_RE = re.compile(
-    r"<ide_opened_file>\s*The user opened the file (.+?) in the IDE\..*?</ide_opened_file>\s*",
-    re.DOTALL,
-)
+# Claude Code records the IDE state as `selected_lines_in_ide` / `opened_file_in_ide` attachments right behind the
+# user record (same `promptId` as the hook payload's `prompt_id`) in the session transcript, not in the prompt text.
+CLAUDE_IDE_ATTACHMENT_TYPES = ("selected_lines_in_ide", "opened_file_in_ide")
+CLAUDE_TRANSCRIPT_POLL_ATTEMPTS = 5
+CLAUDE_TRANSCRIPT_POLL_SECONDS = 0.2
 # Codex's IDE extension wraps the real request in a context block.
 CODEX_IDE_CONTEXT_RE = re.compile(
     r"\A\s*# Context from my IDE setup:\s*(?P<context>.*?)\s*## My request for Codex:\s*(?P<request>.*)\Z",
@@ -499,7 +496,12 @@ def render_ide_context(context: IdeContext, log_path: Path, cwd: Path) -> str:
     if not file_path.is_absolute():
         file_path = cwd / file_path
     # end if
-    target = quote(Path(os.path.relpath(file_path, log_path.parent)).as_posix(), safe="/°")
+    if file_path.is_relative_to(cwd):
+        target = Path(os.path.relpath(file_path, log_path.parent)).as_posix()
+    else:
+        target = file_path.as_posix()
+    # end if
+    target = quote(target, safe="/°")
     label = f"⧉ File `{file_path.name}`"
     if context.first_line is not None and context.last_line is not None:
         first, last = sorted((context.first_line, context.last_line))
@@ -511,38 +513,87 @@ def render_ide_context(context: IdeContext, log_path: Path, cwd: Path) -> str:
 # end def
 
 
-def extract_ide_context(prompt: str, log_path: Path, cwd: Path) -> tuple[str, str]:
-    """Split the IDE context (selection or active file) off the prompt, returns `(prompt, link line)`.
+def find_claude_ide_context(payload: dict) -> IdeContext | None:
+    """Look up the IDE selection or opened file Claude attached to the prompt in the session transcript."""
+    transcript_path = payload.get("transcript_path")
+    prompt_id = payload.get("prompt_id")
+    if not transcript_path or not prompt_id:
+        return None
+    # end if
+    for attempt in range(CLAUDE_TRANSCRIPT_POLL_ATTEMPTS):
+        if attempt:
+            time.sleep(CLAUDE_TRANSCRIPT_POLL_SECONDS)
+        # end if
+        try:
+            lines = Path(transcript_path).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return None
+        # end try
+        attachments = claude_prompt_attachments(lines, prompt_id)
+        if attachments is None:
+            continue
+        # end if
+        by_type = {attachment.get("type"): attachment for attachment in attachments}
+        selection = by_type.get("selected_lines_in_ide")
+        if selection and selection.get("filename"):
+            return IdeContext(selection["filename"], selection.get("lineStart"), selection.get("lineEnd"))
+        # end if
+        opened = by_type.get("opened_file_in_ide")
+        if opened and opened.get("filename"):
+            return IdeContext(opened["filename"])
+        # end if
+        return None
+    # end for
+    return None
+# end def
 
-    Anything unrecognized returns the prompt untouched with an empty line, so no user text is ever lost.
+
+def claude_prompt_attachments(lines: list[str], prompt_id: str) -> list[dict] | None:
+    """The attachments directly behind the prompt's user record, or `None` while the record is not written yet."""
+    for index, line in enumerate(lines):
+        if prompt_id not in line:
+            continue
+        # end if
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        # end try
+        if record.get("type") != "user" or record.get("promptId") != prompt_id:
+            continue
+        # end if
+        attachments: list[dict] = []
+        for following in lines[index + 1:]:
+            try:
+                follow_record = json.loads(following)
+            except ValueError:
+                break
+            # end try
+            if follow_record.get("type") != "attachment":
+                break
+            # end if
+            attachment = follow_record.get("attachment") or {}
+            if attachment.get("type") in CLAUDE_IDE_ATTACHMENT_TYPES:
+                attachments.append(attachment)
+            # end if
+        # end for
+        return attachments
+    # end for
+    return None
+# end def
+
+
+def split_codex_ide_context(prompt: str) -> tuple[str, IdeContext | None]:
+    """Split Codex's `# Context from my IDE setup:` block off the prompt, returns `(request, active file)`.
+
+    Anything unrecognized returns the prompt untouched, so no user text is ever lost.
     """
-    context: IdeContext | None = None
-    remaining = prompt
     codex = CODEX_IDE_CONTEXT_RE.match(prompt)
-    if codex:
-        remaining = codex.group("request")
-        active = CODEX_IDE_ACTIVE_FILE_RE.search(codex.group("context"))
-        if active:
-            context = IdeContext(active.group(1))
-        # end if
-    else:
-        selection = CLAUDE_IDE_SELECTION_RE.search(prompt)
-        if selection:
-            context = IdeContext(selection.group(3), int(selection.group(1)), int(selection.group(2)))
-        # end if
-        opened = CLAUDE_IDE_OPENED_FILE_RE.search(prompt)
-        if opened and context is None:
-            context = IdeContext(opened.group(1))
-        # end if
-        remaining = CLAUDE_IDE_OPENED_FILE_RE.sub("", CLAUDE_IDE_SELECTION_RE.sub("", prompt))
+    if not codex or not codex.group("request").strip():
+        return prompt, None
     # end if
-    if not remaining.strip():
-        return prompt, ""
-    # end if
-    if context is None:
-        return (remaining.strip() if codex else prompt), ""
-    # end if
-    return remaining.strip(), render_ide_context(context, log_path, cwd)
+    active = CODEX_IDE_ACTIVE_FILE_RE.search(codex.group("context"))
+    return codex.group("request").strip(), IdeContext(active.group(1)) if active else None
 # end def
 
 
@@ -1131,10 +1182,13 @@ def main() -> int:
         _capture_codex_commands(payload, prompt, prefix, log_path)
     elif ai_tool == "claude":
         _capture_claude_queued_commands(payload, prefix, log_path)
-    ide_line = ""
-    if ai_tool in ("claude", "codex"):
-        prompt, ide_line = extract_ide_context(prompt, log_path, Path(payload.get("cwd") or "."))
+    ide_context: IdeContext | None = None
+    if ai_tool == "claude":
+        ide_context = find_claude_ide_context(payload)
+    elif ai_tool == "codex":
+        prompt, ide_context = split_codex_ide_context(prompt)
     # end if
+    ide_line = render_ide_context(ide_context, log_path, Path(payload.get("cwd") or ".")) if ide_context else ""
     if is_skipped_prompt(prompt):
         return 0
     if prompt.strip().startswith(HARNESS_TASK_COMPLETE_REMINDER_PREFIX):
