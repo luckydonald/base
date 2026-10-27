@@ -8281,3 +8281,6 @@ In that special case of having multiple projects per repository, you are even al
 ❯ Plan accepted:
 > Drop `, so never copy or move it yourself`, then you're good to go.
 
+❯ Plan denied:
+> You say `precedence global < tracked < repo < local`. What's `tracked`?
+
