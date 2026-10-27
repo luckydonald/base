@@ -110,6 +110,9 @@ Hooks:
 | `record-memory/hook.py` | `Write`, `Edit`, `Bash`, `SessionStart` | syncs memory hardlinks |
 | `record-codex-memory/hook.py` | Codex write tools, `SessionStart`, `Stop` | syncs scoped Codex memory into the shared project memory tree |
 
+`save-prompt/hook.py` strips the IDE context that Claude (`<ide_selection>`, `<ide_opened_file>`) and Codex (`# Context from my IDE setup:`) prepend to a prompt, and logs the selected file or lines as a `> • [⧉ File …](link)` line under the prompt.
+The formats come from the tools' known behaviour and are not yet verified against a real payload, see the dumps under `output/debug/`.
+
 Every hook that auto-commits its output, and `scripts/°base/init/link_subproject.py` for the re-synced links, goes through `scripts/°base/git/°scoped_commit_lib` (`stage_and_commit`, `commit_staged_paths`, `commit_blocker`).
 It commits exactly the given paths with git plumbing (a temporary index, no hooks, so it also works inside `post-merge`), never raises, and refuses during a merge, rebase, cherry-pick, revert, bisect, with an `index.lock`, or on a detached HEAD.
 In those states the paths stay staged and the reason goes to stderr.

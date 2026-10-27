@@ -8175,3 +8175,27 @@ Then once a open thingo is found it should confirm before rewriting: Print the o
 
 ❯ Plan accepted, auto mode.
 
+❯ Question answered.
+> <details><summary>
+>
+>> 1. I found no IDE-selection data anywhere locally: the UserPromptSubmit payload has no such field, and no transcript or debug dump holds `<ide_selection>` / `<ide_opened_file>` / `# Context from my IDE setup`. Which tools should the log entry cover, and how should I handle the unknown format?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Scope** (1/1) <kbd>Single Select</kbd><br>
+>> I found no IDE-selection data anywhere locally: the UserPromptSubmit payload has no such field, and no transcript or debug dump holds `<ide_selection>` / `<ide_opened_file>` / `# Context from my IDE setup`. Which tools should the log entry cover, and how should I handle the unknown format?
+> - [x] 1\. Claude + Codex, parse known tags (Recommended)
+>   - _Parse Claude's `<ide_opened_file>`/`<ide_selection>` tags and Codex's `## Active file` block out of `prompt` when present, strip them from the logged text and render the link line. Add a debug-dump step so real payloads can verify it later._
+> - [ ] 2\. Capture first, parse later
+>   - _Only dump payloads into debug and ship no parsing until you send a real sample from your IDE._
+> - [ ] 3\. Claude only
+>   - _Only handle Claude Code's IDE tags._
+> - [ ] 4\. _Type something._
+>
+> </details>
+>
+
+❯ Plan accepted, auto mode.
+

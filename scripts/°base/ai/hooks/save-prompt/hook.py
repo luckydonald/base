@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import sys
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import quote
 from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -121,6 +123,29 @@ class PromptLogEntry(NamedTuple):
     text: str
     preformatted: bool = False
     extra_paths: tuple[Path, ...] = ()
+
+
+class IdeContext(NamedTuple):
+    path: str
+    first_line: int | None = None
+    last_line: int | None = None
+
+
+# Claude Code's IDE integrations prepend these tags to the submitted prompt.
+CLAUDE_IDE_SELECTION_RE = re.compile(
+    r"<ide_selection>\s*The user selected the lines (\d+) to (\d+) from ([^\n]+?):.*?</ide_selection>\s*",
+    re.DOTALL,
+)
+CLAUDE_IDE_OPENED_FILE_RE = re.compile(
+    r"<ide_opened_file>\s*The user opened the file (.+?) in the IDE\..*?</ide_opened_file>\s*",
+    re.DOTALL,
+)
+# Codex's IDE extension wraps the real request in a context block.
+CODEX_IDE_CONTEXT_RE = re.compile(
+    r"\A\s*# Context from my IDE setup:\s*(?P<context>.*?)\s*## My request for Codex:\s*(?P<request>.*)\Z",
+    re.DOTALL,
+)
+CODEX_IDE_ACTIVE_FILE_RE = re.compile(r"(?m)^## Active file:\s*(.+?)\s*$")
 
 
 class CommandExecution(NamedTuple):
@@ -466,6 +491,59 @@ def _strip_codex_forwarded_plan_prompt(prompt: str, plans_dir: Path) -> PromptLo
     if exact_prefix and re.match(r"(?s)^#\s+\S.*", search_text):
         return PromptLogEntry("")
     return PromptLogEntry(prompt)
+
+
+def render_ide_context(context: IdeContext, log_path: Path, cwd: Path) -> str:
+    """Render a `> • [⧉ File …](link)` line for the file (and lines) selected in the IDE."""
+    file_path = Path(context.path)
+    if not file_path.is_absolute():
+        file_path = cwd / file_path
+    # end if
+    target = quote(Path(os.path.relpath(file_path, log_path.parent)).as_posix(), safe="/°")
+    label = f"⧉ File `{file_path.name}`"
+    if context.first_line is not None and context.last_line is not None:
+        first, last = sorted((context.first_line, context.last_line))
+        count = last - first + 1
+        label += f": {count} line{'' if count == 1 else 's'} selected"
+        target += f"#L{first}" if first == last else f"#L{first}-{last}"
+    # end if
+    return f"> • [{label}]({target})"
+# end def
+
+
+def extract_ide_context(prompt: str, log_path: Path, cwd: Path) -> tuple[str, str]:
+    """Split the IDE context (selection or active file) off the prompt, returns `(prompt, link line)`.
+
+    Anything unrecognized returns the prompt untouched with an empty line, so no user text is ever lost.
+    """
+    context: IdeContext | None = None
+    remaining = prompt
+    codex = CODEX_IDE_CONTEXT_RE.match(prompt)
+    if codex:
+        remaining = codex.group("request")
+        active = CODEX_IDE_ACTIVE_FILE_RE.search(codex.group("context"))
+        if active:
+            context = IdeContext(active.group(1))
+        # end if
+    else:
+        selection = CLAUDE_IDE_SELECTION_RE.search(prompt)
+        if selection:
+            context = IdeContext(selection.group(3), int(selection.group(1)), int(selection.group(2)))
+        # end if
+        opened = CLAUDE_IDE_OPENED_FILE_RE.search(prompt)
+        if opened and context is None:
+            context = IdeContext(opened.group(1))
+        # end if
+        remaining = CLAUDE_IDE_OPENED_FILE_RE.sub("", CLAUDE_IDE_SELECTION_RE.sub("", prompt))
+    # end if
+    if not remaining.strip():
+        return prompt, ""
+    # end if
+    if context is None:
+        return (remaining.strip() if codex else prompt), ""
+    # end if
+    return remaining.strip(), render_ide_context(context, log_path, cwd)
+# end def
 
 
 def _xmlish_tag_text(prompt: str, tag: str) -> str:
@@ -1053,6 +1131,10 @@ def main() -> int:
         _capture_codex_commands(payload, prompt, prefix, log_path)
     elif ai_tool == "claude":
         _capture_claude_queued_commands(payload, prefix, log_path)
+    ide_line = ""
+    if ai_tool in ("claude", "codex"):
+        prompt, ide_line = extract_ide_context(prompt, log_path, Path(payload.get("cwd") or "."))
+    # end if
     if is_skipped_prompt(prompt):
         return 0
     if prompt.strip().startswith(HARNESS_TASK_COMPLETE_REMINDER_PREFIX):
@@ -1109,6 +1191,9 @@ def main() -> int:
         extra_paths = entry.extra_paths + (loop_extra_path,)
     else:
         content = f"{prompt}\n\n" if preformatted_prompt else f"{prefix} {prompt}\n\n"
+        if ide_line:
+            content = content.rstrip("\n") + f"\n{ide_line}\n\n"
+        # end if
         extra_paths = entry.extra_paths
     append_and_commit(
         log_path,
