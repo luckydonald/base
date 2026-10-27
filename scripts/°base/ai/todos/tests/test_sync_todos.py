@@ -630,7 +630,7 @@ def test_the_commit_body_lists_what_changed_and_the_subject_stays(tmp_path):
     st.sync(cfg, [todo("1", "#a one"), todo("2", "#a two", parent_uid="1")], None, False)
     assert run("log", "-1", "--format=%s").strip() == "[TODOs] synced todos for A."
     assert run("log", "-1", "--format=%b").strip().split("\n") == ["- added: one", "- added: one / two"]
-    st.sync(cfg, [todo("1", "#a one", status="COMPLETED"), todo("2", "#a two renamed", parent_uid="1")], None, False)
+    st.sync(cfg, [todo("1", "#a one", status="COMPLETED"), todo("2", "#a two renamed", parent_uid="1")], None, False, amend=False)
     assert run("log", "-1", "--format=%b").strip().split("\n") == ["- ticked: one", "- renamed: two -> two renamed"]
 # end def
 

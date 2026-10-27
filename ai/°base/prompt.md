@@ -8276,3 +8276,5 @@ In that special case of having multiple projects per repository, you are even al
 ❯ Plan denied:
 > Create automated tests with a (or for parallism multiple) shallow-clone(s) of this repo, trying all of those cases.
 
+❯ Plan accepted, auto mode.
+

@@ -40,6 +40,16 @@ New flag `--no-amend` to force a new commit; documented in the module docstring 
 
 ## Tests
 
+All cases run against **shallow clones of this very repo**, not the tiny `_repo()` fixtures, so real hooks config, real `ai/°base/todos.md` and a real history shape are exercised.
+
+- A module-scoped fixture makes one `git clone --depth 1 file://<repo root>` into `tmp_path_factory` (the `file://` URL is needed, a plain path ignores `--depth`), and fixes `user.name`, `user.email`, `commit.gpgsign=false` and `core.hooksPath=/dev/null` in it so no pre-commit hook interferes.
+- Each test gets its own copy of that clone (`shutil.copytree` of the clone, or `git clone --depth 1 <first clone>` again), so tests never share state and can run in parallel with `pytest -n auto` if `pytest-xdist` is installed; without it they still run serially.
+- The "already pushed" case adds a bare repo as `origin`, pushes the clone's branch, and fetches, so `git branch -r --contains HEAD` sees it.
+- The shallow boundary must not break the check: the tests also assert the amend works when `HEAD` is the grafted root commit of the shallow clone (no parent to look at).
+- The todos come from `st.sync(Config(...), [todo(...)], ...)` as in the existing tests, pointed at the clone's `ai/°base/todos.md`; the real CalDAV is never contacted.
+
+Cases, each in its own clone:
+
 - Two syncs in a row with a changed todo between: one commit only, body holds both changes.
 - `HEAD` is a normal work commit: new commit.
 - `HEAD` is a sync commit that also touched another file: new commit.

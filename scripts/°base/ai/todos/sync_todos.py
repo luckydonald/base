@@ -21,7 +21,7 @@ Every run adds a `null` entry for each project that is missing there; a project 
 
 Only lines carrying a `todo:<uid>` are managed; everything else in the file is left alone. The `>` lines of a managed todo follow its CalDAV description: notes written above or below an unchanged description stay, a changed description replaces the block and the lines that go are reported.
 New todos go under `## Todos synced from CalDAV` (the old `## Synced from CalDAV` still counts); a file that does not exist yet starts from `todos.template.md` next to this script, and the old bare `# Todos` header is upgraded to it; completed ones that are not in the file yet are ignored (`--include-completed`). `--purge-missing` / `--purge-complete` then clean up, each as its own commit. `--reset-todo-file` (needs `--project`, git, and a file without uncommitted changes) first rebuilds the file from the template plus its checkbox lines and their `>` rows, as its own commit; what it dropped is printed. Files that a summary or description mentions (`@path` or `` `dir/file` ``, resolved against the project's git root) and that exist are written as markdown links relative to the todo file, like `ai/prompt.md` does; `--add-files` also commits the mentioned files that have changes. Every written file is committed as
-`{commit_prefix}[TODOs] synced todos for {projects}.` in the git root of each project (one commit per repo and prefix, only those files; `--no-git` skips it).
+`{commit_prefix}[TODOs] synced todos for {projects}.` in the git root of each project (one commit per repo and prefix, only those files; `--no-git` skips it). If `HEAD` already is such an unpushed sync commit of the same projects that touched nothing else, it is amended instead (`--no-amend` makes a new commit).
 """
 from __future__ import annotations
 
@@ -874,9 +874,29 @@ def todo_dir_usable(project: Project) -> bool:
 # end def
 
 
+def amendable(top: Path, subject: str, files: list[str]) -> bool:
+    """`HEAD` is a clean todo commit that may be rewritten: exactly this `subject`, touching only `files`,
+    on no remote branch, and no merge, rebase, cherry-pick or revert is running."""
+    if git(top, "log", "-1", "--format=%s", "HEAD").stdout.strip() != subject:
+        return False
+    # end if
+    touched = git(top, "show", "-z", "--name-only", "--format=", "HEAD").stdout.split("\0")  # -z: no quoting of paths like `ai/°base/…`
+    if not {t for t in touched if t} <= set(files):
+        return False
+    # end if
+    if git(top, "branch", "-r", "--contains", "HEAD").stdout.strip():
+        return False
+    # end if
+    git_dir = Path(git(top, "rev-parse", "--absolute-git-dir").stdout.strip())
+    return not any((git_dir / marker).exists() for marker in (
+        "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply",
+    ))
+# end def
+
+
 def commit_written(
     written: list[tuple[Project, Path]], default_prefix: str = "", action: str = "synced todos",
-    details: dict[str, list[str]] | None = None,
+    details: dict[str, list[str]] | None = None, amend: bool = True,
 ) -> None:
     """Commit in the git root that contains each project (found from the project's own directory,
     so a subfolder of a monorepo commits in the monorepo root). One commit per (repo, prefix),
@@ -912,13 +932,22 @@ def commit_written(
         if len(body) > MAX_DETAIL_LINES:
             body = body[:MAX_DETAIL_LINES] + [f"- ... and {len(body) - MAX_DETAIL_LINES} more"]
         # end if
-        message = ["-m", f"{prefix}[TODOs] {action} for {names}."] + (["-m", "\n".join(body)] if body else [])
-        done = git(Path(top), "commit", *message, "--", *files)
+        subject = f"{prefix}[TODOs] {action} for {names}."
+        amending = amend and action == "synced todos" and amendable(Path(top), subject, files)
+        if amending:
+            old = git(Path(top), "log", "-1", "--format=%b", "HEAD").stdout.strip()
+            body = [line for line in old.split("\n") if line] + body
+            if len(body) > MAX_DETAIL_LINES:
+                body = body[:MAX_DETAIL_LINES] + [f"- ... and {len(body) - MAX_DETAIL_LINES} more"]
+            # end if
+        # end if
+        message = ["-m", subject] + (["-m", "\n".join(body)] if body else [])
+        done = git(Path(top), "commit", *(["--amend"] if amending else []), *message, "--", *files)
         if done.returncode != 0:
             print(f"[{names}] git commit failed: {done.stderr.strip() or done.stdout.strip()}", file=sys.stderr)
         else:
             head = git(Path(top), "rev-parse", "--short=9", "HEAD").stdout.strip()
-            print(f"[{names}] committed {head} in {top}: {prefix}[TODOs] {action} for {names}.")
+            print(f"[{names}] {'amended' if amending else 'committed'} {head} in {top}: {subject}")
         # end if
     # end for
 # end def
@@ -1012,6 +1041,7 @@ def sync(
     include_completed: bool = False,
     reset_todo_file: bool = False,
     add_files: bool = False,
+    amend: bool = True,
 ) -> int:
     """Sync, then (optionally) purge missing, then purge completed: each stage is written and
     committed on its own, so the history shows what was a sync and what was a cleanup."""
@@ -1084,7 +1114,7 @@ def sync(
             # end if
         # end for
         if use_git and written:
-            commit_written(written, config.commit_prefix, action, details)
+            commit_written(written, config.commit_prefix, action, details, amend)
         # end if
         if add_files and use_git and not dry_run and action == "synced todos":
             for project in projects:
@@ -1117,6 +1147,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--include-completed", "--include-complete", action="store_true", help="also add completed todos that are not in the file yet (ignored by default)")
     ap.add_argument("--reset-todo-file", action="store_true", help="rebuild the todo file of --project from the template plus its todo lines (checkbox lines and their `>` rows), everything else is dropped; refuses while the file has uncommitted changes; own commit, then the normal sync")
     ap.add_argument("--add-files", "--add", action="store_true", help="also stage and commit the files the todos mention (those with changes, each on its own); without it they are only linked")
+    ap.add_argument("--no-amend", action="store_true", help="always make a new commit, even if HEAD is an unpushed todo sync commit of the same projects that could take the changes")
     ap.add_argument("--write-schema", action="store_true", help=f"write {SCHEMA_PATH.name} and {LOCAL_SCHEMA_PATH.name} and exit")
     return ap
 # end def
@@ -1156,7 +1187,7 @@ def main(argv: list[str] | None = None) -> int:
     # end if
     todos = asyncio.run(fetch_todos(url, token, config.calendar_id))
     try:
-        sync(config, todos, args.project, args.dry_run, not args.no_git, args.purge_missing, args.purge_complete, args.include_completed, args.reset_todo_file, args.add_files)
+        sync(config, todos, args.project, args.dry_run, not args.no_git, args.purge_missing, args.purge_complete, args.include_completed, args.reset_todo_file, args.add_files, not args.no_amend)
     except ValueError as e:
         print(e, file=sys.stderr)
         return 2
