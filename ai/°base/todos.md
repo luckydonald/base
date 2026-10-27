@@ -284,7 +284,7 @@ Closed (no CalDAV equivalent):
   > • Rather implement `ai/settings/sync_todos.repo.json`, which is another task.
   > • Close this task once that other task is done, too.
 - [x] if the last commit already is a clean todo commit, `--amend` the new commit. — `todo:f6e1cc84-5df5-4eb3-bc87-4c0b8e302134` _(done)_
-- [ ] change wording in [/todo-loop](../skills/todo-loop/SKILL.md) That's the planning file will automatically be copied. — `todo:c2227a34-850b-488f-a9b3-9837f7f8f3d8`
+- [x] change wording in [/todo-loop](../skills/todo-loop/SKILL.md) That's the planning file will automatically be copied. — `todo:c2227a34-850b-488f-a9b3-9837f7f8f3d8` _(done)_
   > Currently is often understood as task to manually do for the agent, which is wrong as the hook does it.
 - [ ] add support for `ai/settings/sync_todos.repo.json`, — `todo:9996eda5-960b-41fa-9d26-cc9fb3922fa4`
   > which is an override per repo, meant to be commited.

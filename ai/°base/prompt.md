@@ -8278,3 +8278,6 @@ In that special case of having multiple projects per repository, you are even al
 
 ❯ Plan accepted, auto mode.
 
+❯ Plan accepted:
+> Drop `, so never copy or move it yourself`, then you're good to go.
+
