@@ -8268,3 +8268,8 @@ Was the [/commit-with-lplp-style](../skills/commit-with-lplp-style/SKILL.md) not
 > </details>
 >
 
+❯ Yes, adapt that skill, and pull the relevant ˋai/°base/prompt.mdˋ changes into it as well.
+Todo syncs of the current (sub)project shall always be squased in, either older or next tasks.
+
+In that special case of having multiple projects per repository, you are even allowed to re-order them to pull your project todos into your current tasks.
+

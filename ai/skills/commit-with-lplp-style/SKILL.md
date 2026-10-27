@@ -27,7 +27,7 @@ Adopt these rules for every commit made this session:
    - `ai: save plan <NNN>_<slug>` — plan files
    - `ai: sync codex memory` — Codex's memory mirrored into the repo's memory directory by another tool
    - `ai: Updated log file to next issue.` — the issue-log rotation commit of older repos' tooling; fold it into the fix commit like any other auto-commit
-   - `[<scope>] [TODOs] synced todos for <projects>.` — todo files written by `scripts/°base/ai/todos/sync_todos.py` (the same hook family also commits `purged missing|completed todos …`, `reset todo file …` and `upgraded todo file header …` with that `[TODOs]` marker); always squash it into the last completed task's work commit that is not pushed yet (whatever todos the sync changed; with no unpushed work commit to fold into, it stays its own commit)
+   - `[<scope>] [TODOs] synced todos for <projects>.` — todo files written by `scripts/°base/ai/todos/sync_todos.py` (the same hook family also commits `purged missing|completed todos …`, `reset todo file …` and `upgraded todo file header …` with that `[TODOs]` marker); always squash it into a work commit that is not pushed yet, whatever todos the sync changed: the last completed task's commit, or, when no unpushed work commit precedes it, the next task's commit (folding forward); it never stays a commit of its own (see "Todo syncs" below)
    - Possibly others starting with plain `ai: `…
 
    **When to keep a commit separate instead of folding:**
@@ -137,8 +137,20 @@ Handles these hook-created commits, among others:
 - **`ai: record memory <slug>`** — memory file written, hook; touches only files under the memory directory.
 - **`ai: sync codex memory`** — Codex's memory mirrored into the memory directory; touches only files under the memory directory.
 - **`ai: Updated log file to next issue.`** — the issue-log rotation commit of older repos' tooling; touches only the log file. Fold it into the fix commit it belongs to.
-- **`[<scope>] [TODOs] synced todos for <projects>.`** — `scripts/°base/ai/todos/sync_todos.py` (not a hook, but an auto-commit all the same); touches only `ai/todos.md`-style todo files. Always squashes into the last completed task's work commit that is not pushed yet (`git log @{upstream}..HEAD`), even when it also added or changed other todos; only when there is no unpushed work commit does it keep its own commit.
+- **`[<scope>] [TODOs] synced todos for <projects>.`** — `scripts/°base/ai/todos/sync_todos.py` (not a hook, but an auto-commit all the same); touches only `ai/todos.md`-style todo files. Always squashes into a work commit that is not pushed yet (`git log @{upstream}..HEAD`), even when it also added or changed other todos. See "Todo syncs" below.
 - **Plan commits** — `ai: Plan …`, `ai: Plan Update …`, or `ai: save plan <NNN>_<slug>` (hook); touches only `ai/plans/<NNN>_*.md` or `ai/°base/plans/<NNN>_*.md`. The revision immediately preceding the implementation commit **always folds into it**, even if it's a genuine new version — note what changed in that final revision in the run commit's body when it differed from the last kept plan version. Every earlier revision of the same plan number (one followed by at least one further plan-file revision rather than directly by the implementation) stays its own commit, renamed to `ai: Plan: …` (first) / `ai: Plan update: …` (each later one) — never left as the raw hook message. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding kept version instead (or into the implementation, if it's the one immediately before it).
+
+### Todo syncs
+
+The todo syncs of the **current (sub)project** are always squashed into the work commits, never left standing alone:
+
+- Fold into the **last completed task's** unpushed work commit (`git log @{upstream}..HEAD`), older than the sync.
+- When no unpushed work commit precedes the sync (the sync is the oldest unpushed commit), fold it **forward** into the **next** task's work commit instead.
+  The todos file only changes in the sync, so the reorder replays cleanly.
+- A sync is never a reason to start a commit of its own, and a sync that changed other todos than the one just completed (new ones, link formatting) folds the same way.
+- In a repository holding **several projects** (a monorepo with subprojects that each have their own todo file and `[TODOs] synced todos for <project>` commits), the syncs of the project you are working on may be **re-ordered** to sit next to your current tasks, so they can be pulled into those task commits.
+  Syncs of other projects are left where they are, unless the user asks otherwise.
+- The usual guards apply: tag the tip with `./scripts/tag_backup.py` first, gate the rebase on the expected tip sha, and verify `git diff <bak-tag> HEAD` is empty afterwards.
 
 ### Procedure
 
