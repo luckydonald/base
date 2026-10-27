@@ -107,6 +107,15 @@
         ]
       },
       {
+        "matcher": "EnterPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "bash": "python3 \"$(git rev-parse --show-toplevel)/scripts/°base/ai/hooks/plan-style-context/hook.py\""
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit|ExitPlanMode|create|edit|exit_plan_mode",
         "hooks": [
           {

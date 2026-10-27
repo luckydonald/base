@@ -8173,3 +8173,5 @@ Then once a open thingo is found it should confirm before rewriting: Print the o
 
 ❯ including the original query.
 
+❯ Plan accepted, auto mode.
+

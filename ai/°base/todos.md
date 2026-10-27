@@ -122,7 +122,7 @@ Open (new CalDAV todos created 2026-10-22):
 
 - [x] Add `squash unpushed` to ignored queries. — `todo:823f4001-2f8c-4a77-a2dd-f9d1d86a75d9` _(done)_
 - [ ] Once the `# end if` plugin is released, remove the `# end …` rule from the `python.md` code style. — `todo:7f19ba8b-35fc-477b-8f41-c5f458e697fc`
-- [ ] Improve the Markdown (`md.md`) code style to actually automatically be loaded if `/plan` is executed. — `todo:360971fb-7080-4607-94bf-d13a523c30e9`
+- [x] Improve the Markdown (`md.md`) code style to actually automatically be loaded if `/plan` is executed. — `todo:360971fb-7080-4607-94bf-d13a523c30e9` _(done)_
 - [ ] Add the information about the currently selected file to the prompt log. — `todo:0b3a981b-3de7-4f89-aa1d-32471f137111`
   > • File selected: [⧉ File `todo.md`](./todo.md)
   > • Single line: [⧉ File `todo.md`: 1 line selected](./todo.md#L190) — TODO: figure out if/how we can properly link a specific line.
@@ -280,3 +280,5 @@ Closed (no CalDAV equivalent):
   >         - [x] Use Autopilot (some model which confirms stuff for you) — Claude, Copilot; no Codex equivalent.
   >
   > Command-approval decisions with typed feedback are recorded too: Claude from its transcript and Copilot from its session event log. Codex follow-up text remains an ordinary prompt and is already logged.
+- [ ] allow repo-local pathes in the global [`ai/settings/sync_todos.json`](../settings/sync_todos.json). — `todo:359cd2de-c272-4e9e-a4f6-d5dcc2aeea3a`
+- [ ] if the last commit already is a clean todo commit, `--amend` the new commit. — `todo:f6e1cc84-5df5-4eb3-bc87-4c0b8e302134`

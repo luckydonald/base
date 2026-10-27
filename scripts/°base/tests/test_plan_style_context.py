@@ -26,6 +26,14 @@ class PlanStyleContextTests(unittest.TestCase):
         self.assertEqual(run({"prompt": "hello", "permission_mode": "default"}), "")
         self.assertEqual(run({"prompt": "/planet"}), "")
 
+    def test_enter_plan_mode_tool_injects_context(self):
+        out = json.loads(run({"hook_event_name": "PostToolUse", "tool_name": "EnterPlanMode"}))
+        self.assertEqual(out["hookSpecificOutput"]["hookEventName"], "PostToolUse")
+        self.assertIn("references/md.md", out["hookSpecificOutput"]["additionalContext"])
+
+    def test_other_tools_inject_nothing(self):
+        self.assertEqual(run({"hook_event_name": "PostToolUse", "tool_name": "Read", "permission_mode": "plan"}), "")
+
 
 if __name__ == "__main__":
     unittest.main()
