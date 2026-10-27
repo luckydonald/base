@@ -8284,3 +8284,6 @@ In that special case of having multiple projects per repository, you are even al
 ❯ Plan denied:
 > You say `precedence global < tracked < repo < local`. What's `tracked`?
 
+❯ Plan denied:
+> That makes sense. `repo` variant shall be able to set all settings of _global_ and `local` combined. Usually the result is it not needing a local file any longer. In fact, migrate repo-internal pathes in `.local` into `.repo` if a specific flag is set. If that flag is not set, print a hint that the user may want to set it (or set `"no-add-to-repo-hint": true` in any of those 3 files (optional field, missing => default => false).
+

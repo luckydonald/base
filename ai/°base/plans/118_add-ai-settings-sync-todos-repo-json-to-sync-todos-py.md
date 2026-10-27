@@ -17,7 +17,10 @@ Paths outside the repo stay machine-local, because they depend on the folder lay
 - Schemas are pydantic-generated and rewritten by `main()` whenever they differ (`schema_text()`, `local_schema_text()`, `--write-schema`).
 - `resolve_roots()` returns 5 paths and a test unpacks exactly 5, so the new paths are derived from `DEFAULT_CONFIG.with_name(...)` instead of widening it.
 - `sync()` already prints `[name] skipped, no path …` per project, but gives no hint what to do when all of them are skipped.
-- Commit prefix precedence today: global, then tracked per-project, then local.
+- Commit prefix precedence today, lowest to highest:
+  1. the top-level `commit_prefix` of `sync_todos.json`,
+  2. the `commit_prefix` of the project entry in `sync_todos.json`,
+  3. the `commit_prefix` in `sync_todos.local.json`.
 
 ## Design
 
@@ -36,7 +39,8 @@ New file `ai/settings/sync_todos.repo.json` with schema `ai/settings/sync_todos-
   The JSON schema carries a pattern (`^(?!.*(^|/)\.\.(/|$))\.(/.*)?$`), and a pydantic validator enforces the same on load, as the schema is only advisory.
   Absolute paths and `~` are rejected.
   Relative paths resolve against the git root, like local ones.
-- Precedence: tracked, then repo, then local.
+- Precedence for `path` and `commit_prefix`, lowest to highest: `sync_todos.json` (the committed tag mapping, which never holds a `path`), then the new `sync_todos.repo.json`, then `sync_todos.local.json`.
+  For `commit_prefix` that means top-level of `sync_todos.json` < project entry in `sync_todos.json` < repo file < local file.
   A local value that is not `null` wins; a local `null` (including the auto-generated ones) falls through to the repo value, otherwise the repo file would never take effect.
   Consequence: a local `null` can no longer switch off a project the repo file enables; a non-null local `path` is the override.
 - The empty file is created by `main()` when it is missing, and committed on its own as `{commit_prefix}[TODOs] added sync_todos.repo.json.` (only that path; skipped with `--dry-run`, written but not committed with `--no-git`).
@@ -56,7 +60,7 @@ New file `ai/settings/sync_todos.repo.json` with schema `ai/settings/sync_todos-
 
 ## Tests
 
-- Repo path is used when the local one is `null`; a non-null local path wins; commit prefix precedence global < tracked < repo < local.
+- Repo path is used when the local one is `null`; a non-null local path wins; commit prefix precedence top-level `sync_todos.json` < its project entry < repo file < local file.
 - `..`, absolute, `~` and `foo/bar` (no `./`) paths are rejected, `"."` and `./sub` accepted.
 - Projects with a repo path are not added to the local file as `null`.
 - `ensure_repo_file` creates the exact empty text and commits it in a temp git repo, is a no-op when the file exists, writes without commit for `--no-git`, and writes nothing for `--dry-run`.
