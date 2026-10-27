@@ -1,4 +1,4 @@
-"""Tests for save-prompt/hook.py's IDE context: the selected file or lines become a link line in ai/query.md."""
+"""Tests for save-prompt/hook.py's IDE context: the selected file or lines become a link line in ai/prompt.md."""
 from __future__ import annotations
 
 import json
@@ -59,7 +59,7 @@ class SavePromptIdeContextTests(unittest.TestCase):
                 "prompt_id": prompt_id,
             }
             run_hook(repo, PROMPT_HOOK, payload, ai_tool)
-            query = repo / "ai" / "query.md"
+            query = repo / "ai" / "prompt.md"
             return query.read_text(encoding="utf-8") if query.exists() else ""
         # end with
     # end def
@@ -117,7 +117,7 @@ class SavePromptIdeContextTests(unittest.TestCase):
             repo = Path(tmp) / "consumer"
             init_repo(repo, "https://github.com/example/consumer.git")
             run_hook(repo, PROMPT_HOOK, {"prompt": PROMPT, "cwd": str(repo.resolve())}, "claude")
-            logged = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            logged = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
         # end with
         self.assertIn("❯ rework the parser\n", logged)
         self.assertNotIn("⧉", logged)

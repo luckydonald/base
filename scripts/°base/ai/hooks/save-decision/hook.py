@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PostToolUse hook for AskUserQuestion / request_user_input: append the asked
-question(s) and the picked answer to ai/query.md as a markdown blockquote, then commit.
+question(s) and the picked answer to ai/prompt.md as a markdown blockquote, then commit.
 
 Usage:
   hook.py [ai_tool_name]           normal hook mode (reads payload from stdin)
@@ -629,7 +629,7 @@ def main() -> int:
     block = _render_block(questions, tool=tool)
     slug = slugify(questions[0].question, fallback="decision")
 
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     append_and_commit(
         log_path,
         block,

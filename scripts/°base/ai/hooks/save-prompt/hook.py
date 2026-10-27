@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UserPromptSubmit hook: append the user's prompt to ai/query.md and commit.
+"""UserPromptSubmit hook: append the user's prompt to ai/prompt.md and commit.
 
 For Codex, also catch up direct user shell-command turns found in the session
 transcript and save their output under ai[/°base]/output/commands/.
@@ -621,13 +621,13 @@ def _quote_lines(text: str) -> str:
     return "\n".join(f"> {line}" if line else ">" for line in text.splitlines())
 
 
-def _online_query_issue_url(repository: str, issue_number: str) -> str:
+def _online_prompt_issue_url(repository: str, issue_number: str) -> str:
     if not repository or not issue_number:
         return ""
     return f"https://github.com/{repository}/issues/{issue_number}"
 
 
-def _online_query_artifact_text(
+def _online_prompt_artifact_text(
     *,
     issue_title: str,
     issue_number: str,
@@ -689,11 +689,11 @@ def _strip_claude_github_worker_prompt(prompt: str, log_path: Path) -> PromptLog
     if not request:
         return PromptLogEntry("")
 
-    artifact_path = log_path.parent / "plans" / "000_online_query.md"
+    artifact_path = log_path.parent / "plans" / "000_online_prompt.md"
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
-    issue_url = _online_query_issue_url(repository, issue_number)
+    issue_url = _online_prompt_issue_url(repository, issue_number)
     artifact_path.write_text(
-        _online_query_artifact_text(
+        _online_prompt_artifact_text(
             issue_title=issue_title,
             issue_number=issue_number,
             issue_url=issue_url,
@@ -1177,7 +1177,7 @@ def main() -> int:
         prompt = payload["tool_input"].get("prompt") or ""
     if not prompt.strip():
         return 0
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     if ai_tool == "codex":
         _capture_codex_commands(payload, prompt, prefix, log_path)
     elif ai_tool == "claude":

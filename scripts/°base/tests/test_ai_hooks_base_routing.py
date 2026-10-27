@@ -254,7 +254,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 (commands_dir / "002.log").read_text(encoding="utf-8"),
                 "fatal: failed\nsecond line\n",
             )
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(query.count("› Command executed."), 2)
             self.assertLess(
                 query.index("output/commands/001.log"),
@@ -286,7 +286,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 [
                     "ai/°base/output/commands/001.log",
                     "ai/°base/output/commands/002.log",
-                    "ai/°base/query.md",
+                    "ai/°base/prompt.md",
                 ],
             )
 
@@ -318,7 +318,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             commands_dir = repo / "ai" / "°base" / "output" / "commands"
             self.assertEqual((commands_dir / "001.log").read_text(encoding="utf-8"), "new\n")
             self.assertFalse((commands_dir / "002.log").exists())
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertNotIn("old command", query)
             self.assertIn("new command", query)
 
@@ -342,7 +342,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual((commands_dir / "002.log").read_text(encoding="utf-8"), "")
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(query.count("<code>$ new command</code>"), 1)
             self.assertEqual(query.count("<code>$ second new command</code>"), 1)
             self.assertEqual(query.count("output/commands/001.log"), 1)
@@ -372,7 +372,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "codex",
             )
 
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("<code>$ pwd</code>", query)
             self.assertNotIn("› yes", query)
             self.assertEqual(last_subject(repo), "[base] ai: command 001 result")
@@ -409,7 +409,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 (issue_dir / "output" / "commands" / "001.log").read_text(encoding="utf-8"),
                 "/repo\n",
             )
-            query = (issue_dir / "query.md").read_text(encoding="utf-8")
+            query = (issue_dir / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("output/commands/001.log", query)
             self.assertEqual(last_subject(repo), "DEMO-42: ai: updated prompt")
 
@@ -450,7 +450,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "codex",
             )
 
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(query, "› Normal prompt\n\n› Another prompt\n\n")
             self.assertFalse((repo / "ai" / "°base" / "output" / "commands").exists())
 
@@ -462,10 +462,10 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "› Capture this prompt\n\n",
             )
-            self.assertFalse((repo / "ai" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "prompt.md").exists())
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
 
     def test_codex_prompt_in_base_repo_prefixes_base_marker_before_by_issue(self):
@@ -479,12 +479,12 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "by-issue" / "BASE-123" / "query.md").read_text(
+                (repo / "ai" / "°base" / "by-issue" / "BASE-123" / "prompt.md").read_text(
                     encoding="utf-8",
                 ),
                 "› Capture this prompt\n\n",
             )
-            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "°base" / "prompt.md").exists())
             self.assertEqual(last_subject(repo), "[base] BASE-123: ai: updated prompt")
 
     def test_prompt_follows_sub_dir_file_into_subproject(self):
@@ -499,10 +499,10 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
 
             self.assertEqual(
-                (repo / "sub" / "proj" / "ai" / "query.md").read_text(encoding="utf-8"),
+                (repo / "sub" / "proj" / "ai" / "prompt.md").read_text(encoding="utf-8"),
                 "› Capture this prompt\n\n",
             )
-            self.assertFalse((repo / "ai" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "prompt.md").exists())
 
     def test_prompt_sub_dir_uses_by_issue_of_the_subproject(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -517,7 +517,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
 
-            self.assertTrue((repo / "sub" / "proj" / "ai" / "by-issue" / "DEMO-42" / "query.md").is_file())
+            self.assertTrue((repo / "sub" / "proj" / "ai" / "by-issue" / "DEMO-42" / "prompt.md").is_file())
             self.assertEqual(last_subject(repo), "DEMO-42: ai: updated prompt")
 
     def test_prompt_in_base_repo_follows_sub_dir_file(self):
@@ -531,8 +531,8 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
 
-            self.assertTrue((repo / "sub" / "ai" / "°base" / "query.md").is_file())
-            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+            self.assertTrue((repo / "sub" / "ai" / "°base" / "prompt.md").is_file())
+            self.assertFalse((repo / "ai" / "°base" / "prompt.md").exists())
 
     def test_prompt_ignores_sub_dir_file_pointing_nowhere_valid(self):
         for value in ("does/not/exist", "../outside", "/tmp"):
@@ -545,7 +545,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
                 run_hook(repo, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
 
-                self.assertTrue((repo / "ai" / "query.md").is_file())
+                self.assertTrue((repo / "ai" / "prompt.md").is_file())
 
     def test_codex_prompt_in_base_repo_accepts_optional_existing_prefix_pieces(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -594,7 +594,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "> › Implement the [Plan](./plans/001_forwarded-plan.md). <kbd>cleared</kbd>\n\n",
             )
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
@@ -622,7 +622,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "> › Implement the [Plan](./plans/001_instruction-plan.md). <kbd>cleared</kbd>\n\n"
                 "› Also make the warning actionable.\n\n",
             )
@@ -653,7 +653,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "> › Implement the [Plan](./plans/002_latest-plan.md). <kbd>cleared</kbd>\n\n"
                 "› Keep the fallback Codex-only.\n\n",
             )
@@ -676,7 +676,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             result = run_hook(repo, PROMPT_HOOK, {"prompt": prompt}, "codex")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 f"› {prompt}\n\n",
             )
             self.assertEqual(result.stderr, "")
@@ -699,7 +699,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             result = run_hook(repo, PROMPT_HOOK, {"prompt": "Implement the plan."}, "codex")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "> › Implement the [Plan](./plans/002_non-resetting-session-plan.md).\n\n",
             )
             self.assertEqual(result.stderr, "")
@@ -716,7 +716,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "Implement the plan."}, "codex")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "› Implement the plan.\n\n",
             )
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
@@ -733,7 +733,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "Implement the plan."}, "claude")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "❯ Implement the plan.\n\n",
             )
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
@@ -751,7 +751,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": prompt}, "claude")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 f"❯ {prompt}\n\n",
             )
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
@@ -780,8 +780,8 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
-                "> ❯ [query](./plans/000_online_query.md) for issue "
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
+                "> ❯ [query](./plans/000_online_prompt.md) for issue "
                 "[#3](https://github.com/luckydonald/AllMyStorage/issues/3):\n"
                 "> type: `ISSUE_CREATED`\n"
                 "> trigger: @luckydonald (Lucky Lucy) via _@claude_.\n"
@@ -791,7 +791,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "> Maybe that flow is not yet fully implemented in the barcode add overlay?\n\n",
             )
             self.assertEqual(
-                (repo / "ai" / "°base" / "plans" / "000_online_query.md").read_text(
+                (repo / "ai" / "°base" / "plans" / "000_online_prompt.md").read_text(
                     encoding="utf-8",
                 ),
                 "# Online Query\n\n"
@@ -827,8 +827,8 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
-                "> ❯ [query](./plans/000_online_query.md) for issue "
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
+                "> ❯ [query](./plans/000_online_prompt.md) for issue "
                 "[#4](https://github.com/luckydonald/AllMyStorage/issues/4):\n"
                 "> type: `ISSUE_CREATED`\n"
                 "> trigger: @luckydonald (Lucky Lucy) via _@claude_.\n"
@@ -837,7 +837,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "> Please check the PWA manifest only.\n\n",
             )
             self.assertEqual(
-                (repo / "ai" / "°base" / "plans" / "000_online_query.md").read_text(
+                (repo / "ai" / "°base" / "plans" / "000_online_prompt.md").read_text(
                     encoding="utf-8",
                 ),
                 "# Online Query\n\n"
@@ -904,7 +904,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
             self.assertEqual((agent_dir / "result.md").read_text(encoding="utf-8"), "Done.")
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "❯ Task Notification:\n"
                 "> - Task `a6f364ce63ffebb84` <kbd>completed</kbd>\n"
                 "> - Tool `toolu_test`\n"
@@ -919,7 +919,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertEqual(last_subject(repo), "[base] ai: agent 001.a6f364ce63ffebb84 results")
             self.assertEqual(
                 run_git(repo, "log", "--oneline").stdout.strip().count("\n"), 1,
-                "artifact files and query.md must land in a single commit, not two",
+                "artifact files and prompt.md must land in a single commit, not two",
             )
 
     def test_claude_task_notification_usage_line_with_hyphen_tags(self):
@@ -950,7 +950,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "claude",
             )
 
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("> - `4` tools, `12345` tokens, `0.5 s`\n", query)
 
     def test_claude_task_notification_trailing_prompt_logged_separately(self):
@@ -980,7 +980,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "claude",
             )
 
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("❯ Task Notification:\n", query)
             self.assertIn("❯ Change the output dir to ai/output/agents/\n", query)
 
@@ -1039,7 +1039,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
             self.assertFalse((repo / "ai" / "°base" / "agents").exists())
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "❯ Exploration <kbd>finished</kbd>:\n"
                 "> - > Explore record-memory hook and commit logic\n"
                 "> - [Answer (`5` chars, `5 B`)](output/explore/001.b5dyyqcfr/result.md)\n"
@@ -1051,7 +1051,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertEqual(last_subject(repo), "[base] ai: explore 001.b5dyyqcfr result")
             self.assertEqual(
                 run_git(repo, "log", "--oneline").stdout.strip().count("\n"), 1,
-                "the result file and query.md must land in a single commit, not two",
+                "the result file and prompt.md must land in a single commit, not two",
             )
 
     def test_codex_plan_in_base_repo_routes_and_prefixes(self):
@@ -1149,7 +1149,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "base"
             init_repo(repo, "https://luckydonald@github.com/luckydonald/base.git")
-            query_path = repo / "ai" / "°base" / "query.md"
+            query_path = repo / "ai" / "°base" / "prompt.md"
             query_path.parent.mkdir(parents=True)
             query_path.write_text(
                 "› A previous agent produced the plan below to accomplish the user's task.\n"
@@ -1964,10 +1964,10 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "Capture downstream prompt"}, "codex")
 
             self.assertEqual(
-                (repo / "ai" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "prompt.md").read_text(encoding="utf-8"),
                 "› Capture downstream prompt\n\n",
             )
-            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "°base" / "prompt.md").exists())
             self.assertEqual(last_subject(repo), "ai: updated prompt")
 
     def test_debug_payload_written_when_flag_exists(self):
@@ -2039,7 +2039,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertIn("- Skills restored (`commit-with-lplp-style`)", autoloads)
             self.assertNotIn("Compacted", autoloads)
 
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("❯ Conversation compacted:\n", query)
             self.assertIn("output/compact/001/autoloads.md", query)
 
@@ -2098,7 +2098,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 / f"001.{prompt_id}" / "result.md"
             )
             self.assertEqual(result.read_text(encoding="utf-8"), summary)
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("❯ Conversation compacted <kbd>manual</kbd>:\n", query)
             self.assertIn(f"output/compact/001.{prompt_id}/result.md", query)
         # end with
@@ -2124,7 +2124,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             result = repo / "ai" / "output" / "compact" / f"001.{prompt_id}" / "result.md"
             self.assertEqual(result.read_text(encoding="utf-8"), "Automatic compact summary")
-            query = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("❯ Conversation compacted <kbd>auto</kbd>:\n", query)
             self.assertFalse((repo / "ai" / "°base").exists())
         # end with
@@ -2156,7 +2156,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 sorted(path.name for path in compact_root.iterdir()),
                 [f"001.{prompt_id}", f"002.{prompt_id}"],
             )
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(query.count("Conversation compacted <kbd>auto</kbd>"), 2)
         # end with
     # end def
@@ -2274,7 +2274,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 / f"001.{prompt_id}" / "result.md"
             )
             self.assertEqual(result.read_text(encoding="utf-8"), "latest automatic summary")
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("Conversation compacted <kbd>auto</kbd>", query)
         # end with
     # end def
@@ -2336,7 +2336,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 (repo / "ai" / "°base" / "output" / "compact").glob("*/result.md")
             )
             self.assertEqual(len(result_files), 1)
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(query.count("Conversation compacted <kbd>manual</kbd>"), 1)
         # end with
     # end def
@@ -2356,7 +2356,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             self.assertTrue(compacted_file.exists(), "001.md should be created")
             self.assertEqual(compacted_file.read_text(encoding="utf-8"), "focus on the auth refactor")
 
-            query = (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("[`/compact` possible prompt](./output/compacted/001.md)", query)
 
     def test_precompact_manual_no_instructions_writes_nothing(self):
@@ -2367,7 +2367,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, COMPACT_PROMPT_HOOK, {"trigger": "manual", "custom_instructions": ""}, "claude")
 
             self.assertFalse((repo / "ai" / "°base" / "output" / "compacted").exists())
-            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "°base" / "prompt.md").exists())
 
     def test_precompact_auto_trigger_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2518,7 +2518,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": "please check @sub/file.txt for bugs"}, "claude")
 
-            query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query_md = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn(
                 "❯ please check [@`sub/file.txt`](../sub/file.txt) for bugs\n\n",
                 query_md,
@@ -2537,7 +2537,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": prompt}, "claude")
 
-            query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query_md = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("```diff\nsee @sub/file.txt\n```", query_md)
             self.assertIn(
                 "> _Mentioned file at line `3`:_ [@`sub/file.txt`](../sub/file.txt)",
@@ -2581,7 +2581,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 "claude",
             )
 
-            query_md = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query_md = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("[@`sub/file.txt`](../sub/file.txt)", query_md)
             tracked = run_git(repo, "ls-files", "--", "sub/file.txt").stdout.strip()
             self.assertEqual(tracked, "sub/file.txt")
@@ -2597,14 +2597,14 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             run_hook(repo, PROMPT_HOOK, {"prompt": "[[PLAN]] Investigate the bug."}, "copilot")
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "◆ /plan Investigate the bug.\n\n",
             )
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
 
     def test_copilot_harness_task_complete_reminder_is_not_logged(self):
         """The harness-injected autonomous-continuation nudge is not something the
-        user typed and must be skipped rather than committed to query.md."""
+        user typed and must be skipped rather than committed to prompt.md."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "base"
             init_repo(repo, "https://luckydonald@github.com/luckydonald/base.git")
@@ -2615,7 +2615,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": reminder}, "copilot")
 
-            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "°base" / "prompt.md").exists())
             self.assertEqual(last_subject(repo), "init")
 
     def test_copilot_cross_read_duplicate_firing_is_skipped(self):
@@ -2623,7 +2623,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
         but this firing's baked-in CLI arg says `claude` — i.e. it came from
         Copilot's unconditional cross-read of `.claude/settings.json` alongside
         its own native `.github/hooks/generated.json` — the redundant duplicate
-        firing must be skipped entirely, leaving no trace in query.md."""
+        firing must be skipped entirely, leaving no trace in prompt.md."""
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "base"
             init_repo(repo, "https://luckydonald@github.com/luckydonald/base.git")
@@ -2636,7 +2636,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 extra_env={"COPILOT_CLI": "1"},
             )
 
-            self.assertFalse((repo / "ai" / "°base" / "query.md").exists())
+            self.assertFalse((repo / "ai" / "°base" / "prompt.md").exists())
             self.assertEqual(last_subject(repo), "init")
 
     def test_copilot_native_firing_not_treated_as_duplicate(self):
@@ -2655,7 +2655,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
             )
 
             self.assertEqual(
-                (repo / "ai" / "°base" / "query.md").read_text(encoding="utf-8"),
+                (repo / "ai" / "°base" / "prompt.md").read_text(encoding="utf-8"),
                 "◆ Capture this prompt\n\n",
             )
             self.assertEqual(last_subject(repo), "[base] ai: updated prompt")
@@ -2866,12 +2866,12 @@ class ReffilesLibCommitTests(unittest.TestCase):
         )
 
     def test_mention_link_plain(self):
-        log_path = Path("/repo/ai/query.md")
+        log_path = Path("/repo/ai/prompt.md")
         mention = self._resolved(at=True, path="sub/file.txt", abspath="/repo/sub/file.txt")
         self.assertEqual(self.commit_mod.mention_link(mention, log_path), "[@`sub/file.txt`](../sub/file.txt)")
 
     def test_mention_link_hash_anchor(self):
-        log_path = Path("/repo/ai/query.md")
+        log_path = Path("/repo/ai/prompt.md")
         mention = self._resolved(path="docs/README.md", fragment="#some-title", abspath="/repo/docs/README.md")
         self.assertEqual(
             self.commit_mod.mention_link(mention, log_path),
@@ -2879,7 +2879,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
         )
 
     def test_mention_link_colon_line_range(self):
-        log_path = Path("/repo/ai/query.md")
+        log_path = Path("/repo/ai/prompt.md")
         mention = self._resolved(at=True, path="docs/README.md", fragment=":346-400", abspath="/repo/docs/README.md")
         self.assertEqual(
             self.commit_mod.mention_link(mention, log_path),
@@ -2887,7 +2887,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
         )
 
     def test_fence_summary_lines_single(self):
-        log_path = Path("/repo/ai/query.md")
+        log_path = Path("/repo/ai/prompt.md")
         mention = self._resolved(line=124, path="path/foo/bar/foo.py", abspath="/repo/path/foo/bar/foo.py")
         lines = self.commit_mod.fence_summary_lines([mention], log_path, width=3)
         self.assertEqual(
@@ -2896,10 +2896,10 @@ class ReffilesLibCommitTests(unittest.TestCase):
         )
 
     def test_fence_summary_lines_multiple(self):
-        log_path = Path("/repo/ai/query.md")
+        log_path = Path("/repo/ai/prompt.md")
         resolved = [
             self._resolved(line=2, path="./some/path/file", abspath="/repo/ai/some/path/file"),
-            self._resolved(line=12, at=True, path="ai/query.md", abspath="/repo/ai/query.md"),
+            self._resolved(line=12, at=True, path="ai/prompt.md", abspath="/repo/ai/prompt.md"),
         ]
         lines = self.commit_mod.fence_summary_lines(resolved, log_path, width=2)
         self.assertEqual(
@@ -2908,7 +2908,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
                 "> <details><summary><i>Mentioned files:</i></summary>",
                 ">",
                 "> - line `02`: [`./some/path/file`](./some/path/file)",
-                "> - line `12`: [@`ai/query.md`](./query.md)",
+                "> - line `12`: [@`ai/prompt.md`](./prompt.md)",
                 ">",
                 "> </details>",
             ],
@@ -2965,7 +2965,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    "please check @sub/file.txt for bugs\n", repo, repo / "ai" / "query.md",
+                    "please check @sub/file.txt for bugs\n", repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -2982,7 +2982,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, _ = self.commit_mod.process_referenced_files(
-                    "see @sub/file.txt, thanks\n", repo, repo / "ai" / "query.md",
+                    "see @sub/file.txt, thanks\n", repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -2998,7 +2998,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    "see (@sub/file.txt) there\n", repo, repo / "ai" / "query.md",
+                    "see (@sub/file.txt) there\n", repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -3016,7 +3016,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    "see (@sub/file.txt)\n", repo, repo / "ai" / "query.md",
+                    "see (@sub/file.txt)\n", repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -3032,7 +3032,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             cwd = Path.cwd()
             os.chdir(repo)
             try:
-                return self.commit_mod.process_referenced_files(prompt, repo, repo / "ai" / "query.md")
+                return self.commit_mod.process_referenced_files(prompt, repo, repo / "ai" / "prompt.md")
             finally:
                 os.chdir(cwd)
 
@@ -3067,7 +3067,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    "see @a/one.txt and @b/two.txt\n", repo, repo / "ai" / "query.md",
+                    "see @a/one.txt and @b/two.txt\n", repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -3082,7 +3082,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    "see @sub/does-not-exist.txt\n", repo, repo / "ai" / "query.md",
+                    "see @sub/does-not-exist.txt\n", repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -3100,7 +3100,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    prompt, repo, repo / "ai" / "query.md",
+                    prompt, repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -3129,7 +3129,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    prompt, repo, repo / "ai" / "query.md",
+                    prompt, repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)
@@ -3162,7 +3162,7 @@ class ReffilesLibCommitTests(unittest.TestCase):
             os.chdir(repo)
             try:
                 content, resolved = self.commit_mod.process_referenced_files(
-                    prompt, repo, repo / "ai" / "query.md",
+                    prompt, repo, repo / "ai" / "prompt.md",
                 )
             finally:
                 os.chdir(cwd)

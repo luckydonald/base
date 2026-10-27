@@ -20,7 +20,7 @@ Adopt these rules for every commit made this session:
    Steps 1–2 run as one whitelisted command: `git commit -F ai/git/pending-commit.md && ./scripts/tag_backup.py`.
 
    Auto-commit patterns — fold into the preceding code commit **by default**:
-   - `ai: updated prompt` — user prompt saved to `ai/query.md`
+   - `ai: updated prompt` — user prompt saved to `ai/prompt.md`
    - `ai: save decision <slug>` — resolved `AskUserQuestion`
    - `ai: agent <id> results` — subagent result record
    - `ai: record memory <slug>` — memory file written (e.g. `ai: record memory MEMORY`, `ai: record memory feedback_commit_amend_over_reset`)
@@ -131,8 +131,8 @@ Run this procedure after every commit as rule 2, step 3, to fold that commit's i
 
 Handles these hook-created commits, among others:
 
-- **`ai: updated prompt`** — one per user prompt; touches only `ai/query.md` or `ai/°base/query.md`; happens per hook every time the users write a new instruction, even mid-rebase (!).
-- **`ai: save decision <slug>`** — one per resolved `AskUserQuestion` via hook; touches only `ai/query.md` or `ai/°base/query.md`. The slug is derived from the first question's text.
+- **`ai: updated prompt`** — one per user prompt; touches only `ai/prompt.md` or `ai/°base/prompt.md`; happens per hook every time the users write a new instruction, even mid-rebase (!).
+- **`ai: save decision <slug>`** — one per resolved `AskUserQuestion` via hook; touches only `ai/prompt.md` or `ai/°base/prompt.md`. The slug is derived from the first question's text.
 - **`ai: agent <id> results`** — subagent result record, hook; touches only agent result files.
 - **`ai: record memory <slug>`** — memory file written, hook; touches only files under the memory directory.
 - **`ai: sync codex memory`** — Codex's memory mirrored into the memory directory; touches only files under the memory directory.
@@ -156,7 +156,7 @@ done
 - **`ai: updated prompt`**, **`ai: save decision <slug>`**, **`ai: agent <id> results`**, and **`ai: record memory <slug>`** commits → fix up under the **preceding** code commit by default. Exception: a prompt commit that clearly starts a different/unrelated task should stay as its own `pick`.
 - **Plan commits** → the revision immediately preceding the implementation commit **always** fixes up into it — never kept as its own `pick`, even if it's a genuine new version — with a short body note on what changed in that revision when it differed from the last kept plan version. Plan-saves seconds apart with non-overlapping edits (one drafting burst) squash together into a single version first. Every earlier, genuinely distinct revision of the same plan number keeps its own `pick`, renamed — `ai: Plan: …` for the first, `ai: Plan update: …` for each later one up to (but excluding) the final pre-implementation revision — instead of leaving the raw `ai: save plan <NNN>_<slug>` hook message. Word each kept summary as the eventual `ai: Run: …` summary in current tense rather than past tense. A revision whose content is unchanged/near-identical to the one before it is not a new version and folds into that preceding version instead (or into the implementation, if it's the one immediately before it).
 - **Mislabeled commits** → flag commits whose message does not match the files they actually changed. Rename them as part of the rebase instead of silently folding them the wrong way.
-- **Fold direction** → check with `git log --oneline --reverse <base>..HEAD` (or the timestamps) which commit is older, and write the todo in history order. An `ai:` commit that already sits **after** the code commit (e.g. the decision commit of an `AskUserQuestion` answered after you committed) is a plain forward fold: `pick <code-commit>`, `fixup <ai-commit>`, then the `exec … --amend`. Reorder (`pick <ai-commit>` first, `fixup <code-commit>` second) only when the `ai:` commits really predate the target and there is no later code commit to fold forward into, e.g. prep prompts folded into the plan commit they informed. Reordering replays the code commit's patch onto a state that has not seen the `ai:` commit's later edit of `ai/query.md`, which produces avoidable conflicts.
+- **Fold direction** → check with `git log --oneline --reverse <base>..HEAD` (or the timestamps) which commit is older, and write the todo in history order. An `ai:` commit that already sits **after** the code commit (e.g. the decision commit of an `AskUserQuestion` answered after you committed) is a plain forward fold: `pick <code-commit>`, `fixup <ai-commit>`, then the `exec … --amend`. Reorder (`pick <ai-commit>` first, `fixup <code-commit>` second) only when the `ai:` commits really predate the target and there is no later code commit to fold forward into, e.g. prep prompts folded into the plan commit they informed. Reordering replays the code commit's patch onto a state that has not seen the `ai:` commit's later edit of `ai/prompt.md`, which produces avoidable conflicts.
 
 **3. Write renamed commit messages** to `ai/git/rebase-msg-<sha>.md` for any commits needing a label fix.
 

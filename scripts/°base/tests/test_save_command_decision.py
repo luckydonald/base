@@ -50,7 +50,7 @@ class ClaudeCommandDecisionTests(unittest.TestCase):
 
             run_hook(repo, COMMAND_DECISION_HOOK, {"transcript_path": transcript}, "claude")
 
-            content = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            content = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("Command denied: `Bash`", content)
             self.assertIn("do not run it", content)
 
@@ -97,11 +97,11 @@ class ClaudeCommandDecisionTests(unittest.TestCase):
             subjects = run_git(repo, "log", "-2", "--pretty=%s").stdout.strip().splitlines()
             self.assertEqual(subjects, ["ai: save command decision", "ai: save command decision"])
 
-            first_commit_content = run_git(repo, "show", "HEAD~1:ai/query.md").stdout
+            first_commit_content = run_git(repo, "show", "HEAD~1:ai/prompt.md").stdout
             self.assertEqual(first_commit_content.count("Command denied: `Bash`"), 1)
             self.assertIn("use a different command", first_commit_content)
 
-            second_commit_diff = run_git(repo, "diff", "HEAD~1", "HEAD", "--", "ai/query.md").stdout
+            second_commit_diff = run_git(repo, "diff", "HEAD~1", "HEAD", "--", "ai/prompt.md").stdout
             added_lines = [
                 line for line in second_commit_diff.splitlines()
                 if line.startswith("+") and not line.startswith("+++")
@@ -120,7 +120,7 @@ class ClaudeCommandDecisionTests(unittest.TestCase):
             run_hook(repo, COMMAND_DECISION_HOOK, payload, "claude")
             run_hook(repo, COMMAND_DECISION_HOOK, payload, "claude")
 
-            content = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            content = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(content.count("Instructions for `Bash`:"), 1)
             self.assertIn("also explain it", content)
 
@@ -145,7 +145,7 @@ class CopilotCommandDecisionTests(unittest.TestCase):
 
             run_hook(repo, COMMAND_DECISION_HOOK, {"sessionId": session_id}, "copilot", extra_env={"HOME": str(home)})
 
-            content = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            content = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("Command denied: `python3 -c 'print(1)'`", content)
             self.assertIn("use a safer command", content)
 

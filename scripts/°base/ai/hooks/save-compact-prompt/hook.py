@@ -70,7 +70,7 @@ def main() -> int:
         return 0
     # end if
 
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     compacted_dir = log_path.parent / "output" / "compacted"
     num = next_compacted_number(compacted_dir)
     dir_name = f"{num:03d}"

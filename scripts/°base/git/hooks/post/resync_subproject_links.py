@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 LINK_SUBPROJECT = Path(__file__).resolve().parents[3] / "init" / "link_subproject.py"
+MIGRATE_QUERY_TO_PROMPT = Path(__file__).resolve().parents[3] / "ai" / "migrate_query_to_prompt.py"
 
 
 def main() -> int:
@@ -28,6 +29,10 @@ def main() -> int:
     # end if
 
     try:
+        migrated = subprocess.run([sys.executable, str(MIGRATE_QUERY_TO_PROMPT), "--event", args[-1]])
+        if migrated.returncode != 0:
+            print(f"warning: migrating query.md to prompt.md exited with {migrated.returncode}", file=sys.stderr)
+        # end if
         result = subprocess.run(args)
     except OSError as e:
         print(f"warning: subproject link re-sync could not run: {e}", file=sys.stderr)

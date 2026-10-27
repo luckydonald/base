@@ -4,8 +4,8 @@ The harness resends a fixed instructional block verbatim on every autonomous
 `/loop` tick (ScheduleWakeup's `<<autonomous-loop-dynamic>>` sentinel, or
 CronCreate's `<<autonomous-loop>>` equivalent), starting with a
 `# Autonomous loop tick ...` header. Logging that in full every tick would
-make ai/query.md pure repeated boilerplate, so it's written once under
-output/loop/ (reusing the same file across identical ticks) and query.md
+make ai/prompt.md pure repeated boilerplate, so it's written once under
+output/loop/ (reusing the same file across identical ticks) and prompt.md
 gets a single short linked entry instead.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ class SavePromptLoopTickTests(unittest.TestCase):
             self.assertEqual(files[0].read_text(encoding="utf-8"), DYNAMIC_TICK_PROMPT.strip())
             self.assertIn("autonomous-loop-tick-dynamic-pacing", files[0].name)
 
-            query = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertNotIn("Run the autonomous check", query)
             self.assertIn(f"output/loop/{files[0].name}", query)
             self.assertIn("Autonomous loop tick (dynamic pacing)", query)
@@ -60,7 +60,7 @@ class SavePromptLoopTickTests(unittest.TestCase):
             files = sorted(loop_dir.glob("*.md"))
             self.assertEqual(len(files), 1, "identical tick text must not create a second file")
 
-            query = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertEqual(query.count(f"output/loop/{files[0].name}"), 2)
 
     def test_tick_after_task_notification_is_condensed_too(self):
@@ -89,7 +89,7 @@ class SavePromptLoopTickTests(unittest.TestCase):
                 "claude",
             )
 
-            query = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            query = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("❯ Task Notification:\n", query)
             self.assertNotIn("Run the autonomous check", query)
             loop_dir = repo / "ai" / "output" / "loop"

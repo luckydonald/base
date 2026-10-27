@@ -17,7 +17,7 @@ class IsAiBasePathTests(unittest.TestCase):
         paths_matrix: dict[str, dict[str, bool]] = {
             "AI top-level directories": {
                 "ai/something.py": True,
-                "ai/query.md": True,
+                "ai/prompt.md": True,
                 ".claude/foo/bar.bazt/banana": True,
                 ".claude/settings.json": True,
                 ".codex/1": True,
@@ -161,7 +161,7 @@ class AiSubjectRegexTests(unittest.TestCase):
 
 class ClassifyCommitTests(unittest.TestCase):
     def test_ai_only_commit(self):
-        result = classify.classify_commit("abc", "ai: updated prompt", ["ai/query.md"])
+        result = classify.classify_commit("abc", "ai: updated prompt", ["ai/prompt.md"])
         self.assertTrue(result.is_ai_only_commit)
         self.assertTrue(result.is_ai_tainted_commit)
         self.assertFalse(result.is_code_containing_commit)
@@ -174,7 +174,7 @@ class ClassifyCommitTests(unittest.TestCase):
 
     def test_mixed_commit_is_ai_tainted_and_code_containing(self):
         result = classify.classify_commit(
-            "abc", "Add export button", ["src/export.py", "ai/query.md"]
+            "abc", "Add export button", ["src/export.py", "ai/prompt.md"]
         )
         self.assertFalse(result.is_ai_only_commit)
         self.assertTrue(result.is_ai_tainted_commit)

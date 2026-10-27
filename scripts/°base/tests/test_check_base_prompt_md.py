@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[3]
-HOOK = ROOT / "scripts" / "°base" / "git" / "hooks" / "push" / "check_base_query_md.py"
+HOOK = ROOT / "scripts" / "°base" / "git" / "hooks" / "push" / "check_base_prompt_md.py"
 
 
 def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -38,15 +38,16 @@ def run_hook(repo: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-class CheckBaseQueryMdTests(unittest.TestCase):
+class CheckBasePromptMdTests(unittest.TestCase):
     def test_blocks_when_repo_dir_named_base_and_origin_is_luckydonald_base(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "base"
             init_repo(repo, "git@github.com:luckydonald/base.git")
             result = run_hook(repo)
             self.assertEqual(result.returncode, 1)
+            self.assertIn("ai/prompt.md", result.stderr)
             self.assertIn("ai/query.md", result.stderr)
-            self.assertIn("ai/°base/query.md", result.stderr)
+            self.assertIn("ai/°base/prompt.md", result.stderr)
 
     def test_allows_when_origin_is_not_luckydonald_base(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -52,7 +52,7 @@ def append_decisions(blocks: list[str]) -> None:
         return
     # end if
     append_and_commit(
-        resolve_log_path("ai/query.md", "ai/°base/query.md"),
+        resolve_log_path("ai/prompt.md", "ai/°base/prompt.md"),
         "".join(blocks),
         commit_template_relpath="ai/commit-templates/decision",
         default_commit_msg="ai: save command decision",

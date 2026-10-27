@@ -1,4 +1,4 @@
-"""Tests for save-prompt/hook.py's skipped prompts: bare commands and reminders are never logged to ai/query.md."""
+"""Tests for save-prompt/hook.py's skipped prompts: bare commands and reminders are never logged to ai/prompt.md."""
 from __future__ import annotations
 
 import sys
@@ -19,7 +19,7 @@ class SavePromptSkipCommandsTests(unittest.TestCase):
             repo = Path(tmp) / "consumer"
             init_repo(repo, "https://github.com/example/consumer.git")
             run_hook(repo, PROMPT_HOOK, {"prompt": prompt}, "claude")
-            query = repo / "ai" / "query.md"
+            query = repo / "ai" / "prompt.md"
             return query.read_text(encoding="utf-8") if query.exists() else ""
 
     def test_fix_it_and_rename_are_skipped(self):

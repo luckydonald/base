@@ -290,7 +290,7 @@ cd some_project
 ../scripts/°base/init/link-subproject-claude.sh
 ```
 
-This creates a relative symlink `some_project/.claude → ../.claude`, so the same `.claude/settings.json` and `.claude/hooks/permission-check.py` apply. The hooks themselves locate `scripts/°base/` via `git rev-parse --show-toplevel`, so they work from any depth. AI artifacts then land under the subfolder — `some_project/ai/query.md`, `some_project/ai/plans/…` — while commits still go to the single monorepo git, with git-root-relative paths like `some_project/ai/query.md`.
+This creates a relative symlink `some_project/.claude → ../.claude`, so the same `.claude/settings.json` and `.claude/hooks/permission-check.py` apply. The hooks themselves locate `scripts/°base/` via `git rev-parse --show-toplevel`, so they work from any depth. AI artifacts then land under the subfolder — `some_project/ai/prompt.md`, `some_project/ai/plans/…` — while commits still go to the single monorepo git, with git-root-relative paths like `some_project/ai/prompt.md`.
 
 The helper is idempotent (no-ops if the symlink already points at the right place), refuses to clobber a non-symlink `.claude/`, and exits cleanly at the git root, so it's safe to re-run or wire into your own setup script.
 

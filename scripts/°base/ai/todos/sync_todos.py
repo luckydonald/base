@@ -20,7 +20,7 @@ Every run adds a `null` entry for each project that is missing there; a project 
       > description line
 
 Only lines carrying a `todo:<uid>` are managed; everything else in the file is left alone. The `>` lines of a managed todo follow its CalDAV description: notes written above or below an unchanged description stay, a changed description replaces the block and the lines that go are reported.
-New todos go under `## Todos synced from CalDAV` (the old `## Synced from CalDAV` still counts); a file that does not exist yet starts from `todos.template.md` next to this script, and the old bare `# Todos` header is upgraded to it; completed ones that are not in the file yet are ignored (`--include-completed`). `--purge-missing` / `--purge-complete` then clean up, each as its own commit. `--reset-todo-file` (needs `--project`, git, and a file without uncommitted changes) first rebuilds the file from the template plus its checkbox lines and their `>` rows, as its own commit; what it dropped is printed. Files that a summary or description mentions (`@path` or `` `dir/file` ``, resolved against the project's git root) and that exist are written as markdown links relative to the todo file, like `ai/query.md` does; `--add-files` also commits the mentioned files that have changes. Every written file is committed as
+New todos go under `## Todos synced from CalDAV` (the old `## Synced from CalDAV` still counts); a file that does not exist yet starts from `todos.template.md` next to this script, and the old bare `# Todos` header is upgraded to it; completed ones that are not in the file yet are ignored (`--include-completed`). `--purge-missing` / `--purge-complete` then clean up, each as its own commit. `--reset-todo-file` (needs `--project`, git, and a file without uncommitted changes) first rebuilds the file from the template plus its checkbox lines and their `>` rows, as its own commit; what it dropped is printed. Files that a summary or description mentions (`@path` or `` `dir/file` ``, resolved against the project's git root) and that exist are written as markdown links relative to the todo file, like `ai/prompt.md` does; `--add-files` also commits the mentioned files that have changes. Every written file is committed as
 `{commit_prefix}[TODOs] synced todos for {projects}.` in the git root of each project (one commit per repo and prefix, only those files; `--no-git` skips it).
 """
 from __future__ import annotations
@@ -299,7 +299,7 @@ def assign(todos: list[dict[str, Any]], projects: list[Project]) -> dict[str, li
 
 @functools.cache
 def reffiles() -> Any | None:
-    """The `°reffiles_lib` of the base hooks (the one that links files in `ai/query.md`), None if the base is not checked out."""
+    """The `°reffiles_lib` of the base hooks (the one that links files in `ai/prompt.md`), None if the base is not checked out."""
     if not HOOKS_DIR.is_dir():
         vlog(f"{HOOKS_DIR} not found, file mentions stay plain text")
         return None
@@ -324,7 +324,7 @@ def link_root(project: Project) -> Path:
 
 def link_files(text: str, project: Project) -> str:
     """Turn `@path` / `` `dir/file` `` mentions of existing files into markdown links relative to the project's todo file, like the
-    `ai/query.md` hook does. Applied to the CalDAV text before it is compared or written, so both sides stay equal and a sync is idempotent."""
+    `ai/prompt.md` hook does. Applied to the CalDAV text before it is compared or written, so both sides stay equal and a sync is idempotent."""
     lib = reffiles()
     if lib is None or "/" not in text:
         return text
@@ -344,7 +344,7 @@ def link_files(text: str, project: Project) -> str:
 
 
 def commit_mentions(project: Project) -> None:
-    """`--add-files`: stage and commit the files the todos of `project` mention (those with changes, as the query.md hook does)."""
+    """`--add-files`: stage and commit the files the todos of `project` mention (those with changes, as the prompt.md hook does)."""
     lib = reffiles()
     mentions = LINKED.get(project.name)
     if lib is None or not mentions:

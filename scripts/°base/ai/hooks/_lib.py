@@ -2,7 +2,7 @@
 """Shared helpers for the prompt-log hooks (save-prompt, save-decision).
 
 Both hooks append a markdown entry to a per-repo prompt log (typically
-`ai/query.md`) and auto-commit only that file, while preserving any user-staged
+`ai/prompt.md`) and auto-commit only that file, while preserving any user-staged
 edits to the same file via :mod:`merge_staged`.
 """
 from __future__ import annotations
@@ -29,6 +29,9 @@ from importlib import import_module  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "git"))
 stage_and_commit = import_module("°scoped_commit_lib").stage_and_commit
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+migrate_query_to_prompt = import_module("migrate_query_to_prompt")
 
 _commit_style = import_module("°commit_style_lib")
 base_ai_commit_subject = _commit_style.base_ai_commit_subject
@@ -110,7 +113,7 @@ def delete_pending_decision(session_id: str, tool_use_id: str) -> None:
 
 def sweep_pending_decisions(session_id: str) -> None:
     """Append+commit any leftover pending-decision markers (AskUserQuestion
-    calls the user canceled instead of answering) to query.md, then delete
+    calls the user canceled instead of answering) to prompt.md, then delete
     them. Safe to call often: a no-op when nothing needs sweeping.
 
     Two Claude Code instances can share the same working directory (two
@@ -156,7 +159,7 @@ def sweep_pending_decisions(session_id: str) -> None:
         marker.unlink(missing_ok=True)
     if not blocks:
         return
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     append_and_commit(
         log_path,
         "".join(blocks),
@@ -530,7 +533,7 @@ def _flush_rejection_spec(spec: RejectionSpec, events: dict[str, dict]) -> None:
             rejections = _filter_rejections(events, spec.tool_names, already_recorded)
             if not rejections:
                 return
-            log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+            log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
             for rejection in rejections:
                 append_and_commit(
                     log_path,
@@ -703,7 +706,29 @@ def resolve_log_path(default_relpath: str, base_relpath: str) -> Path:
 
     log_path = (ai_root / relpath).resolve()
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    if log_path.name == migrate_query_to_prompt.CURRENT_NAME:
+        migrate_legacy_log(log_path.parent)
     return log_path
+
+
+def migrate_legacy_log(directory: Path) -> None:
+    """Rename an old `query.md` next to the log to `prompt.md`, see ``migrate_query_to_prompt``. Never breaks the hook."""
+    try:
+        migrate_query_to_prompt.migrate_dir(directory, subject=base_ai_commit_subject)
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"could not migrate the old query.md in {directory}: {e}", file=sys.stderr)
+
+
+def legacy_log_path(log_path: Path) -> Path | None:
+    """The old `query.md` that still exists beside `log_path` (when migrating was not possible), which keeps getting every entry, too."""
+    if log_path.name != migrate_query_to_prompt.CURRENT_NAME:
+        return None
+    legacy = log_path.with_name(migrate_query_to_prompt.LEGACY_NAME)
+    if not legacy.exists():
+        return None
+    if log_path.exists() and legacy.samefile(log_path):
+        return None
+    return legacy
 
 
 def _staged_snapshot(relpath: str) -> tuple[Path, Path] | None:
@@ -769,19 +794,27 @@ def append_and_commit(
     relpath = str(log_path.relative_to(Path.cwd()))
     extra_relpaths = [str(path.relative_to(Path.cwd())) for path in extra_paths]
     snap = _staged_snapshot(relpath)
+    legacy = legacy_log_path(log_path)
+    legacy_relpath = str(legacy.relative_to(Path.cwd())) if legacy else None
+    legacy_snap = _staged_snapshot(legacy_relpath) if legacy_relpath else None
 
     reffiles_lib = import_module("°reffiles_lib")
     content, resolved_mentions = reffiles_lib.process_referenced_files(
         content, _ai_root(), log_path
     )
 
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(content)
+    for target in (log_path, legacy):
+        if target is None:
+            continue
+        with target.open("a", encoding="utf-8") as f:
+            f.write(content)
 
     msg = _commit_message(commit_template_relpath, default_commit_msg)
-    stage_and_commit([relpath, *extra_relpaths], msg)
+    stage_and_commit([relpath, *([legacy_relpath] if legacy_relpath else []), *extra_relpaths], msg)
 
     if snap is not None:
         _restore_staged(snap, relpath)
+    if legacy_snap is not None and legacy_relpath:
+        _restore_staged(legacy_snap, legacy_relpath)
 
     reffiles_lib.stage_and_commit_mentions(resolved_mentions)

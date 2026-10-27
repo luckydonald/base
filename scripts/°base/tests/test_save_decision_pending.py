@@ -36,7 +36,7 @@ def _pending_dir(repo: Path) -> Path:
 
 
 def _query_md(repo: Path) -> Path:
-    return repo / "ai" / "query.md"
+    return repo / "ai" / "prompt.md"
 
 
 class PendingDecisionTests(unittest.TestCase):
@@ -199,7 +199,7 @@ class ConcurrentSessionTests(unittest.TestCase):
                 "claude",
             )
 
-            # B's Stop had nothing of its own to sweep -> query.md untouched.
+            # B's Stop had nothing of its own to sweep -> prompt.md untouched.
             self.assertFalse(_query_md(repo).exists())
             # A's still-live, still-fresh marker survives untouched.
             markers = {p.name for p in _pending_dir(repo).glob("*.md")}

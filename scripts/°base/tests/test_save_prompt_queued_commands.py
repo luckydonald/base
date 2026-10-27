@@ -3,7 +3,7 @@
 a message sent while Claude is still mid-turn ("type ahead" queueing) never
 triggers its own UserPromptSubmit event and shows up in the transcript as a
 `type: "attachment"` record instead of a normal `type: "user"` turn -- so
-without this scan it's silently never logged to ai/query.md at all.
+without this scan it's silently never logged to ai/prompt.md at all.
 """
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ class SavePromptQueuedCommandsTests(unittest.TestCase):
                 "claude",
             )
 
-            log_text = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            log_text = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("Make sure to load the python style guide", log_text)
             self.assertIn("Make sure to cleanly rebase before merging in `base/base`.", log_text)
             self.assertIn(current_prompt, log_text)
@@ -95,7 +95,7 @@ class SavePromptQueuedCommandsTests(unittest.TestCase):
                 "claude",
             )
 
-            log_text = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            log_text = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertNotIn("Stale queued message from before turn 1", log_text)
 
     def test_no_transcript_path_is_a_noop(self):
@@ -105,7 +105,7 @@ class SavePromptQueuedCommandsTests(unittest.TestCase):
 
             run_hook(repo, PROMPT_HOOK, {"prompt": "Just a normal prompt"}, "claude")
 
-            log_text = (repo / "ai" / "query.md").read_text(encoding="utf-8")
+            log_text = (repo / "ai" / "prompt.md").read_text(encoding="utf-8")
             self.assertIn("Just a normal prompt", log_text)
 
 

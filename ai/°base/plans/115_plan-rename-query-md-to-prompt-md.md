@@ -33,26 +33,83 @@ It follows the todo's rules, working per directory (also the `by-issue/<KEY>/` o
 3. Both exist with identical content: keep the one with the longer history in this repo.
    Compare `git log --oneline --follow` counts for each path, skipping commits that came from `base/base` (commits reachable from `base/base`, if that ref exists).
    Delete the other (1 commit), and if `query.md` is the one that remains, rename it (1 commit).
-4. Both exist and differ: leave both alone, print a warning to stderr, and keep logging to `prompt.md`.
-   Never overwrite.
+4. Both exist and differ: leave both alone and migrate nothing.
+   The hooks append every entry to **both** files, so nothing gets lost, and the user will eventually merge one into the other (or delete one).
+   `resolve_log_path` therefore needs a way to return both paths in this state, e.g. a sibling `resolve_log_paths(...)` returning a list, which the callers write to in turn.
 
-The migration commits are plain commits with a message in the repo's `ai:` auto-commit style, made only with explicit paths (never `git add -A`), and are skipped (file operations only, no commit) when the repo is not clean for those paths.
+### Subprojects
+
+Subprojects are sub folders of the git root that share the `ai/query.md` style, and each has its own `ai/query.md` (seeded by `link_subproject.py`'s `copy_if_missing`), or a symlink back to the root one.
+They are found the way `link_subproject.py` already does it, plus a recursive scan for the logs themselves:
+
+- `find_subproject_dirs()` (`link_subproject.py:468`) lists folders with a tracked `.claude` symlink.
+- Additionally the migration scans `git ls-files -z` plus untracked files (`git ls-files -z --others --exclude-standard`), NUL-delimited, for every `query.md` directly in `ai/`, `ai/°base/`, `ai/by-issue/<KEY>/` and `ai/°base/by-issue/<KEY>/` at any depth, so subprojects without a `.claude` link are found, too.
+- A `query.md` that is a symlink (pointing back to the root one, relative or absolute) is migrated as a link: the link is renamed and its target is retargeted to the root's `prompt.md`, never copied into a regular file.
+  Two links to the same root file count as the same file for the "both exist and equal" case.
+
+The scanning and the four cases live in a new `scripts/°base/ai/migrate_query_to_prompt.py` (`migrate_all(git_root)` plus a `main()` for running it by hand), which `_lib.py` imports for the single-directory call.
+It runs from:
+
+1. `resolve_log_path`, for the directory about to be written to (cheap, only acts when a `query.md` is there).
+2. `link_subproject.py` (replacing the `copy_if_missing("ai/query.md", …)` seed by `prompt.md`, after migrating the subproject).
+3. The existing `post-merge` / `post-rewrite` hook (`resync_subproject_links.py`), which calls `migrate_all`, so a merge of the renamed base migrates the root and every subproject at once.
+
+### Dirty files
+
+A dirty `query.md` does not stop the migration.
+The helper migrates the **clean** (committed) version and commits as usual, then puts the working-tree changes back under the new name:
+
+1. Snapshot the working-tree content of `query.md`.
+2. `git stash`-free approach: `git checkout -- query.md` is avoided; instead the helper commits the rename of the `HEAD` blob (`git mv` plus `git commit -- <paths>` restricted to the two paths, using the index state of `HEAD`), then overwrites `prompt.md` with the snapshot.
+3. The overwrite only happens when exactly one of the two files existed (the straightforward case), since then `prompt.md` is nothing but the freshly migrated copy.
+4. If both files exist and at least one of them is dirty: do not migrate at all (case 4 behaviour, append to both).
+
+The migration commits only use explicit paths (never `git add -A`) and keep any user-staged changes intact via the existing `_staged_snapshot` / `_restore_staged` helpers in `_lib.py`.
+
+### Push guard
+
+`check_base_query_md.py` becomes `check_base_prompt_md.py` and blocks pushes of **both** `ai/query.md` and `ai/prompt.md` from the base repo (`files: ^ai/(query|prompt)\.md$`).
+The single rename commit is exempt and is pushed by hand (no code for the exemption):
+
+1. Push everything up to the commit before the rename commit.
+2. Push the rename commit with `--no-verify`.
+3. Push the rest normally.
+
+I will not push anything myself, I only report this order.
 
 ## Steps
 
 1. Pure rename first (so git shows moves, per the commit style):
    - `git mv ai/query.md ai/prompt.md`, `git mv "ai/°base/query.md" "ai/°base/prompt.md"`, `git mv scripts/°base/init/templates/query.md scripts/°base/init/templates/prompt.md`.
+   - Also `git mv ai/plans/000_online_query.md ai/plans/000_online_prompt.md` (the tracked one; the `°base` copy is created by the hook), and rename the artifact name in `save-prompt/hook.py:692` plus the two tests in `test_ai_hooks_base_routing.py:784-840`.
+     The `_online_query_*` helper names in `hook.py` become `_online_prompt_*`.
    - Commit as its own commit with content unchanged.
 2. Point the code at the new name:
    - `resolve_log_path` call sites and docstrings: `ai/query.md` becomes `ai/prompt.md`, `ai/°base/query.md` becomes `ai/°base/prompt.md`.
-   - `link_subproject.py` copies `prompt.md` and runs the same migration for the subproject.
-   - Rename `check_base_query_md.py` to `check_base_prompt_md.py` (and its test), update the hook id, name and `files:` regex in `.pre-commit-config.yaml`.
+   - `link_subproject.py` copies `prompt.md` and runs the same migration for the subproject; `resync_subproject_links.py` calls `migrate_all`.
+   - Rename `check_base_query_md.py` to `check_base_prompt_md.py` (and its test), update the hook id, name and `files:` regex in `.pre-commit-config.yaml`, and make the test cover both the old and the new name.
    - Update `AGENTS.md`, `SKILL.md` (all four mentions) and the `sync_todos.py` docstrings.
    - Update the `ai/query.md` classification entries in tests and in the split classifier if it has a path list (`.ai-ignore` fallback), checking `scripts/°base/git/°split_lib/classify.py` for the literal.
-3. Add the migration helper in `_lib.py` and call it from `resolve_log_path`.
+3. Add `scripts/°base/ai/migrate_query_to_prompt.py` and call it from `resolve_log_path`, `link_subproject.py` and `resync_subproject_links.py`.
 4. Tests (`scripts/°base/tests/`):
-   - New `test_migrate_query_to_prompt.py` covering the four cases above, plus a `by-issue` directory.
-   - Sweep the existing tests from `query.md` to `prompt.md`.
+   - New `test_migrate_query_to_prompt.py`, unit tests for the helper: the four cases, a `by-issue` directory, a `query.md` symlink to the root one, and append-to-both.
+   - The sweep of the existing tests from `query.md` to `prompt.md`.
+   - New end-to-end `test_migrate_query_to_prompt_clone.py` on a real clone, set up once per test run:
+     1. Shallow-clone (`git clone --depth 1`) the current version of this repository into a temp dir.
+     2. If the clone already holds migrated files, rename every `prompt.md` back to `query.md` (root, `°base`, subprojects), so the test can be re-run later.
+     3. Write 10-50 random lines each to `./ai/query.md` and `./ai/°base/query.md`, and commit both.
+     4. Create the subproject `./subproject/` and let `link_subproject.py` link and write everything it needs.
+     5. Create `./longer/deeper/path/with/ai/in/its/name/but/its/actually/just/a/subproject/` the same way, to prove the recursive scan does not mistake the `ai` in the path for a log location.
+     6. Commit with `git add ./subproject/ ./longer/` (allow empty), so nothing is left uncommitted.
+     7. Store this `HEAD` and reset to it for every case (or use a local clone per case, to run in parallel).
+     8. A `for`-loop-driven matrix over the locations (root, `°base`, both subprojects) × the four cases × clean/dirty variants of the existing files.
+        For each combination, the case setup writes 10-50 random lines into the log files of that location, depending on the setting: committed or dirty (uncommitted working-tree lines on top), new file only, old name only, both, or none.
+        The root and `°base` files of step 3 and the subproject files (`ai/` of both subprojects) are all treated this way, so every location is exercised with every state.
+        Every combination has an exact expectation table, computed from the generated lines, and the test compares the result against it, not just "looks plausible":
+        - File existence: which of `query.md` / `prompt.md` exist afterwards, per location.
+        - Committed content: `git show HEAD:<path>` of each file equals exactly the expected lines (for the migrated clean version, the original committed lines under the new name).
+        - Dirty content: the working-tree content of each file equals exactly the expected lines (committed lines plus the dirty lines, restored under the new name, or appended to both in case 4), and `git status --porcelain` lists exactly the expected dirty paths and nothing else.
+        - History: `git log --follow` on the new path reaches the old commits, and the number and messages of the migration commits match the case (delete + rename, delete only, rename only, none).
 5. Docs: note the rename and the migration in `ai/°base/AGENTS.md`.
 6. Add the new i18n keys: none (no UI strings).
 
@@ -62,8 +119,3 @@ The migration commits are plain commits with a message in the repo's `ai:` auto-
 - Run `pre-commit run --all-files` for the renamed guard hook.
 - Manual check in a scratch git repo: an old `ai/query.md` log is renamed to `ai/prompt.md` by the next hook run, history intact (`git log --follow`).
 - `git grep -n "query\.md"` outside `ai/°base/{plans,errors,output}`, `ai/plans` and `ai/output` returns nothing.
-
-## Open question
-
-Should the old `query.md` name keep working as a read fallback for other tools (Codex, IDE links in old logs)?
-The plan assumes no, since old logs only contain relative links to other files and not to `query.md` itself.

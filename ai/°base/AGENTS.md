@@ -100,12 +100,19 @@ Every Claude Code hook calls `resolve_log_path()`, which routes output based on 
 An optional, gitignored `ai[/°base]/.subDir` in the launch directory holds a path relative to the git root, and then the output goes under that subproject's `ai/` folder instead (`_ai_root()`); a path outside the git root or a missing directory is ignored.
 Claude's own per-project state (memory, transcripts) stays keyed on the launch directory.
 
+The prompt log was called `query.md` before it was renamed to `prompt.md`.
+`scripts/°base/ai/migrate_query_to_prompt.py` migrates old logs in the root and in every subproject (`ai/`, `ai/°base/`, `ai/by-issue/<KEY>/`, at any depth).
+`resolve_log_path()` migrates the directory it is about to write to, `link_subproject.py` migrates the subproject it links, and the `post-merge` / `post-rewrite` hook migrates all of them after pulling in the renamed base.
+A log that was already committed moves with its history (commits `ai: Renamed …`, plus `ai: Removed the unused …` for a leftover template or an identical duplicate), and uncommitted lines move with the working tree file.
+If both `query.md` and `prompt.md` exist with different content, or one of them is dirty, nothing is migrated and every hook appends to both until the user merges them by hand.
+The base repo's push guard (`check_base_prompt_md.py`) blocks both file names, so the one rename commit has to be pushed separately: push everything before it, push it with `--no-verify`, then push the rest.
+
 Hooks:
 
 | Hook | Trigger | Output |
 |---|---|---|
-| `save-prompt/hook.py` | `UserPromptSubmit` | `ai/°base/query.md`, plus caught-up direct Codex command output under `output/commands/` |
-| `save-decision/hook.py` | `AskUserQuestion` post | `ai/°base/query.md` |
+| `save-prompt/hook.py` | `UserPromptSubmit` | `ai/°base/prompt.md`, plus caught-up direct Codex command output under `output/commands/` |
+| `save-decision/hook.py` | `AskUserQuestion` post | `ai/°base/prompt.md` |
 | `save-plan/hook.py` | `Write`, `ExitPlanMode`, `Stop` | `ai/°base/plans/NNN_*.md` |
 | `record-memory/hook.py` | `Write`, `Edit`, `Bash`, `SessionStart` | syncs memory hardlinks |
 | `record-codex-memory/hook.py` | Codex write tools, `SessionStart`, `Stop` | syncs scoped Codex memory into the shared project memory tree |

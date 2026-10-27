@@ -261,7 +261,7 @@ def _latest_query_entry(text: str) -> str:
 
 def _plan_from_codex_query_log() -> str:
     """Fallback for forwarded-plan prompts logged before the Codex Stop hook runs."""
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     if not log_path.is_file():
         return ""
     entry = _latest_query_entry(log_path.read_text(encoding="utf-8"))
@@ -299,7 +299,7 @@ _COPILOT_DECISIONS_STATE_FILE = Path(tempfile.gettempdir()) / "save-plan-copilot
 
 
 def _record_claude_plan_acceptance(payload: dict) -> None:
-    """Append a `query.md` entry for an accepted Claude `ExitPlanMode` call.
+    """Append a `prompt.md` entry for an accepted Claude `ExitPlanMode` call.
 
     Three outcomes, all confirmed to share the exact same `tool_response`
     shape (`{plan, isAgent, filePath}`) -- distinguished only by two signals
@@ -322,7 +322,7 @@ def _record_claude_plan_acceptance(payload: dict) -> None:
     else:
         label, detail = "Plan accepted.", None
 
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     append_and_commit(
         log_path,
         render_decision_block(label, detail),
@@ -356,7 +356,7 @@ def _record_copilot_plan_blocks(blocks: list[str]) -> None:
     if not blocks:
         return
     append_and_commit(
-        resolve_log_path("ai/query.md", "ai/°base/query.md"),
+        resolve_log_path("ai/prompt.md", "ai/°base/prompt.md"),
         "".join(blocks),
         commit_template_relpath="ai/commit-templates/decision",
         default_commit_msg="ai: save plan decision",

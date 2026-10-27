@@ -27,7 +27,7 @@ run_hook = _routing.run_hook
 
 
 def _query_md(repo: Path) -> Path:
-    return repo / "ai" / "query.md"
+    return repo / "ai" / "prompt.md"
 
 
 def _write_transcript(tmp_dir: Path, tool_use_id: str, note: str | None) -> str:
@@ -360,11 +360,11 @@ class PlanDenialRecordingTests(unittest.TestCase):
             plan_decision_commits = [s for s in log if s == "ai: save plan decision"]
             self.assertEqual(len(plan_decision_commits), 2)
 
-            # query.md is append-only, so HEAD~1 has just the first denial's
+            # prompt.md is append-only, so HEAD~1 has just the first denial's
             # block and HEAD (cumulative) adds the second denial's block on
             # top -- each commit's diff is exactly one denial.
-            first_commit_content = run_git(repo, "show", "HEAD~1:ai/query.md").stdout
-            second_commit_diff = run_git(repo, "diff", "HEAD~1", "HEAD", "--", "ai/query.md").stdout
+            first_commit_content = run_git(repo, "show", "HEAD~1:ai/prompt.md").stdout
+            second_commit_diff = run_git(repo, "diff", "HEAD~1", "HEAD", "--", "ai/prompt.md").stdout
             self.assertIn("Plan denied:", first_commit_content)
             self.assertIn("change the approach", first_commit_content)
             self.assertNotIn("Plan denied.", first_commit_content)
@@ -448,7 +448,7 @@ class PlanDenialRecordingTests(unittest.TestCase):
             self.assertEqual(subjects[3], "ai: save plan decision")
             self.assertTrue(subjects[4].startswith("ai: save plan "))
 
-            self.assertIn("change the approach", run_git(repo, "show", "HEAD~3:ai/query.md").stdout)
+            self.assertIn("change the approach", run_git(repo, "show", "HEAD~3:ai/prompt.md").stdout)
 
     def test_accepted_call_is_not_recorded_as_denied(self):
         with tempfile.TemporaryDirectory() as tmp:

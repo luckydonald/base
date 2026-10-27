@@ -10,7 +10,7 @@
 # it's gitignored and not seeded any other way), an <cwd>/AGENTS.md ->
 # CLAUDE.md symlink (moving any pre-existing AGENTS.md into CLAUDE.md first,
 # mirroring the root layout), an empty `.gitkeep` in each of the ai/{errors,
-# output/{agents, explore},plans} scratch dirs, and seeds <cwd>/ai/query.md and
+# output/{agents, explore},plans} scratch dirs, and seeds <cwd>/ai/prompt.md and
 # <cwd>/CLAUDE.md from templates when they don't exist yet (copied, not
 # symlinked, since they're meant to diverge per subproject). This lets
 # Claude Code and Codex find the shared hooks/perms/MCP config when launched
@@ -65,6 +65,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "git"))
 scoped_commit_lib = import_module("°scoped_commit_lib")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ai"))
+migrate_query_to_prompt = import_module("migrate_query_to_prompt")
 
 sub_dir: Path
 git_root: Path
@@ -741,7 +743,8 @@ def main() -> int:
     link_env()
     link_run_configs()
     touch_scratch_gitkeeps()
-    copy_if_missing("ai/query.md", "query.md")
+    migrate_query_to_prompt.migrate_dir(sub_dir / "ai")
+    copy_if_missing("ai/prompt.md", "prompt.md")
     copy_if_missing("CLAUDE.md", "CLAUDE.md")
     link_agents_claude()
     seed_claude_project_env()

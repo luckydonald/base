@@ -139,7 +139,7 @@ class EndToEndCheckPushTests(unittest.TestCase):
     def test_unclean_to_non_origin_with_mixed_commit_allowed(self):
         sha = make_commit(self.repo, "src/thing.py", "Add thing")
         (self.repo / "ai").mkdir(exist_ok=True)
-        sha = make_commit(self.repo, "ai/query.md", "ai: log prompt")
+        sha = make_commit(self.repo, "ai/prompt.md", "ai: log prompt")
         code, _ = self._run_check("backup", "refs/heads/ai/UNCLEAN/feature-x", sha)
         self.assertEqual(code, 0)
 
@@ -155,7 +155,7 @@ class EndToEndCheckPushTests(unittest.TestCase):
         self.assertEqual(code, 0)
 
     def test_clean_to_non_origin_with_ai_tainted_blocked(self):
-        sha = make_commit(self.repo, "ai/query.md", "ai: log prompt")
+        sha = make_commit(self.repo, "ai/prompt.md", "ai: log prompt")
         code, output = self._run_check("backup", "refs/heads/feature-x", sha)
         self.assertEqual(code, 1)
         self.assertIn("clean-format", output)
@@ -167,7 +167,7 @@ class EndToEndCheckPushTests(unittest.TestCase):
         self.assertIn("history-format", output)
 
     def test_history_to_origin_with_ai_only_blocked_by_name_and_content_would_pass_content(self):
-        sha = make_commit(self.repo, "ai/query.md", "ai: log prompt")
+        sha = make_commit(self.repo, "ai/prompt.md", "ai: log prompt")
         code, output = self._run_check(
             "origin", "refs/heads/ai/history/feature-x", sha, remote_sha=self.base_sha
         )

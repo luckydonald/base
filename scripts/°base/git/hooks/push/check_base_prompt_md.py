@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Pre-push guard (pre-commit `stages: [pre-push]`, `files: ^ai/query\\.md$`):
-reject a push from the `luckydonald/base` repo itself if `ai/query.md` is part
-of the pushed diff -- this repo must log to `ai/°base/query.md` instead (see
+"""Pre-push guard (pre-commit `stages: [pre-push]`, `files: ^ai/(query|prompt)\\.md$`):
+reject a push from the `luckydonald/base` repo itself if `ai/prompt.md` (or the
+old name `ai/query.md`) is part of the pushed diff -- this repo must log to `ai/°base/prompt.md` instead (see
 `scripts/°base/ai/hooks/_lib.py`'s `resolve_log_path`).
 
 Deliberately self-contained: duplicates the small `_is_inside_base_repo`/
@@ -12,10 +12,10 @@ convention for tiny helpers; see that module's own docstring and
 `°split_lib/classify.py`'s comment about duplicating constants from
 `get-base.py`).
 
-Invocation contract: pre-commit only runs this hook when `ai/query.md` is
+Invocation contract: pre-commit only runs this hook when `ai/prompt.md` or `ai/query.md` is
 already known to have changed in the pushed range (via the `files:` filter),
 so this script only needs to answer "is this the base repo" -- no separate
-"did the diff touch ai/query.md" check is needed here.
+"did the diff touch ai/prompt.md or ai/query.md" check is needed here.
 """
 from __future__ import annotations
 
@@ -58,8 +58,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print(
-        "Push blocked: ai/query.md is part of this push, but this is the "
-        "luckydonald/base repo itself, which must log to ai/°base/query.md "
+        "Push blocked: ai/prompt.md or ai/query.md is part of this push, but this is the "
+        "luckydonald/base repo itself, which must log to ai/°base/prompt.md "
         "instead (see resolve_log_path() in scripts/°base/ai/hooks/_lib.py). "
         "Move the content there before pushing.",
         file=sys.stderr,

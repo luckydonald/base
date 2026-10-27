@@ -100,7 +100,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > [`ai/references/https/github.com/ChromeDevTools/chrome-devtools-mcp/blob/882f93e9a8809fe88eced35d793951fb456b7117/docs/advanced-usage.md`](../references/https/github.com/ChromeDevTools/chrome-devtools-mcp/blob/882f93e9a8809fe88eced35d793951fb456b7117/docs/advanced-usage.md) | download
   > `ai/references/https/github.com/ChromeDevTools/chrome-devtools-mcp/blop/main/docs/advanced-usage.md` | branch symlink
   > `ai/references/https/github.com/ChromeDevTools/chrome-devtools-mcp/latest/docs/advanced-usage.md` | latest symlink
-- [x] Add a `ai/.subDir` file, instructing which [`ai/query.md`](../query.md) etc. is to be used. — `todo:6bc531bc-61bf-46b2-9bd1-2955685b80db` _(done)_
+- [x] Add a `ai/.subDir` file, instructing which `ai/query.md` etc. is to be used. — `todo:6bc531bc-61bf-46b2-9bd1-2955685b80db` _(done)_
   > • not present: as before
   > • present: contains the relative path from the git root to the subproject to use
   > • This would be an extension of the exisiting subproject detection in the path generation of `query.md` and generally the `ai/` folder to use
@@ -129,7 +129,7 @@ Open (new CalDAV todos created 2026-10-22):
   >   • Moving the file as title probably makes sense when rendered: <a class="selection multi" href="./todo.md#L190" title="File &lt;code&gt;todo.md&lt;/code&gt;">⧉ 1 line selected</a>
   >   • But it's not really readable... Can we set that with still using Markdown? Not sure if GitHub & GitLab render: [⧉ 1 line selected](./todo.md#L190){title="File `todo.md`"}
   > • Multiple lines: [⧉ File `todo.md`: 10 lines selected](./todo.md#L190-200) — TODO: figure out if/how we can properly link a specific line. See above with possibly shortening it.
-- [ ] Rename `query.md` to `prompt.md`. — `todo:a224a3e0-f8ab-47c5-9382-437b225227de`
+- [x] Rename `query.md` to `prompt.md`. — `todo:a224a3e0-f8ab-47c5-9382-437b225227de` _(done)_
   > • Make sure all script usages of that file will first see if they have to rename an old file.
   > • If `query.md` exists, and the `prompt.md` is missing or equal to the `base/base` version:
   >   • delete the unused `prompt.md` (= 1 commit)
@@ -282,3 +282,5 @@ Closed (no CalDAV equivalent):
   > Command-approval decisions with typed feedback are recorded too: Claude from its transcript and Copilot from its session event log. Codex follow-up text remains an ordinary prompt and is already logged.
 - [ ] allow repo-local pathes in the global [`ai/settings/sync_todos.json`](../settings/sync_todos.json). — `todo:359cd2de-c272-4e9e-a4f6-d5dcc2aeea3a`
 - [ ] if the last commit already is a clean todo commit, `--amend` the new commit. — `todo:f6e1cc84-5df5-4eb3-bc87-4c0b8e302134`
+- [ ] change wording in [/todo-loop](../skills/todo-loop/SKILL.md) That's the planning file will automatically be copied. — `todo:c2227a34-850b-488f-a9b3-9837f7f8f3d8`
+  > Currently is often understood as task to manually do for the agent, which is wrong as the hook does it.

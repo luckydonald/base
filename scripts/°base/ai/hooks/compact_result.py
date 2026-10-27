@@ -119,7 +119,7 @@ def capture_summary(payload: dict[str, object], trigger: str, summary: str) -> b
     if trigger not in VALID_TRIGGERS or not summary.strip():
         return False
     # end if
-    log_path = resolve_log_path("ai/query.md", "ai/°base/query.md")
+    log_path = resolve_log_path("ai/prompt.md", "ai/°base/prompt.md")
     result_directory = reserve_artifact_directory(log_path, payload, "result.md", summary)
     if result_directory is None:
         return False

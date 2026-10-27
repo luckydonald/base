@@ -239,8 +239,8 @@ class IsInsideBaseRepoTests(unittest.TestCase):
 
             run_hook(worktree_dir, PROMPT_HOOK, {"prompt": "Capture this prompt"}, "codex")
             self.assertTrue(last_subject(worktree_dir).startswith("[base] "))
-            self.assertTrue((worktree_dir / "ai" / "°base" / "query.md").is_file())
-            self.assertFalse((worktree_dir / "ai" / "query.md").exists())
+            self.assertTrue((worktree_dir / "ai" / "°base" / "prompt.md").is_file())
+            self.assertFalse((worktree_dir / "ai" / "prompt.md").exists())
         # end with
     # end def
 
