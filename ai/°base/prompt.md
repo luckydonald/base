@@ -8306,3 +8306,16 @@ Probably `projects` should stay a dictionary like in the local file?
 > - [Answer (`466` chars, `468 B`)](output/agents/125.bhp02wpe6/result.md)
 > - [Raw log (`466` chars, `468 B`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/c31a7959-db1c-4918-a449-fb03658a8f83/tasks/bhp02wpe6.output)
 
+❯ Plan denied:
+> - Write it ˋ_(prio: p/9: band)_ˋ.
+> - Have the min/max special cases spell it out, to make it even clearer.
+>   - ˋ1/9: highestˋ
+>   - ˋ2/9: high
+>   - ˋ5/9: mediumˋ
+>   - ˋ9/9: lowestˋ
+> - actually replace ˋ/9ˋ above with ˋ₍₉₎ˋ.
+> - merge with the status bracket of available
+> - Final Example: ˋ_(in process, 40%; prio 1₍₉₎ highest)_
+
+❯ Plan accepted, auto mode.
+

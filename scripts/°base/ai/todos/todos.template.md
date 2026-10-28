@@ -21,5 +21,7 @@ To complete one:
      - Add `--purge-missing` if you want to remove items not tracked in the todo list. Still incompleted ones should be duplicated to the `sync_todo` MCP first.
      - Add `--purge-complete` to clean up completed tasks.
 
+A priority shows up in the status bracket as `prio 1₍₉₎ highest`: `1` is the highest, `9` the lowest (`₍₉₎` is the scale), no marker means unset.
+
 ## Todos synced from CalDAV
 

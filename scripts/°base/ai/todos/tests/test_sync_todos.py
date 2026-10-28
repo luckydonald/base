@@ -52,6 +52,53 @@ def test_checkbox_and_state(status, pct, box, state):
 # end def
 
 
+@pytest.mark.parametrize("priority,text", [
+    (None, ""), (0, ""), (10, ""), ("5", ""),
+    (1, "prio 1₍₉₎ highest"), (2, "prio 2₍₉₎ high"), (4, "prio 4₍₉₎ high"), (5, "prio 5₍₉₎ medium"),
+    (6, "prio 6₍₉₎ low"), (8, "prio 8₍₉₎ low"), (9, "prio 9₍₉₎ lowest"),
+])
+def test_priority_text(priority, text):
+    assert st.priority_text(todo("a", "t", priority=priority)) == text
+# end def
+
+
+@pytest.mark.parametrize("kw,state", [
+    ({"priority": 1}, "_(prio 1₍₉₎ highest)_"),
+    ({"priority": 9, "status": "COMPLETED"}, "_(done; prio 9₍₉₎ lowest)_"),
+    ({"priority": 1, "status": "IN-PROCESS", "percent_complete": 40}, "_(in process, 40%; prio 1₍₉₎ highest)_"),
+    ({"priority": 0, "status": "COMPLETED"}, "_(done)_"),
+])
+def test_priority_joins_the_status_bracket(kw, state):
+    assert st.checkbox_and_state(todo("a", "t", **kw))[1] == state
+# end def
+
+
+def test_render_shows_the_priority_after_the_uid():
+    lines = st.render(todo("a", "do it", priority=9), PROJECTS[0])
+    assert lines == ["- [ ] do it — `todo:a` _(prio 9₍₉₎ lowest)_"]
+# end def
+
+
+def test_merge_refreshes_priority_and_keeps_notes():
+    text = "# Todos\n\n- [ ] it — `todo:a` _(prio 9₍₉₎ lowest)_ (hand note)\n"
+    new, _ = st.merge(text, [todo("a", "it", priority=1)], PROJECTS[0])
+    assert "- [ ] it — `todo:a` (hand note) _(prio 1₍₉₎ highest)_" in new
+    again, report = st.merge(new, [todo("a", "it", priority=1)], PROJECTS[0])
+    assert again == new and report == []
+    gone, _ = st.merge(new, [todo("a", "it", status="COMPLETED")], PROJECTS[0])
+    assert "- [x] it — `todo:a` (hand note) _(done)_" in gone
+# end def
+
+
+def test_describe_changes_reports_a_priority_change():
+    old = "- [ ] it — `todo:a` _(prio 9₍₉₎ lowest)_\n"
+    new = "- [ ] it — `todo:a` _(prio 1₍₉₎ highest)_\n"
+    assert st.describe_changes(old, new) == ["priority: it (prio 9₍₉₎ lowest -> prio 1₍₉₎ highest)"]
+    done = "- [x] it — `todo:a` _(done; prio 1₍₉₎ highest)_\n"
+    assert st.describe_changes(new, done) == ["ticked: it"]
+# end def
+
+
 def test_render_strips_tag_and_adds_description():
     lines = st.render(todo("a", "#SyncTodoBot do it", description="l1\nl2"), PROJECTS[0], 2)
     assert lines == ["  - [ ] do it — `todo:a`", "    > l1", "    > l2"]

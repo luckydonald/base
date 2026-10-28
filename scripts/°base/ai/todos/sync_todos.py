@@ -666,22 +666,36 @@ def clean_summary(todo: dict[str, Any], project: Project) -> str:
 # end def
 
 
+PRIORITY_WORDS = {1: "highest", 2: "high", 3: "high", 4: "high", 5: "medium", 6: "low", 7: "low", 8: "low", 9: "lowest"}
+PRIORITY = r"prio \d₍₉₎ (?:highest|high|medium|low|lowest)"
+
+
+def priority_text(todo: dict[str, Any]) -> str:
+    """`prio 1₍₉₎ highest`: iCal priority `1` is the highest, `9` the lowest; unset (`0`, `null`) gives nothing."""
+    priority = todo.get("priority")
+    if not isinstance(priority, int) or priority not in PRIORITY_WORDS:
+        return ""
+    # end if
+    return f"prio {priority}₍₉₎ {PRIORITY_WORDS[priority]}"
+# end def
+
+
 def checkbox_and_state(todo: dict[str, Any]) -> tuple[str, str]:
+    """The checkbox char and the `_(status; priority)_` marker, either part left out if there is none."""
     status = todo.get("status")
     pct = todo.get("percent_complete")
+    box, text = " ", ""
     if status == "COMPLETED":
-        return "x", "_(done)_"
+        box, text = "x", "done"
+    elif status == "CANCELLED":
+        box, text = "-", "cancelled"
+    elif status == "IN-PROCESS":
+        box, text = "…", f"in process, {pct}%" if pct else "in process"
+    elif status == "NEEDS-ACTION":
+        box, text = "!", "needs action"
     # end if
-    if status == "CANCELLED":
-        return "-", "_(cancelled)_"
-    # end if
-    if status == "IN-PROCESS":
-        return "…", f"_(in process, {pct}%)_" if pct else "_(in process)_"
-    # end if
-    if status == "NEEDS-ACTION":
-        return "!", "_(needs action)_"
-    # end if
-    return " ", ""
+    inner = "; ".join(part for part in (text, priority_text(todo)) if part)
+    return box, f"_({inner})_" if inner else ""
 # end def
 
 
@@ -700,7 +714,7 @@ def render(todo: dict[str, Any], project: Project, indent: int = 0) -> list[str]
 # end def
 
 
-STATE = re.compile(r"\s*_\((?:done|cancelled|needs action|in process[^)]*|missing|partial)\)_")
+STATE = re.compile(rf"\s*_\((?:(?:done|cancelled|needs action|in process[^)]*|missing|partial)(?:; {PRIORITY})?|{PRIORITY})\)_")
 
 
 def update_line(line: str, todo: dict[str, Any], project: Project) -> str:
@@ -1062,7 +1076,7 @@ def write_atomic(path: Path, text: str) -> None:
 
 
 LINE = re.compile(r"^(?P<indent>\s*)- \[(?P<box>.)\] (?P<summary>.*?) — `todo:(?P<uid>[0-9A-Za-z-]+)`(?P<tail>.*)$")
-STATE_TEXT = re.compile(r"_\((?P<state>done|cancelled|needs action|in process[^)]*|missing|partial)\)_")
+STATE_TEXT = re.compile(rf"_\((?:(?P<state>done|cancelled|needs action|in process[^;)]*|missing|partial)(?:; )?)?(?P<prio>{PRIORITY})?\)_")
 MAX_DETAIL_LINES = 30
 
 
@@ -1092,7 +1106,8 @@ def managed_todos(text: str) -> dict[str, dict[str, Any]]:
         found[m.group("uid")] = {
             "path": " / ".join(summary for _, summary, _ in stack), "box": m.group("box"), "summary": m.group("summary"),
             "shown": " / ".join(struck(summary, box) for _, summary, box in stack),
-            "state": state.group("state") if state else "", "rows": rows,
+            "state": (state.group("state") or "") if state else "", "prio": (state.group("prio") or "") if state else "",
+            "rows": rows,
         }
     # end for
     return found
@@ -1129,6 +1144,9 @@ def describe_changes(old: str, new: str) -> list[str]:
             # end if
         elif was["state"] != now["state"]:
             lines.append(f"state: {now['shown']} ({was['state'] or 'none'} -> {now['state'] or 'none'})")
+        # end if
+        if was["prio"] != now["prio"]:
+            lines.append(f"priority: {now['shown']} ({was['prio'] or 'none'} -> {now['prio'] or 'none'})")
         # end if
         if was["summary"] != now["summary"]:
             lines.append(f"renamed: {struck(was['summary'], was['box'])} -> {struck(now['summary'], now['box'])}")

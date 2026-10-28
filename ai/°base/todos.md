@@ -51,7 +51,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
   > - ˋlink_subproject.pyˋ already does it now
   > - the other things should do that too
   > - ideally a shared python function
-- [x] Remove the `_` prefix from private-style functions in `record-memory/hook.py` — `todo:fded287a-f92c-4f4f-a632-8b3f373eba44` _(done)_
+- [x] Remove the `_` prefix from private-style functions in `record-memory/hook.py` — `todo:fded287a-f92c-4f4f-a632-8b3f373eba44` _(done; prio 9₍₉₎ lowest)_ _(done)_
   > • code-style says no `_` prefix for ordinary identifiers; hook.py still has ~20 (`_commit`, `_sync_all`, `_git_root`, `_rm_targets`, …)
   > • rename them and their callers/tests
   > • or extract into a module instead of hiding them
@@ -121,7 +121,7 @@ To complete one: tick the box and call `mcp__sync_todo__complete_todo(calendar_i
 Open (new CalDAV todos created 2026-10-22):
 
 - [x] Add `squash unpushed` to ignored queries. — `todo:823f4001-2f8c-4a77-a2dd-f9d1d86a75d9` _(done)_
-- [ ] Once the `# end if` plugin is released, remove the `# end …` rule from the `python.md` code style. — `todo:7f19ba8b-35fc-477b-8f41-c5f458e697fc`
+- [ ] Once the `# end if` plugin is released, remove the `# end …` rule from the `python.md` code style. — `todo:7f19ba8b-35fc-477b-8f41-c5f458e697fc` _(prio 9₍₉₎ lowest)_
 - [x] Improve the Markdown (`md.md`) code style to actually automatically be loaded if `/plan` is executed. — `todo:360971fb-7080-4607-94bf-d13a523c30e9` _(done)_
 - [x] Add the information about the currently selected file to the prompt log. — `todo:0b3a981b-3de7-4f89-aa1d-32471f137111` _(done)_
   > • File selected: [⧉ File `todo.md`](./todo.md)
@@ -129,7 +129,7 @@ Open (new CalDAV todos created 2026-10-22):
   >   • Moving the file as title probably makes sense when rendered: <a class="selection multi" href="./todo.md#L190" title="File &lt;code&gt;todo.md&lt;/code&gt;">⧉ 1 line selected</a>
   >   • But it's not really readable... Can we set that with still using Markdown? Not sure if GitHub & GitLab render: [⧉ 1 line selected](./todo.md#L190){title="File `todo.md`"}
   > • Multiple lines: [⧉ File `todo.md`: 10 lines selected](./todo.md#L190-200) — TODO: figure out if/how we can properly link a specific line. See above with possibly shortening it.
-- [x] Rename `query.md` to `prompt.md`. — `todo:a224a3e0-f8ab-47c5-9382-437b225227de` _(done)_
+- [x] Rename `query.md` to `prompt.md`. — `todo:a224a3e0-f8ab-47c5-9382-437b225227de` _(done; prio 9₍₉₎ lowest)_ _(done)_
   > • Make sure all script usages of that file will first see if they have to rename an old file.
   > • If `query.md` exists, and the `prompt.md` is missing or equal to the `base/base` version:
   >   • delete the unused `prompt.md` (= 1 commit)
@@ -280,10 +280,10 @@ Closed (no CalDAV equivalent):
   >         - [x] Use Autopilot (some model which confirms stuff for you) — Claude, Copilot; no Codex equivalent.
   >
   > Command-approval decisions with typed feedback are recorded too: Claude from its transcript and Copilot from its session event log. Codex follow-up text remains an ordinary prompt and is already logged.
-- [-] allow repo-local paths in the global [`ai/settings/sync_todos.json`](../settings/sync_todos.json). — `todo:359cd2de-c272-4e9e-a4f6-d5dcc2aeea3a` _(cancelled)_
+- [-] allow repo-local paths in the global [`ai/settings/sync_todos.json`](../settings/sync_todos.json). — `todo:359cd2de-c272-4e9e-a4f6-d5dcc2aeea3a` _(cancelled; prio 5₍₉₎ medium)_ _(cancelled)_
   > • Rather implement [`ai/settings/sync_todos.repo.json`](../settings/sync_todos.repo.json), which is another task.
   > • Close this task once that other task is done, too.
-- [x] if the last commit already is a clean todo commit, `--amend` the new commit. — `todo:f6e1cc84-5df5-4eb3-bc87-4c0b8e302134` _(done)_
+- [x] if the last commit already is a clean todo commit, `--amend` the new commit. — `todo:f6e1cc84-5df5-4eb3-bc87-4c0b8e302134` _(done; prio 5₍₉₎ medium)_ _(done)_
 - [x] change wording in [/todo-loop](../skills/todo-loop/SKILL.md) That's the planning file will automatically be copied. — `todo:c2227a34-850b-488f-a9b3-9837f7f8f3d8` _(done)_
   > Currently is often understood as task to manually do for the agent, which is wrong as the hook does it.
 - [x] add support for [`ai/settings/sync_todos.repo.json`](../settings/sync_todos.repo.json), — `todo:9996eda5-960b-41fa-9d26-cc9fb3922fa4` _(done)_
@@ -299,7 +299,17 @@ Closed (no CalDAV equivalent):
   >   - but like no service/folder/tag configured/templated yet, but actually fully empty.
   > - the initial empty file is automatically committed
   > - if the script finishes without any matching (all ˋpath: nullˋ) repo to write, it shall instruct to add oneself (the local repository and/or it's subproject(s)) into that ˋ.repoˋ file
-- [ ] todos.md script should include the priority if set. — `todo:a4424413-2c35-4623-95ef-2927a5a03281`
+- [x] todos.md script should include the priority if set. — `todo:a4424413-2c35-4623-95ef-2927a5a03281` _(done)_
   > In a way that the numbers make sense.
   > I'm always confused if one or nine is the high priority.
   > As that explanation should be near that number in the same line. It must be brief. Very brief. If possible one word. Or two. Brief!
+- [ ] When running the todo sync script, show open todo count — `todo:ed8607fe-9744-4eff-946d-a43b77c7764b`
+  > • Current: `[base] up to date (33 todos)`
+  > • Wan
+  > • Wanted: `[base] up to date (33 todos, 2 open)`
+  > • This shall also exclude todos marked as:
+  > • waiting on someone else
+  >   • ~~\`STATUS:NEEDS-ACTION\`~~ this is wrongly labeled by **eM Client**
+  >   • `STATUS:DELEGATED`
+  > • deferred
+  >   • `STATUS:CANCELLED`
