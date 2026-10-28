@@ -8319,3 +8319,5 @@ Probably `projects` should stay a dictionary like in the local file?
 
 ❯ Plan accepted, auto mode.
 
+❯ Make sure the sync todo script orders (new) items by creation date.
+

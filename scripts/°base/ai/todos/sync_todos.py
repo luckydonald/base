@@ -896,6 +896,7 @@ def merge(text: str, todos: list[dict[str, Any]], project: Project, include_comp
         if t["uid"] not in seen and not has_uid(lines, t["uid"])
         and (include_completed or t.get("status") != "COMPLETED")
     ]
+    new_todos.sort(key=lambda t: (not t.get("created"), t.get("created") or ""))  # oldest first, undated last
     for t in todos:
         if t["uid"] not in seen and t not in new_todos and not has_uid(lines, t["uid"]):
             vlog(f"{short(t['uid'])}: completed and not in the file, ignored (--include-completed adds it)")
