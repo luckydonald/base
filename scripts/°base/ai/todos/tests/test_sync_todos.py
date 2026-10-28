@@ -52,6 +52,26 @@ def test_checkbox_and_state(status, pct, box, state):
 # end def
 
 
+@pytest.mark.parametrize("status,is_open", [
+    ("COMPLETED", False), ("CANCELLED", False), ("DELEGATED", False),
+    ("NEEDS-ACTION", True), ("IN-PROCESS", True), (None, True),
+])
+def test_count_open_skips_done_cancelled_and_delegated(status, is_open):
+    assert st.count_open([todo("a", "t", status=status)]) == int(is_open)
+# end def
+
+
+def test_up_to_date_line_shows_the_open_count(tmp_path, capsys):
+    r, _ = _repo(tmp_path, "a")
+    cfg = st.Config(projects=[st.Project(name="A", tags=["a"], path=str(r))])
+    todos = [todo("1", "#a one"), todo("2", "#a two", status="IN-PROCESS"), todo("3", "#a three", status="DELEGATED")]
+    st.sync(cfg, todos, None, False, use_git=False)
+    capsys.readouterr()
+    st.sync(cfg, todos, None, False, use_git=False)
+    assert "[A] up to date (3 todos, 2 open)" in capsys.readouterr().out
+# end def
+
+
 @pytest.mark.parametrize("priority,text", [
     (None, ""), (0, ""), (10, ""), ("5", ""),
     (1, "prio 1₍₉₎ highest"), (2, "prio 2₍₉₎ high"), (4, "prio 4₍₉₎ high"), (5, "prio 5₍₉₎ medium"),

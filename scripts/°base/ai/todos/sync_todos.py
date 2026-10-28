@@ -680,6 +680,15 @@ def priority_text(todo: dict[str, Any]) -> str:
 # end def
 
 
+NOT_OPEN_STATUSES = frozenset({"COMPLETED", "CANCELLED", "DELEGATED"})  # done, deferred, waiting on someone else
+
+
+def count_open(todos: list[dict[str, Any]]) -> int:
+    """How many of the todos still wait for the user: neither done, nor deferred, nor delegated."""
+    return sum(1 for todo in todos if todo.get("status") not in NOT_OPEN_STATUSES)
+# end def
+
+
 def checkbox_and_state(todo: dict[str, Any]) -> tuple[str, str]:
     """The checkbox char and the `_(status; priority)_` marker, either part left out if there is none."""
     status = todo.get("status")
@@ -1422,7 +1431,7 @@ def sync(
             # end for
             if new == current[project.name]:
                 if action == "synced todos":
-                    print(f"[{project.name}] up to date ({len(assigned[project.name])} todos)")
+                    print(f"[{project.name}] up to date ({len(assigned[project.name])} todos, {count_open(assigned[project.name])} open)")
                 # end if
                 continue
             # end if

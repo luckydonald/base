@@ -303,7 +303,7 @@ Closed (no CalDAV equivalent):
   > In a way that the numbers make sense.
   > I'm always confused if one or nine is the high priority.
   > As that explanation should be near that number in the same line. It must be brief. Very brief. If possible one word. Or two. Brief!
-- [ ] When running the todo sync script, show open todo count — `todo:ed8607fe-9744-4eff-946d-a43b77c7764b`
+- [x] When running the todo sync script, show open todo count — `todo:ed8607fe-9744-4eff-946d-a43b77c7764b` _(done)_
   > • Current: `[base] up to date (33 todos)`
   > • Wan
   > • Wanted: `[base] up to date (33 todos, 2 open)`
