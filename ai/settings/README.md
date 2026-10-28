@@ -5,7 +5,10 @@
 under `.claude/` and `.codex/`.
 
 `sync_todos.json` is the tracked tag to project mapping of `scripts/°base/ai/todos/sync_todos.py`.
-The ignored `sync_todos.local.json` holds each project's `path` on this machine (`null` skips the project, relative paths are relative to the git root) and an optional `commit_prefix` override; the script adds missing projects there with `null` values.
+The committed `sync_todos.repo.json` (created empty by the script, schema `sync_todos-repo.schema.json`) layers over it and can set everything the tracked and the local file can; its project `path`s must be `.` or start with `./` and never contain `..`.
+The ignored `sync_todos.local.json` holds each project's `path` on this machine (relative paths are relative to the git root) and an optional `commit_prefix` override; it wins over the repo file, and a `null` there falls through to the repo value, a project without any path is skipped.
+The script adds missing projects to the local file with `null` values, except those that already have a repo path.
+`--migrate-local-paths` moves the local paths that lie inside the repository into the repo file; without it a hint lists them, and `"no-add-to-repo-hint": true` in a project's entry in any of the three files silences it for that project.
 
 Core keys:
 

@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luckydonald/base/ai/settings/sync_todos-repo.schema.json",
+  "title": "Committed per-repository todo sync settings",
+  "$defs": {
+    "RepoProject": {
+      "additionalProperties": false,
+      "description": "What the committed repo config may say about one project: everything the tracked and the local config can, set fields only.",
+      "properties": {
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tags of the project, required when the project is not in `sync_todos.json`; replaces its tags otherwise.",
+          "title": "Tags"
+        },
+        "todo_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Todo markdown file, relative to `path`.",
+          "title": "Todo File"
+        },
+        "commit_prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Prefix of the commit message for this project; the local config overrides it.",
+          "title": "Commit Prefix"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Project root inside this repository: `.` or starting with `./`, never containing `..`. A non-null path in the local config wins.",
+          "pattern": "^(?!.*(^|/)\\.\\.(/|$))\\.(/.*)?$",
+          "title": "Path"
+        },
+        "no-add-to-repo-hint": {
+          "default": false,
+          "description": "Silences the hint to move this project's repository-internal local `path` into `sync_todos.repo.json`; true in any of the three config files counts.",
+          "title": "No-Add-To-Repo-Hint",
+          "type": "boolean"
+        }
+      },
+      "title": "RepoProject",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "url_env": {
+      "default": "SYNC_TODO_MCP_URL",
+      "description": "Overrides the setting of `sync_todos.json`.",
+      "title": "Url Env",
+      "type": "string"
+    },
+    "token_env": {
+      "default": "SYNC_TODO_MCP_TOKEN",
+      "description": "Overrides the setting of `sync_todos.json`.",
+      "title": "Token Env",
+      "type": "string"
+    },
+    "env_file": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "ai/.env",
+      "description": "Overrides the setting of `sync_todos.json`.",
+      "title": "Env File"
+    },
+    "commit_prefix": {
+      "default": "",
+      "description": "Overrides the default prefix of the commit messages of `sync_todos.json`.",
+      "title": "Commit Prefix",
+      "type": "string"
+    },
+    "calendar_id": {
+      "default": 7,
+      "description": "Overrides the calendar of `sync_todos.json`.",
+      "title": "Calendar Id",
+      "type": "integer"
+    },
+    "projects": {
+      "additionalProperties": {
+        "$ref": "#/$defs/RepoProject"
+      },
+      "description": "Project name to its settings, layered over `sync_todos.json` and under the local config.",
+      "title": "Projects",
+      "type": "object"
+    }
+  },
+  "type": "object"
+}

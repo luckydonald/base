@@ -16,7 +16,7 @@
             }
           ],
           "default": null,
-          "description": "Project root on this machine. `~` is expanded, relative paths are relative to the git root. null: the project is skipped, nothing is read or written there.",
+          "description": "Project root on this machine. `~` is expanded, relative paths are relative to the git root. null: the repo config's path is used, or the project is skipped without one.",
           "title": "Path"
         },
         "commit_prefix": {
@@ -29,8 +29,14 @@
             }
           ],
           "default": null,
-          "description": "Overrides the tracked per-project and global commit prefix; null keeps them.",
+          "description": "Overrides the tracked and repo commit prefixes; null keeps them.",
           "title": "Commit Prefix"
+        },
+        "no-add-to-repo-hint": {
+          "default": false,
+          "description": "Silences the hint to move this project's repository-internal local `path` into `sync_todos.repo.json`; true in any of the three config files counts.",
+          "title": "No-Add-To-Repo-Hint",
+          "type": "boolean"
         }
       },
       "title": "LocalProject",

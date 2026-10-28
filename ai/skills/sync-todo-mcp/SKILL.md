@@ -35,7 +35,7 @@ A token can hold any subset. Grant the minimum needed.
 To triage or grade new todos, run `uv run scripts/°base/ai/todos/sync_todos.py` from the repo root and then read the project's `{folder}/ai/todos.md`, instead of calling `list_todos`.
 The script copies the CalDAV todos through this same MCP server (read-only) into each project's todo file and commits them directly, so a plain file read is all that is left, while the full `list_todos` output of a calendar is large.
 `--dry-run` shows the diff without writing, and `--project NAME` limits it to one project (its name or any of its tags).
-The tag to project mapping is the tracked `ai/settings/sync_todos.json`; where each project lives on this machine is the gitignored `ai/settings/sync_todos.local.json` (generated with `null` paths, a project with a `null` path is skipped). The other flags (`--purge-missing`, `--purge-complete`, `--include-completed`, `--reset-todo-file`, `--no-git`) are described in the repo `CLAUDE.md` under "Todo-list identifiers".
+The tag to project mapping is the tracked `ai/settings/sync_todos.json`; where each project lives is the committed `ai/settings/sync_todos.repo.json` (paths inside the repo, `./…`) and, on top of it, the gitignored `ai/settings/sync_todos.local.json` (generated with `null` paths, a project without any path is skipped; `--migrate-local-paths` moves repo-internal local paths into the repo file). The other flags (`--purge-missing`, `--purge-complete`, `--include-completed`, `--reset-todo-file`, `--no-git`) are described in the repo `CLAUDE.md` under "Todo-list identifiers".
 The MCP tools stay the way to write: `create_todo`, `update_todo`, `modify_todo_tags` and `complete_todo`, then run the sync once more so the file follows.
 
 ## Getting a token

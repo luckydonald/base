@@ -281,12 +281,12 @@ Closed (no CalDAV equivalent):
   >
   > Command-approval decisions with typed feedback are recorded too: Claude from its transcript and Copilot from its session event log. Codex follow-up text remains an ordinary prompt and is already logged.
 - [-] allow repo-local paths in the global [`ai/settings/sync_todos.json`](../settings/sync_todos.json). — `todo:359cd2de-c272-4e9e-a4f6-d5dcc2aeea3a` _(cancelled)_
-  > • Rather implement `ai/settings/sync_todos.repo.json`, which is another task.
+  > • Rather implement [`ai/settings/sync_todos.repo.json`](../settings/sync_todos.repo.json), which is another task.
   > • Close this task once that other task is done, too.
 - [x] if the last commit already is a clean todo commit, `--amend` the new commit. — `todo:f6e1cc84-5df5-4eb3-bc87-4c0b8e302134` _(done)_
 - [x] change wording in [/todo-loop](../skills/todo-loop/SKILL.md) That's the planning file will automatically be copied. — `todo:c2227a34-850b-488f-a9b3-9837f7f8f3d8` _(done)_
   > Currently is often understood as task to manually do for the agent, which is wrong as the hook does it.
-- [ ] add support for `ai/settings/sync_todos.repo.json`, — `todo:9996eda5-960b-41fa-9d26-cc9fb3922fa4`
+- [x] add support for [`ai/settings/sync_todos.repo.json`](../settings/sync_todos.repo.json), — `todo:9996eda5-960b-41fa-9d26-cc9fb3922fa4` _(done)_
   > which is an override per repo, meant to be commited.
   > - the local version is not (it allows for linking to other repository, which is a detail of the current computer/file system/folder layout of the User; hence it is not universal and therefore not fit for git)
   > - passes in it must start with ˋ./ˋ and not navigate further up.

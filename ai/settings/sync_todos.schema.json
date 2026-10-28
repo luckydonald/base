@@ -36,8 +36,14 @@
             }
           ],
           "default": null,
-          "description": "Prefix of the commit message for this project, e.g. `[sync_todo] ` for a subproject. Overrides the global one, and is itself overridden by the local config; null inherits it.",
+          "description": "Prefix of the commit message for this project, e.g. `[sync_todo] ` for a subproject. Overrides the global one, and is itself overridden by the repo and local config; null inherits it.",
           "title": "Commit Prefix"
+        },
+        "no-add-to-repo-hint": {
+          "default": false,
+          "description": "Silences the hint to move this project's repository-internal local `path` into `sync_todos.repo.json`; true in any of the three config files counts.",
+          "title": "No-Add-To-Repo-Hint",
+          "type": "boolean"
         }
       },
       "required": [

@@ -69,10 +69,15 @@ A local `path` is repo-internal when, after `~` expansion and resolving, it lies
 - New flag `--migrate-local-paths`: for every such project whose repo entry has no `path` yet, write `./<relative>` to the repo file's project entry (creating the entry with just `name` and `path` if needed) and set the local `path` back to `null`.
   The local `commit_prefix` is moved the same way when set.
   A project whose repo entry already has a `path` is left alone and reported.
+  Both files are rewritten pretty-printed the usual way: `json.dumps(..., indent=2, ensure_ascii=False)` plus a trailing newline, as `load_config` already does for the local file.
+  Only the empty template written by `ensure_repo_file()` keeps the special `{` / `}` layout for the empty `projects` dictionary, so the first added entry gives a small diff.
   The repo file is committed on its own as `{commit_prefix}[TODOs] moved local project paths into sync_todos.repo.json for <projects>.`; the local file is gitignored.
-- Without the flag, for each migratable project not silenced, print a hint that tells the user to either
-  - add the path to the repo file (absolute path of `sync_todos.repo.json` printed), as `"<name>": { "path": "./<relative>" }` under `projects`, which `--migrate-local-paths` does automatically, or
-  - silence the hint by setting `"no-add-to-repo-hint": true` in that project's entry in any one of the three files, and all three absolute paths are printed: `sync_todos.json` (there the entry is a list item, so `{ "name": "<name>", "no-add-to-repo-hint": true, … }`), `sync_todos.repo.json` and `sync_todos.local.json` (both `"<name>": { "no-add-to-repo-hint": true, … }` under `projects`).
+- Without the flag, if at least one migratable project is not silenced, print the hint text once, then list the affected projects below it.
+  The hint text tells the user to either
+  - rerun with `--migrate-local-paths`, or add the path by hand to the repo file (absolute path of `sync_todos.repo.json` printed), as `"<name>": { "path": "./<relative>" }` under `projects`, or
+  - silence the hint per project by setting `"no-add-to-repo-hint": true` in that project's entry in any one of the three files: `sync_todos.json` (there the entry is a list item, so `{ "name": "<name>", "no-add-to-repo-hint": true, … }`), `sync_todos.repo.json` and `sync_todos.local.json` (both `"<name>": { "no-add-to-repo-hint": true, … }` under `projects`).
+  Each listed project shows `file:line` for each of the three files (absolute path, clickable): the line of its existing entry, or, where the file has none, the line of the `projects` key that a new entry would go under, marked `(add here)`.
+  If a project has several entries (e.g. the name appears twice in a malformed file), all their lines are listed.
 - `no-add-to-repo-hint` is a per-project, optional field (missing means `false`), added to the project models of all three files (alias, so the JSON key has hyphens) and thus to all three schemas.
   A project is silenced when any of the three files sets it to true for it.
 
@@ -103,7 +108,8 @@ When `sync()` ends with every selected project skipped for a `null` path, print 
 - Projects with a repo path are not added to the local file as `null`.
 - `ensure_repo_file`: exact empty text, committed in a temp git repo, no-op when present, no commit with `--no-git`, nothing with `--dry-run`.
 - Migration: inside-repo absolute / `~` / relative local paths move to `./…` and local becomes `null`; outside-repo paths stay; existing repo path is not overwritten; commit is made.
-- Hint: shown per migratable project when the flag is off, naming the repo file and all three file paths; silenced per project by `no-add-to-repo-hint` in each of the three files; other projects still show it; not shown with the flag.
+- Hint: the text is printed once with the affected projects listed (`file:line` for all three files, `(add here)` where there is no entry); silenced per project by `no-add-to-repo-hint` in each of the three files; the other projects are still listed; nothing printed when all are silenced or with the flag.
+- Migration output is pretty-printed with 2 spaces and ends with a newline.
 - All-skipped instruction printed, and not printed when at least one project has a path.
 - Generated repo schema equals the file on disk, like the existing local-schema test.
 

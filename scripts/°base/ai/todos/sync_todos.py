@@ -9,12 +9,14 @@ Reads the list live through the sync_todo MCP server (`list_todos`, read-only, n
 `mcp_todos_read` scope), assigns every todo to a project by its `#Tag` prefix / category, and
 merges them into that project's todo markdown file. One-way: CalDAV is the source of truth.
 
-    uv run scripts/°base/ai/todos/sync_todos.py [--dry-run] [--no-git] [-v] [--project NAME] [--purge-missing] [--purge-complete|--purge-completed] [--include-completed|--include-complete] [--reset-todo-file] [--add-files|--add] [--config PATH]
+    uv run scripts/°base/ai/todos/sync_todos.py [--dry-run] [--no-git] [-v] [--project NAME] [--purge-missing] [--purge-complete|--purge-completed] [--include-completed|--include-complete] [--reset-todo-file] [--add-files|--add] [--config PATH] [--repo-config PATH] [--local-config PATH] [--migrate-local-paths]
     uv run scripts/°base/ai/todos/sync_todos.py --write-schema
 
 The tag to project mapping is tracked in `ai/settings/sync_todos.json`, the schemas for IDE completion are `ai/settings/sync_todos.schema.json` and `ai/settings/sync_todos-local.schema.json`.
-Where a project lives on this machine is not: `ai/settings/sync_todos.local.json` (gitignored) maps each project name to a `path` and may override its `commit_prefix`.
-Every run adds a `null` entry for each project that is missing there; a project with a `null` path is skipped, so nothing outside the configured paths is ever written. Line format:
+`ai/settings/sync_todos.repo.json` (committed, created empty on the first run) layers over it: it can set everything the tracked mapping and the local file can, with `path`s restricted to `.` / `./…` inside the repository.
+Where a project lives on this machine is not tracked: `ai/settings/sync_todos.local.json` (gitignored) maps each project name to a `path` and may override its `commit_prefix`, and wins over the repo file; a `null` there falls through to the repo value.
+Every run adds a `null` entry for each project that is missing there and has no repo path; a project without any path is skipped, so nothing outside the configured paths is ever written.
+`--migrate-local-paths` moves the repository-internal local paths into the repo file; without it a hint lists them (silence per project with `"no-add-to-repo-hint": true` in any of the three files). Line format:
 
     - [ ] text — `todo:<uid>` _(state)_
       > description line
@@ -59,6 +61,8 @@ def resolve_roots(file: str) -> tuple[Path, Path, Path, Path, Path]:
 
 
 REPO_ROOT, DEFAULT_CONFIG, SCHEMA_PATH, LOCAL_CONFIG, LOCAL_SCHEMA_PATH = resolve_roots(__file__)
+REPO_CONFIG = DEFAULT_CONFIG.with_name("sync_todos.repo.json")
+REPO_SCHEMA_PATH = DEFAULT_CONFIG.with_name("sync_todos-repo.schema.json")
 SECTION = "## Todos synced from CalDAV"
 LEGACY_SECTION = "## Synced from CalDAV"
 OLD_TEMPLATE_HEADER = "# Todos"
@@ -82,8 +86,13 @@ def short(uid: str) -> str:
 # end def
 
 
+HINT_DESCRIPTION = "Silences the hint to move this project's repository-internal local `path` into `sync_todos.repo.json`; true in any of the three config files counts."
+REPO_PATH_PATTERN = r"^(?!.*(^|/)\.\.(/|$))\.(/.*)?$"
+EMPTY_REPO_FILE = '{\n  "$schema": "./sync_todos-repo.schema.json",\n  "projects": {\n  }\n}\n'
+
+
 class Project(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     name: str = Field(description="Label, also used by --project.")
     tags: list[str] = Field(
@@ -97,8 +106,10 @@ class Project(BaseModel):
     todo_file: str = Field(default="ai/todos.md", description="Todo markdown file, relative to `path`.")
     commit_prefix: str | None = Field(
         default=None,
-        description="Prefix of the commit message for this project, e.g. `[sync_todo] ` for a subproject. Overrides the global one, and is itself overridden by the local config; null inherits it.",
+        description="Prefix of the commit message for this project, e.g. `[sync_todo] ` for a subproject. Overrides the global one, and is itself overridden by the repo and local config; null inherits it.",
     )
+    path_source: SkipJsonSchema[str | None] = Field(default=None, exclude=True, description="Which file `path` came from: `repo` or `local`.")
+    no_add_to_repo_hint: bool = Field(default=False, alias="no-add-to-repo-hint", description=HINT_DESCRIPTION)
 
     @field_validator("tags")
     @classmethod
@@ -159,13 +170,14 @@ class Config(BaseModel):
 
 
 class LocalProject(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     path: str | None = Field(
         default=None,
-        description="Project root on this machine. `~` is expanded, relative paths are relative to the git root. null: the project is skipped, nothing is read or written there.",
+        description="Project root on this machine. `~` is expanded, relative paths are relative to the git root. null: the repo config's path is used, or the project is skipped without one.",
     )
-    commit_prefix: str | None = Field(default=None, description="Overrides the tracked per-project and global commit prefix; null keeps them.")
+    commit_prefix: str | None = Field(default=None, description="Overrides the tracked and repo commit prefixes; null keeps them.")
+    no_add_to_repo_hint: bool = Field(default=False, alias="no-add-to-repo-hint", description=HINT_DESCRIPTION)
 # end class
 
 
@@ -174,6 +186,44 @@ class LocalConfig(BaseModel):
 
     schema_: str | None = Field(default=None, alias="$schema")
     projects: dict[str, LocalProject] = Field(default_factory=dict, description="Project name (as in the tracked mapping) to its machine-local settings.")
+# end class
+
+
+class RepoProject(BaseModel):
+    """What the committed repo config may say about one project: everything the tracked and the local config can, set fields only."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    tags: list[str] | None = Field(default=None, min_length=1, description="Tags of the project, required when the project is not in `sync_todos.json`; replaces its tags otherwise.")
+    todo_file: str | None = Field(default=None, description="Todo markdown file, relative to `path`.")
+    commit_prefix: str | None = Field(default=None, description="Prefix of the commit message for this project; the local config overrides it.")
+    path: str | None = Field(
+        default=None,
+        json_schema_extra={"pattern": REPO_PATH_PATTERN},
+        description="Project root inside this repository: `.` or starting with `./`, never containing `..`. A non-null path in the local config wins.",
+    )
+    no_add_to_repo_hint: bool = Field(default=False, alias="no-add-to-repo-hint", description=HINT_DESCRIPTION)
+
+    @field_validator("path")
+    @classmethod
+    def inside_repo(cls, path: str | None) -> str | None:
+        if path is not None and not re.match(REPO_PATH_PATTERN, path):
+            raise ValueError(f"path {path!r} must be `.` or start with `./`, and must not contain `..` (absolute and `~` paths belong in the local config)")
+        # end if
+        return path
+    # end def
+# end class
+
+
+class RepoConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_: str | None = Field(default=None, alias="$schema")
+    url_env: str = Field(default="SYNC_TODO_MCP_URL", description="Overrides the setting of `sync_todos.json`.")
+    token_env: str = Field(default="SYNC_TODO_MCP_TOKEN", description="Overrides the setting of `sync_todos.json`.")
+    env_file: str | None = Field(default="ai/.env", description="Overrides the setting of `sync_todos.json`.")
+    commit_prefix: str = Field(default="", description="Overrides the default prefix of the commit messages of `sync_todos.json`.")
+    calendar_id: int = Field(default=7, description="Overrides the calendar of `sync_todos.json`.")
+    projects: dict[str, RepoProject] = Field(default_factory=dict, description="Project name to its settings, layered over `sync_todos.json` and under the local config.")
 # end class
 
 
@@ -200,42 +250,289 @@ def local_schema_text() -> str:
 # end def
 
 
-def load_config(tracked: Path, local: Path, write_local: bool = True) -> Config:
-    """The tracked mapping with the machine-local paths and prefix overrides applied.
+def repo_schema_text() -> str:
+    return _schema_text(RepoConfig, REPO_SCHEMA_PATH.name, "Committed per-repository todo sync settings")
+# end def
+
+
+def dump_json(data: dict[str, Any]) -> str:
+    """The usual layout: two spaces, readable unicode, trailing newline."""
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+# end def
+
+
+def read_repo(repo: Path | None) -> RepoConfig:
+    return RepoConfig.model_validate_json(repo.read_text(encoding="utf-8")) if repo is not None and repo.exists() else RepoConfig()
+# end def
+
+
+def local_data(local_config: LocalConfig) -> dict[str, Any]:
+    """The local file as it is written; the hint flag only shows up when it is set."""
+    return {
+        "$schema": f"./{LOCAL_SCHEMA_PATH.name}",
+        "projects": {
+            name: {
+                "path": entry.path,
+                "commit_prefix": entry.commit_prefix,
+                **({"no-add-to-repo-hint": True} if entry.no_add_to_repo_hint else {}),
+            }
+            for name, entry in local_config.projects.items()
+        },
+    }
+# end def
+
+
+def merge_repo(raw: dict[str, Any], repo_config: RepoConfig, repo_name: str, tracked_name: str) -> None:
+    """Layer the set fields of the repo config over the raw tracked mapping (paths are applied later, they are not part of it)."""
+    for key in ("url_env", "token_env", "env_file", "commit_prefix", "calendar_id"):
+        if key in repo_config.model_fields_set:
+            raw[key] = getattr(repo_config, key)
+        # end if
+    # end for
+    by_name = {p["name"]: p for p in raw.get("projects", []) if isinstance(p, dict) and "name" in p}
+    for name, entry in repo_config.projects.items():
+        target = by_name.get(name)
+        if target is None:
+            if entry.tags is None:
+                raise ValueError(f"{repo_name}: project {name!r} is not in {tracked_name}, so it needs `tags`")
+            # end if
+            target = {"name": name}
+            raw.setdefault("projects", []).append(target)
+            by_name[name] = target
+        # end if
+        for key, alias in (("tags", "tags"), ("todo_file", "todo_file"), ("commit_prefix", "commit_prefix"), ("no_add_to_repo_hint", "no-add-to-repo-hint")):
+            if key in entry.model_fields_set:
+                target[alias] = getattr(entry, key)
+            # end if
+        # end for
+    # end for
+# end def
+
+
+def load_config(tracked: Path, local: Path, write_local: bool = True, repo: Path | None = None) -> Config:
+    """The tracked mapping with the repo config and then the machine-local paths and prefix overrides applied.
 
     A `path` in the tracked file is refused (it would be wrong on every other machine).
-    Missing projects are added to the local file with `null` values, existing values are never touched.
+    Missing projects are added to the local file with `null` values, unless the repo config already gives them a path; existing values are never touched.
+    A local `null` falls through to the repo value, a non-null local value wins.
     """
     raw = json.loads(tracked.read_text(encoding="utf-8"))
     for project in raw.get("projects", []):
         if isinstance(project, dict) and "path" in project:
-            raise ValueError(f"{tracked.name}: project {project.get('name')!r} has a `path`, put it into {local.name} instead")
+            raise ValueError(f"{tracked.name}: project {project.get('name')!r} has a `path`, put it into {local.name} or {REPO_CONFIG.name} instead")
         # end if
     # end for
+    repo_config = read_repo(repo)
+    if repo is not None:
+        merge_repo(raw, repo_config, repo.name, tracked.name)
+    # end if
     config = Config.model_validate(raw)
     local_config = LocalConfig.model_validate_json(local.read_text(encoding="utf-8")) if local.exists() else LocalConfig()
-    added = [p.name for p in config.projects if p.name not in local_config.projects]
+    added = [
+        p.name for p in config.projects
+        if p.name not in local_config.projects and not (p.name in repo_config.projects and repo_config.projects[p.name].path is not None)
+    ]
     for name in added:
         local_config.projects[name] = LocalProject()
     # end for
     if added and write_local:
-        data = {"$schema": f"./{LOCAL_SCHEMA_PATH.name}", **local_config.model_dump(exclude={"schema_"})}
         local.parent.mkdir(parents=True, exist_ok=True)
-        local.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        print(f"added {', '.join(added)} to {local.name} with a null path (set one to enable the project)", file=sys.stderr)
+        local.write_text(dump_json(local_data(local_config)), encoding="utf-8")
+        print(f"added {', '.join(added)} to {local.name} with a null path (set one to enable the project, or put it into {REPO_CONFIG.name})", file=sys.stderr)
     # end if
     stale = sorted(set(local_config.projects) - {p.name for p in config.projects})
     if stale:
         print(f"{local.name} has projects that are not in {tracked.name}: {', '.join(stale)}", file=sys.stderr)
     # end if
     for project in config.projects:
-        entry = local_config.projects[project.name]
-        project.path = entry.path
+        entry = local_config.projects.get(project.name, LocalProject())
+        repo_entry = repo_config.projects.get(project.name)
+        if repo_entry is not None and repo_entry.path is not None:
+            project.path, project.path_source = repo_entry.path, "repo"
+        # end if
+        if entry.path is not None:
+            project.path, project.path_source = entry.path, "local"
+        # end if
         if entry.commit_prefix is not None:
             project.commit_prefix = entry.commit_prefix
         # end if
+        if entry.no_add_to_repo_hint:
+            project.no_add_to_repo_hint = True
+        # end if
     # end for
     return config
+# end def
+
+
+def internal_path(path: str | None) -> str | None:
+    """`.` or `./sub/dir` for a local path that lies inside this repository (and has no `..` in it), otherwise None."""
+    if path is None or ".." in Path(path).parts:
+        return None
+    # end if
+    expanded = Path(os.path.expanduser(path))
+    root = Path(os.path.abspath(expanded if expanded.is_absolute() else REPO_ROOT / expanded))
+    try:
+        relative = root.relative_to(os.path.abspath(REPO_ROOT))
+    except ValueError:
+        return None
+    # end try
+    return "." if relative == Path(".") else f"./{relative.as_posix()}"
+# end def
+
+
+def movable(config: Config, repo: Path) -> dict[str, str]:
+    """Project name to the `./…` path, for projects whose path comes from the local file, lies inside the repository, and has no path in the repo config yet."""
+    repo_config = read_repo(repo)
+    moves: dict[str, str] = {}
+    for project in config.projects:
+        converted = internal_path(project.path) if project.path_source == "local" else None
+        if converted is None:
+            continue
+        # end if
+        if name_has_repo_path(repo_config, project.name):
+            continue
+        # end if
+        moves[project.name] = converted
+    # end for
+    return moves
+# end def
+
+
+def name_has_repo_path(repo_config: RepoConfig, name: str) -> bool:
+    entry = repo_config.projects.get(name)
+    return entry is not None and entry.path is not None
+# end def
+
+
+def commit_file(path: Path, subject: str) -> None:
+    """Commit only `path`, in the git root that contains it."""
+    top = git(path.parent, "rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        print(f"{path.name} is not in a git repo, not committing", file=sys.stderr)
+        return
+    # end if
+    root = Path(top.stdout.strip())
+    relative = str(path.resolve().relative_to(root.resolve()))
+    added = git(root, "add", "--", relative)
+    if added.returncode != 0:
+        print(f"git add failed: {added.stderr.strip()}", file=sys.stderr)
+        return
+    # end if
+    if git(root, "diff", "--cached", "--quiet", "--", relative).returncode == 0:
+        vlog(f"{relative}: nothing staged in {root}, no commit")
+        return
+    # end if
+    done = git(root, "commit", "-m", subject, "--", relative)
+    if done.returncode != 0:
+        print(f"git commit failed: {done.stderr.strip() or done.stdout.strip()}", file=sys.stderr)
+    else:
+        print(f"committed {git(root, 'rev-parse', '--short=9', 'HEAD').stdout.strip()} in {root}: {subject}")
+    # end if
+# end def
+
+
+def repo_prefix(config: Config) -> str:
+    """Commit prefix for changes of the repo config itself: the one of the project that lives in the repository root, else the default."""
+    for project in config.projects:
+        if project.path is not None and internal_path(project.path) == "." and project.commit_prefix is not None:
+            return project.commit_prefix
+        # end if
+    # end for
+    return config.commit_prefix
+# end def
+
+
+def ensure_repo_file(repo: Path, prefix: str, dry_run: bool, use_git: bool) -> None:
+    """Create the empty repo config when it is missing, and commit it on its own."""
+    if repo.exists():
+        return
+    # end if
+    if dry_run:
+        print(f"would create {repo}")
+        return
+    # end if
+    repo.parent.mkdir(parents=True, exist_ok=True)
+    repo.write_text(EMPTY_REPO_FILE, encoding="utf-8")
+    print(f"created {repo}")
+    if use_git:
+        commit_file(repo, f"{prefix}[TODOs] added {repo.name}.")
+    # end if
+# end def
+
+
+def migrate_local_paths(config: Config, repo: Path, local: Path, only: set[str], dry_run: bool, use_git: bool) -> list[str]:
+    """Move the repository-internal local paths (and the commit prefixes next to them) of `only` into the repo config.
+
+    The repo file is committed on its own, the local one is ignored by git. Returns the names that were moved.
+    """
+    moves = {name: path for name, path in movable(config, repo).items() if name in only}
+    if not moves:
+        return []
+    # end if
+    repo_data = json.loads(repo.read_text(encoding="utf-8")) if repo.exists() else json.loads(EMPTY_REPO_FILE)
+    local_config = LocalConfig.model_validate_json(local.read_text(encoding="utf-8"))
+    projects = repo_data.setdefault("projects", {})
+    for name, path in moves.items():
+        entry = projects.setdefault(name, {})
+        entry["path"] = path
+        local_entry = local_config.projects[name]
+        if local_entry.commit_prefix is not None and "commit_prefix" not in entry:
+            entry["commit_prefix"] = local_entry.commit_prefix
+            local_entry.commit_prefix = None
+        # end if
+        local_entry.path = None
+        print(f"[{name}] moves path {path} into {repo.name}")
+    # end for
+    if dry_run:
+        return list(moves)
+    # end if
+    repo.write_text(dump_json(repo_data), encoding="utf-8")
+    local.write_text(dump_json(local_data(local_config)), encoding="utf-8")
+    if use_git:
+        commit_file(repo, f"{repo_prefix(config)}[TODOs] moved local project paths into {repo.name} for {', '.join(moves)}.")
+    # end if
+    return list(moves)
+# end def
+
+
+def entry_lines(path: Path, name: str, as_list: bool) -> tuple[list[int], int | None]:
+    """(1-based lines of the entry of project `name`, line of the `projects` key) in a config file; as_list: tracked file with `{"name": …}` items."""
+    if not path.exists():
+        return [], None
+    # end if
+    lines = path.read_text(encoding="utf-8").splitlines()
+    entry = re.compile(r'"name"\s*:\s*' + re.escape(json.dumps(name)) if as_list else re.escape(json.dumps(name)) + r"\s*:\s*\{")
+    found = [i + 1 for i, line in enumerate(lines) if entry.search(line)]
+    key = next((i + 1 for i, line in enumerate(lines) if re.search(r'"projects"\s*:', line)), None)
+    return found, key
+# end def
+
+
+def add_to_repo_hint(config: Config, moves: dict[str, str], tracked: Path, repo: Path, local: Path) -> list[str]:
+    """The hint text for projects that could move their local path into the repo config, with the places to edit; empty if none or all silenced."""
+    names = [p.name for p in config.projects if p.name in moves and not p.no_add_to_repo_hint]
+    if not names:
+        return []
+    # end if
+    out = [
+        f"{len(names)} project path(s) in {local.name} lie inside this repository and could be committed in {repo} instead.",
+        "Rerun with --migrate-local-paths to move them, or add them to the repo file by hand as {\"<name>\": {\"path\": \"./<dir>\"}} under \"projects\".",
+        'To keep them local, silence this per project with "no-add-to-repo-hint": true in its entry in any one of:',
+        f"  {tracked} (list item: {{\"name\": \"<name>\", \"no-add-to-repo-hint\": true, …}})",
+        f"  {repo} and {local} (under \"projects\": {{\"<name>\": {{\"no-add-to-repo-hint\": true, …}}}})",
+    ]
+    for name in names:
+        out.append(f"  {name} (path {moves[name]}):")
+        for file, as_list in ((tracked, True), (repo, False), (local, False)):
+            found, key = entry_lines(file, name, as_list)
+            if found:
+                out += [f"    {file}:{line}" for line in found]
+            else:
+                out.append(f"    {file}:{key} (add here)" if key is not None else f"    {file} (add here)")
+            # end if
+        # end for
+    # end for
+    return out
 # end def
 
 
@@ -1077,6 +1374,13 @@ def sync(
             print(f"[{p.name}] skipped, no path in {LOCAL_CONFIG.name} ({len(assigned[p.name])} todos not written)", file=sys.stderr)
         # end if
     # end for
+    if projects and all(p.path is None for p in projects):
+        print(
+            f"No project has a path, so nothing was written. Add this repository (and/or its subprojects) to {REPO_CONFIG} under \"projects\", "
+            f"e.g. \"{projects[0].name}\": {{\"path\": \".\"}}, or give them a path in {LOCAL_CONFIG.name}.",
+            file=sys.stderr,
+        )
+    # end if
     projects = [p for p in projects if p.path is not None and todo_dir_usable(p)]
     if reset_todo_file and not dry_run:
         for project in projects:
@@ -1138,6 +1442,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="tracked tag to project mapping")
     ap.add_argument("--local-config", type=Path, default=LOCAL_CONFIG, help="machine-local project paths (gitignored)")
+    ap.add_argument("--repo-config", type=Path, default=REPO_CONFIG, help="committed per-repository settings, layered between the tracked and the local config")
+    ap.add_argument("--migrate-local-paths", action="store_true", help="move the local project paths that lie inside this repository (and their commit prefixes) into the repo config, committing it; the local ones become null")
     ap.add_argument("--project", help="only this project (its name or one of its tags)")
     ap.add_argument("--dry-run", action="store_true", help="print a diff, write nothing")
     ap.add_argument("-v", "--verbose", action="store_true", help="log every comparison (assignment, line diffs, purge decisions)")
@@ -1148,7 +1454,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--reset-todo-file", action="store_true", help="rebuild the todo file of --project from the template plus its todo lines (checkbox lines and their `>` rows), everything else is dropped; refuses while the file has uncommitted changes; own commit, then the normal sync")
     ap.add_argument("--add-files", "--add", action="store_true", help="also stage and commit the files the todos mention (those with changes, each on its own); without it they are only linked")
     ap.add_argument("--no-amend", action="store_true", help="always make a new commit, even if HEAD is an unpushed todo sync commit of the same projects that could take the changes")
-    ap.add_argument("--write-schema", action="store_true", help=f"write {SCHEMA_PATH.name} and {LOCAL_SCHEMA_PATH.name} and exit")
+    ap.add_argument("--write-schema", action="store_true", help=f"write {SCHEMA_PATH.name}, {LOCAL_SCHEMA_PATH.name} and {REPO_SCHEMA_PATH.name} and exit")
     return ap
 # end def
 
@@ -1158,7 +1464,7 @@ def main(argv: list[str] | None = None) -> int:
     global VERBOSE
     VERBOSE = args.verbose
 
-    for schema_path, text in ((SCHEMA_PATH, schema_text()), (LOCAL_SCHEMA_PATH, local_schema_text())):
+    for schema_path, text in ((SCHEMA_PATH, schema_text()), (LOCAL_SCHEMA_PATH, local_schema_text()), (REPO_SCHEMA_PATH, repo_schema_text())):
         if args.write_schema or not schema_path.exists() or schema_path.read_text() != text:
             schema_path.write_text(text)
             if args.write_schema:
@@ -1171,7 +1477,14 @@ def main(argv: list[str] | None = None) -> int:
     # end if
 
     try:
-        config = load_config(args.config, args.local_config)
+        config = load_config(args.config, args.local_config, repo=args.repo_config)
+        ensure_repo_file(args.repo_config, repo_prefix(config), args.dry_run, not args.no_git)
+        if args.migrate_local_paths:
+            only = {p.name for p in select_projects(config, args.project)}
+            if migrate_local_paths(config, args.repo_config, args.local_config, only, args.dry_run, not args.no_git) and not args.dry_run:
+                config = load_config(args.config, args.local_config, repo=args.repo_config)
+            # end if
+        # end if
     except ValueError as e:
         print(e, file=sys.stderr)
         return 2
@@ -1188,6 +1501,11 @@ def main(argv: list[str] | None = None) -> int:
     todos = asyncio.run(fetch_todos(url, token, config.calendar_id))
     try:
         sync(config, todos, args.project, args.dry_run, not args.no_git, args.purge_missing, args.purge_complete, args.include_completed, args.reset_todo_file, args.add_files, not args.no_amend)
+        selected = {p.name for p in select_projects(config, args.project)}
+        moves = {} if args.migrate_local_paths else {name: path for name, path in movable(config, args.repo_config).items() if name in selected}
+        for line in add_to_repo_hint(config, moves, args.config, args.repo_config, args.local_config):
+            print(line, file=sys.stderr)
+        # end for
     except ValueError as e:
         print(e, file=sys.stderr)
         return 2

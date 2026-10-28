@@ -759,3 +759,167 @@ def test_without_the_base_hooks_mentions_stay_plain(tmp_path, monkeypatch):
     st.sync(cfg, [todo("1", "#a run `scripts/tool.py`")], None, False, use_git=False)
     assert "run `scripts/tool.py` —" in (r / "ai" / "todos.md").read_text()
 # end def
+
+
+def _layers(tmp_path, repo=None, local=None, **project):
+    tracked = _tracked(tmp_path, **project)
+    repo_file, local_file = tmp_path / "sync_todos.repo.json", tmp_path / "sync_todos.local.json"
+    if repo is not None:
+        repo_file.write_text(json.dumps(repo))
+    # end if
+    if local is not None:
+        local_file.write_text(json.dumps(local))
+    # end if
+    return tracked, repo_file, local_file
+# end def
+
+
+def test_repo_config_layers_between_tracked_and_local(tmp_path):
+    repo = {"commit_prefix": "[r] ", "calendar_id": 9, "projects": {"A": {"path": "./a", "commit_prefix": "[ra] "}, "B": {"path": "."}}}
+    tracked, repo_file, local = _layers(tmp_path, repo, {"projects": {"A": {"path": None}, "B": {"path": "/x/b", "commit_prefix": "[lb] "}}})
+    cfg = st.load_config(tracked, local, repo=repo_file)
+    a, b = cfg.projects
+    assert (cfg.commit_prefix, cfg.calendar_id) == ("[r] ", 9)
+    assert (a.path, a.path_source, a.commit_prefix) == ("./a", "repo", "[ra] ")
+    assert (b.path, b.path_source, b.commit_prefix) == ("/x/b", "local", "[lb] ")
+# end def
+
+
+def test_repo_projects_can_add_or_override_projects(tmp_path):
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {"A": {"tags": ["a", "aa"], "todo_file": "x.md"}, "C": {"tags": ["c"], "path": "./c"}}})
+    a, b, c = st.load_config(tracked, local, write_local=False, repo=repo_file).projects
+    assert (a.tags, a.todo_file) == (["a", "aa"], "x.md")
+    assert (c.name, c.tags, c.path) == ("C", ["c"], "./c")
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {"C": {"path": "./c"}}})
+    with pytest.raises(ValueError, match="tags"):
+        st.load_config(tracked, local, write_local=False, repo=repo_file)
+    # end with
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {"C": {"tags": ["a"]}}})
+    with pytest.raises(ValueError, match="tag"):
+        st.load_config(tracked, local, write_local=False, repo=repo_file)
+    # end with
+# end def
+
+
+@pytest.mark.parametrize("path", ["..", "../x", "./a/../b", "/abs", "~/x", "foo/bar", ".."])
+def test_repo_path_must_stay_inside(path):
+    with pytest.raises(ValueError):
+        st.RepoProject(path=path)
+    # end with
+# end def
+
+
+@pytest.mark.parametrize("path", [".", "./sub", "./a/b"])
+def test_repo_path_accepts_inside_paths(path):
+    assert st.RepoProject(path=path).path == path
+# end def
+
+
+def test_projects_with_a_repo_path_are_not_added_to_local(tmp_path):
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {"A": {"path": "."}}})
+    st.load_config(tracked, local, repo=repo_file)
+    assert json.loads(local.read_text())["projects"] == {"B": {"path": None, "commit_prefix": None}}
+# end def
+
+
+def test_hint_flag_counts_from_any_file(tmp_path):
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {"B": {"no-add-to-repo-hint": True}}}, {"projects": {"A": {"no-add-to-repo-hint": True}}})
+    a, b = st.load_config(tracked, local, write_local=False, repo=repo_file).projects
+    assert a.no_add_to_repo_hint and b.no_add_to_repo_hint
+    local.write_text(json.dumps({"projects": {"A": {"no-add-to-repo-hint": True}}}))
+    st.load_config(tracked, local)
+    assert json.loads(local.read_text())["projects"]["A"] == {"path": None, "commit_prefix": None, "no-add-to-repo-hint": True}
+# end def
+
+
+def test_repo_schema_is_current_and_has_the_path_pattern():
+    assert st.REPO_SCHEMA_PATH.read_text() == st.repo_schema_text()
+    assert json.loads(st.repo_schema_text())["$defs"]["RepoProject"]["properties"]["path"]["pattern"] == st.REPO_PATH_PATTERN
+# end def
+
+
+def test_ensure_repo_file_creates_and_commits_once(tmp_path):
+    r, run = _repo(tmp_path, "e")
+    repo_file = r / "ai" / "settings" / "sync_todos.repo.json"
+    st.ensure_repo_file(repo_file, "[p] ", dry_run=True, use_git=True)
+    assert not repo_file.exists()
+    st.ensure_repo_file(repo_file, "[p] ", dry_run=False, use_git=True)
+    assert repo_file.read_text() == '{\n  "$schema": "./sync_todos-repo.schema.json",\n  "projects": {\n  }\n}\n'
+    assert run("log", "-1", "--format=%s").strip() == "[p] [TODOs] added sync_todos.repo.json."
+    st.ensure_repo_file(repo_file, "[p] ", dry_run=False, use_git=True)
+    assert run("rev-list", "--count", "HEAD").strip() == "2"
+    other = r / "ai" / "settings" / "other.repo.json"
+    st.ensure_repo_file(other, "[p] ", dry_run=False, use_git=False)
+    assert other.exists() and run("status", "--porcelain", "--", str(other)).startswith("??")
+# end def
+
+
+def test_migrate_local_paths_moves_inside_paths_only(tmp_path, monkeypatch):
+    r, run = _repo(tmp_path, "m")
+    monkeypatch.setattr(st, "REPO_ROOT", r)
+    repo_file, local = r / "ai" / "settings" / "sync_todos.repo.json", tmp_path / "sync_todos.local.json"
+    st.ensure_repo_file(repo_file, "", dry_run=False, use_git=True)
+    tracked = tmp_path / "sync_todos.json"
+    tracked.write_text(json.dumps({"projects": [{"name": n, "tags": [n.lower()]} for n in "ABCD"]}))
+    local.write_text(json.dumps({"projects": {
+        "A": {"path": str(r / "sub"), "commit_prefix": "[a] "},
+        "B": {"path": "."},
+        "C": {"path": str(tmp_path / "elsewhere")},
+        "D": {"path": "~/d"},
+    }}))
+    cfg = st.load_config(tracked, local, repo=repo_file)
+    assert st.movable(cfg, repo_file) == {"A": "./sub", "B": "."}
+    assert st.migrate_local_paths(cfg, repo_file, local, {"A", "B", "C"}, dry_run=True, use_git=True) == ["A", "B"]
+    assert json.loads(repo_file.read_text())["projects"] == {}
+    assert st.migrate_local_paths(cfg, repo_file, local, {"A", "B", "C"}, dry_run=False, use_git=True) == ["A", "B"]
+    assert repo_file.read_text() == st.dump_json(json.loads(repo_file.read_text()))
+    assert json.loads(repo_file.read_text())["projects"] == {"A": {"path": "./sub", "commit_prefix": "[a] "}, "B": {"path": "."}}
+    assert json.loads(local.read_text())["projects"]["A"] == {"path": None, "commit_prefix": None}
+    assert json.loads(local.read_text())["projects"]["C"]["path"] == str(tmp_path / "elsewhere")
+    assert run("log", "-1", "--format=%s").strip() == "[TODOs] moved local project paths into sync_todos.repo.json for A, B."
+    cfg = st.load_config(tracked, local, repo=repo_file)
+    assert [(p.name, p.path, p.path_source) for p in cfg.projects[:2]] == [("A", "./sub", "repo"), ("B", ".", "repo")]
+    assert st.movable(cfg, repo_file) == {}
+# end def
+
+
+def test_migrate_keeps_an_existing_repo_path(tmp_path, monkeypatch):
+    r, _ = _repo(tmp_path, "k")
+    monkeypatch.setattr(st, "REPO_ROOT", r)
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {"A": {"path": "./x"}}}, {"projects": {"A": {"path": "."}}})
+    cfg = st.load_config(tracked, local, repo=repo_file)
+    assert (cfg.projects[0].path, cfg.projects[0].path_source) == (".", "local")
+    assert st.movable(cfg, repo_file) == {}
+# end def
+
+
+def test_hint_lists_projects_once_with_lines_in_all_three_files(tmp_path, monkeypatch):
+    r, _ = _repo(tmp_path, "h")
+    monkeypatch.setattr(st, "REPO_ROOT", r)
+    tracked, repo_file, local = _layers(tmp_path, {"projects": {}}, {"projects": {"A": {"path": "."}, "B": {"path": "."}}})
+    cfg = st.load_config(tracked, local, repo=repo_file)
+    moves = st.movable(cfg, repo_file)
+    out = st.add_to_repo_hint(cfg, moves, tracked, repo_file, local)
+    assert sum("could be committed" in line for line in out) == 1
+    assert [line.strip() for line in out if line.endswith("):")] == ["A (path .):", "B (path .):"]
+    assert f"    {tracked}:1" in out or any(line.startswith(f"    {tracked}:") for line in out)
+    assert any(line.startswith(f"    {repo_file}:") and line.endswith("(add here)") for line in out)
+    assert any(line.startswith(f"    {local}:") and "(add here)" not in line for line in out)
+    assert all(str(p) in "\n".join(out) for p in (tracked, repo_file, local))
+    cfg.projects[0].no_add_to_repo_hint = True
+    out = st.add_to_repo_hint(cfg, moves, tracked, repo_file, local)
+    assert [line.strip() for line in out if line.endswith("):")] == ["B (path .):"]
+    cfg.projects[1].no_add_to_repo_hint = True
+    assert st.add_to_repo_hint(cfg, moves, tracked, repo_file, local) == []
+# end def
+
+
+def test_all_skipped_prints_the_instruction(tmp_path, capsys):
+    cfg = st.Config(projects=[st.Project(name="A", tags=["a"])])
+    st.sync(cfg, [todo("1", "#a one")], None, False, use_git=False)
+    assert st.REPO_CONFIG.name in capsys.readouterr().err
+    r, _ = _repo(tmp_path, "s")
+    cfg = st.Config(projects=[st.Project(name="A", tags=["a"], path=str(r))])
+    st.sync(cfg, [todo("1", "#a one")], None, False, use_git=False)
+    assert st.REPO_CONFIG.name not in capsys.readouterr().err
+# end def

@@ -1,0 +1,5 @@
+{
+  "$schema": "./sync_todos-repo.schema.json",
+  "projects": {
+  }
+}
