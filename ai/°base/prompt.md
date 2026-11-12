@@ -8333,3 +8333,6 @@ Probably `projects` should stay a dictionary like in the local file?
 
 ❯ Close it.
 
+❯ Create a small SKILL for
+> Clean up older unpushed history (since `base/base`), too. Once everything is clean write me a summary. If i then send a _continue_, you may push, including a sha-gated & leased force-push (which commit hash you describe in your summary beforehand).
+
