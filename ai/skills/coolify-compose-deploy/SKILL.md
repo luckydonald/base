@@ -89,7 +89,8 @@ services:
 ```
 
 Full type list (URL/FQDN, USER, PASSWORD variants, BASE64/REALBASE64/HEX variants) is in `references/magic-and-predefined-vars.md`.
-One gotcha worth remembering inline: **service names with underscores can't take a port suffix** in the variable name — use hyphens in the service name instead (`SERVICE_URL_MY-SERVICE_3000`, not `SERVICE_URL_MY_SERVICE_3000`).
+One gotcha worth remembering inline: **the `<NAME>` part of a magic variable must be a single word**, with no dashes and no underscores (an underscore is ambiguous with a port suffix) — shove the words together or shorten it (`SERVICE_URL_MYSERVICE_3000`, not `SERVICE_URL_MY-SERVICE_3000` or `SERVICE_URL_MY_SERVICE_3000`).
+If the service is named `my-service`, the variable name no longer matches it, so check that Coolify still routes the domain to the service, or rename the service to match.
 Magic vars in Git-sourced compose files need Coolify ≥ v4.0.0-beta.411.
 
 For build-time vs runtime var flags, Docker Build Secrets, and the `Multiline`/`Literal` UI checkboxes, see `references/magic-and-predefined-vars.md` — these are UI-side settings, not compose syntax, but they affect how a compose-declared var actually behaves.

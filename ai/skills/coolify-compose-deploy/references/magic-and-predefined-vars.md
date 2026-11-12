@@ -45,10 +45,12 @@ services:
       - SERVICE_URL_API=/api                            # distinct name -> new URL generated
 ```
 
-Underscore-containing service names can't take a port suffix in the var name — use hyphens instead:
+The `<NAME>` part of the var name must be a single word: neither dashes nor underscores are allowed, as an underscore is ambiguous with a port suffix and a dash is rejected.
+Shove the words together (or shorten the name) instead:
 
 ```
-SERVICE_URL_APPWRITE-SERVICE_3000   # correct
+SERVICE_URL_APPWRITESERVICE_3000    # correct
+SERVICE_URL_APPWRITE-SERVICE_3000   # broken — dash not allowed
 SERVICE_URL_APPWRITE_SERVICE_3000   # broken — ambiguous with a port suffix
 ```
 
