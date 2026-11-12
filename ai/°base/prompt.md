@@ -8348,3 +8348,7 @@ Probably `projects` should stay a dictionary like in the local file?
 > - [Answer (`1602` chars, `1.58 KB`)](output/agents/127.b1z9lztip/result.md)
 > - [Raw log (`1602` chars, `1.58 KB`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/e52fd552-6d5e-412b-84af-99bc07b0ca4d/tasks/b1z9lztip.output)
 
+❯ Plan denied.
+
+❯ Also make the check case insensitive
+
