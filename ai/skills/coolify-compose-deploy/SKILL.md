@@ -48,6 +48,29 @@ services:
 
 Required-var validation (`:?`) happens before container creation, so a missing required var fails fast instead of starting a half-configured container.
 
+### Version variable for the image tag
+
+Pin the deployed version with a `<NAME>_VERSION` variable instead of hardcoding the tag, so a redeploy with another version is just an env var change in the Coolify UI.
+Name it after the service, e.g. `ANONADDY_VERSION` or `PASEO_RELAY_VERSION`, default it to `latest`, and use it in the `image:` tag:
+
+```yaml
+# Set env var PASEO_RELAY_VERSION to the version (image tag) to deploy, defaults to latest.
+# PASEO_RELAY_VERSION=1.2.3
+services:
+  paseo-relay:
+    image: 'ghcr.io/getpaseo/paseo-relay:${PASEO_RELAY_VERSION:-latest}'
+    environment:
+      # Also passed into the container, so the running version is visible there
+      - PASEO_RELAY_VERSION=${PASEO_RELAY_VERSION:-latest}
+```
+
+- Quote the `image:` value when it contains `${...}`.
+- Document the variable in a header comment at the top of the file, with an example value.
+- Use the list form `- NAME=${NAME:-latest}` when the `environment:` block is a list, and the map form `NAME: '${NAME:-latest}'` when it is a map. Mixing them breaks the YAML.
+- Optionally allow pinning the whole image (e.g. to a digest) with a second variable, nested as `'${APP_IMAGE:-repo/app:${APP_VERSION:-latest}}'`.
+  Compose handles nested defaults, but check that Coolify's parser still lists both variables in the UI, and drop the image override if it does not.
+- If the upstream tag differs from the release version (a `-r0` suffix, a `v` prefix), say so in a comment next to the variable.
+
 **Shared (team/project/environment) variables** aren't detected directly from the compose file.
 Reference them from the Coolify UI side: create the shared variable, then set the *value* of your app's own env var field to `{{team.NAME}}`, `{{project.NAME}}`, or `{{environment.NAME}}` — the compose file itself just declares an ordinary `${VAR}` that the UI value flows into.
 
