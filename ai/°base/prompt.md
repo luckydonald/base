@@ -8352,3 +8352,5 @@ Probably `projects` should stay a dictionary like in the local file?
 
 ❯ Also make the check case insensitive
 
+❯ Plan accepted, auto mode.
+

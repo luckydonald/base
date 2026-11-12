@@ -15,8 +15,13 @@ It already holds `/commit-with-lplp-style`, `squash unpushed` and similar, but n
    - In the skills block add `/commit-lplp-style` and `$commit-lplp-style` (Claude uses `/`, Codex `$`).
    - In the squashing/cleanup block add `fold`, `fold it`, `unpushed`, `fold unpushed` and `clean unpushed`.
      Only exact whole-prompt matches are skipped, so longer prompts containing these words are still logged.
-2. `scripts/°base/tests/test_save_prompt_skip_commands.py`:
+2. Same file, `is_skipped_prompt`: make the check case insensitive, as requested.
+   - Compare `stripped.casefold()` against casefolded copies of `SKIP_PROMPTS` and `SKIP_PROMPT_COMMANDS`, built once at module level (e.g. `_SKIP_PROMPTS_FOLDED = {p.casefold() for p in SKIP_PROMPTS}`), and casefold the first word for the command check.
+   - The lists stay written in lowercase, and the redundant `"Commit"` entry is dropped.
+   - This also makes `/Todo-Loop`, `Squash`, `FOLD` and `/Code-Style md` skipped.
+3. `scripts/°base/tests/test_save_prompt_skip_commands.py`:
    - Add `test_lplp_alias_and_fold_commands_are_skipped`, looping over the new entries with `subTest` and asserting the logged query is empty (same shape as `test_loop_continuations_are_skipped`).
+   - Add `test_skip_check_is_case_insensitive` with e.g. `Commit`, `SQUASH UNPUSHED`, `Fold`, `/Commit-LPLP-Style`, `/CODE-STYLE md`.
    - Add one lookalike to the logging test, e.g. `fold the laundry` stays logged.
 
 ## Verification

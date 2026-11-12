@@ -81,8 +81,10 @@ SKIP_PROMPTS = {
     # skills
     "/commit-with-lplp-style",
     "$commit-with-lplp-style",
+    "/commit-lplp-style",
+    "$commit-lplp-style",
     # common textual phrases for that skill.
-    "commit", "Commit", "yes commit",
+    "commit", "yes commit",
     "commit please", "commit pls", "commit plz",
     "please commit", "pls commit", "plz commit",
     "commit now", "now commit",
@@ -92,6 +94,7 @@ SKIP_PROMPTS = {
     "squash", "squash it", "squash it with lplp style",
     "squash ai", "squash `ai:`", "squash `ai: `",
     "squash unpushed",
+    "fold", "fold it", "unpushed", "fold unpushed", "clean unpushed",
     "rebase", "rebase it", "rebase it with lplp style",
     # bumping the AI to continue
     "continue", "go on", "bump",
@@ -113,11 +116,16 @@ SKIP_PROMPT_COMMANDS = {
 }
 
 
+# The skip check is case insensitive, so the lists above are written in lowercase.
+_SKIP_PROMPTS_FOLDED = {prompt.casefold() for prompt in SKIP_PROMPTS}
+_SKIP_PROMPT_COMMANDS_FOLDED = {command.casefold() for command in SKIP_PROMPT_COMMANDS}
+
+
 def is_skipped_prompt(prompt: str) -> bool:
-    stripped = prompt.strip()
-    if stripped in SKIP_PROMPTS:
+    stripped = prompt.strip().casefold()
+    if stripped in _SKIP_PROMPTS_FOLDED:
         return True
-    return stripped.split(maxsplit=1)[0] in SKIP_PROMPT_COMMANDS
+    return stripped.split(maxsplit=1)[0] in _SKIP_PROMPT_COMMANDS_FOLDED
 
 
 class PromptLogEntry(NamedTuple):

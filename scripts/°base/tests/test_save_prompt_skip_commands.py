@@ -48,8 +48,19 @@ class SavePromptSkipCommandsTests(unittest.TestCase):
             with self.subTest(prompt=prompt):
                 self.assertEqual("", self.logged_query(prompt))
 
+    def test_lplp_alias_and_fold_commands_are_skipped(self):
+        for prompt in ("/commit-lplp-style", "$commit-lplp-style", "fold", "fold it", "unpushed", "fold unpushed", "clean unpushed"):
+            with self.subTest(prompt=prompt):
+                self.assertEqual("", self.logged_query(prompt))
+
+    def test_skip_check_is_case_insensitive(self):
+        for prompt in ("Commit", "SQUASH UNPUSHED", "Fold", "/Commit-LPLP-Style", "/CODE-STYLE md", "/Todo-Loop"):
+            with self.subTest(prompt=prompt):
+                self.assertEqual("", self.logged_query(prompt))
+
     def test_longer_prompt_containing_a_skip_phrase_is_still_logged(self):
         self.assertIn("continue loop please", self.logged_query("continue loop please"))
+        self.assertIn("fold the laundry", self.logged_query("fold the laundry"))
 
 
 if __name__ == "__main__":

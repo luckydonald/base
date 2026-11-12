@@ -389,7 +389,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 transcript,
                 [
                     transcript_shell_command("pwd", turn_id="turn-command", output="/repo\n"),
-                    transcript_user_message("Continue", "turn-current"),
+                    transcript_user_message("Continue with the next step", "turn-current"),
                 ],
             )
 
@@ -397,7 +397,7 @@ class AiHooksBaseRoutingTests(unittest.TestCase):
                 repo,
                 PROMPT_HOOK,
                 {
-                    "prompt": "Continue",
+                    "prompt": "Continue with the next step",
                     "turn_id": "turn-current",
                     "transcript_path": str(transcript),
                 },
