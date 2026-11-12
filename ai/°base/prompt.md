@@ -8338,3 +8338,5 @@ Probably `projects` should stay a dictionary like in the local file?
 
 ❯ Clean up older unpushed history (since `base/base`), too. Once everything is clean write me a summary, including a sha-gated (_HEAD == expected sha1_) & leased force-push command. If i then send a _continue_ (which the prompt  logging ignores) you may (force) push, as I have allowed both source and destination commit for the overwriting.
 
+❯ Plan accepted, auto mode.
+
