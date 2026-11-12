@@ -8340,3 +8340,11 @@ Probably `projects` should stay a dictionary like in the local file?
 
 ❯ Plan accepted, auto mode.
 
+❯ Task Notification:
+> - Task `b1z9lztip` <kbd>completed</kbd>
+> - Tool `toolu_016JCoL7aicWZHJA5QxyQod2`
+> - > Background command "Commit todo-loop change and run tests" completed (exit code 0)
+> - [Query (`82` chars, `82 B`)](output/agents/127.b1z9lztip/prompt.md)
+> - [Answer (`1602` chars, `1.58 KB`)](output/agents/127.b1z9lztip/result.md)
+> - [Raw log (`1602` chars, `1.58 KB`)](/private/tmp/claude-501/-Users-user-Documents-programming-Python-base/e52fd552-6d5e-412b-84af-99bc07b0ca4d/tasks/b1z9lztip.output)
+

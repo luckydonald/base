@@ -317,7 +317,7 @@ Closed (no CalDAV equivalent):
   > - In DockerTgBot
   > - Commits ffca32d7f657178629c9a514c5696e387951167e and back until the merge at 401815b9cf83a6fb35543d346a3f72396f7772bb
   > - The merge commit has swallowed the root `ai/query.md` rename.
-- [ ] copy `/move-ai-to-project` SKILL from `DockerTgBot` — `todo:5ea80aaf-cbfd-4595-8125-c7c39d0fe80f`
+- [x] copy `/move-ai-to-project` SKILL from `DockerTgBot` — `todo:5ea80aaf-cbfd-4595-8125-c7c39d0fe80f` _(done)_
   > Commits to cherry pick (add `[DockerTgBot]` attribution):
   > - 6b7a9b60000c674ceecebae778b6b5dd6f454f33
   > - c2c1d8af9ed32e2c722e57ce20f1f9cc0cc3a97f
