@@ -8403,3 +8403,54 @@ Probably `projects` should stay a dictionary like in the local file?
 + - added: When calculating the number for the new plan, take into account all (other) worktrees. — `todo:d5dd94eb-49ac-4a74-bf4d-39114bf055e7`
 ```
 
+❯ Adapt `/Users/user/git/luckydonald/luckydonald/fedora_bak_2026/scripts/bak_push.py` for usage in a repo.
+It shall:
+0. read `backup_tags` dict with `.repo: str` and `.delete_tags: {local: bool, origin: bool}` from settings:
+   - "default" values in `settings.json`:
+     - `"base": "https://luckydonald@github.com/luckydonald/bak.git"`
+     - `"delete": {"local": false, "origin": false }`
+   - settings are read in the following order, the latest overwriting keys of the former if set: 
+     1. `ai/settings.json`
+     2. `ai/settings.repo.json`
+     3. [`ai/settings.local.json`](../settings.local.json)
+     4. env vars `BACKUP_TAGS` + {`_REPO` / `_DELETE_TAGS_LOCAL` / `_DELETE_TAGS_ORIGIN`}
+1. push all `bak/…` tags to `backup_tag_repo`
+2. if `backup_tags.delete`: remove pushed tags from 
+   - local and
+   - origin
+     - if origin points on the same commit
+     - and if origin is not `backup_tags.repo` (normalized = without `user@` and without `.git`)
+Enter plan mode once you did all the intel you need.
+
+❯ Question answered.
+> <details><summary>
+>
+>> 1. The repo's settings live in [`ai/settings/settings.json`](../settings/settings.json) and [`ai/settings/settings.local.json`](../settings/settings.local.json) (there is no `ai/settings.json`). Which paths should the script read?
+>> 2. The spec names the keys two ways: `repo` and `delete_tags` in step 0, but `base` and `delete` in the defaults. Which schema should I use?
+>
+> (click to expand)
+>
+> </summary>
+>
+>> **Settings paths** (1/2) <kbd>Single Select</kbd><br>
+>> The repo's settings live in [`ai/settings/settings.json`](../settings/settings.json) and [`ai/settings/settings.local.json`](../settings/settings.local.json) (there is no `ai/settings.json`). Which paths should the script read?
+> - [ ] 1\. ai/settings/… (Recommended)
+>   - _Read [`ai/settings/settings.json`](../settings/settings.json), `ai/settings/settings.repo.json` (new, committed), [`ai/settings/settings.local.json`](../settings/settings.local.json) (existing, gitignored). This matches the existing layout and sync_todos' `.repo.json` pattern._
+> - [ ] 2\. Literal ai/… paths
+>   - _Read `ai/settings.json`, `ai/settings.repo.json`, [`ai/settings.local.json`](../settings.local.json) exactly as written. A stray gitignored [`ai/settings.local.json`](../settings.local.json) already exists there with unrelated Claude permissions._
+> - [x] 3\. _Type something:_
+>   - > Ah, `ai/settings/settings{,.local}.json`. No `.repo` needed if not existent yet.
+>
+>> **Key names** (2/2) <kbd>Single Select</kbd><br>
+>> The spec names the keys two ways: `repo` and `delete_tags` in step 0, but `base` and `delete` in the defaults. Which schema should I use?
+> - [x] 1\. repo + delete_tags (Recommended)
+>   - _`backup_tags: {repo: "https://luckydonald@github.com/luckydonald/bak.git", delete_tags: {local: false, origin: false}}`. The env vars `BACKUP_TAGS_REPO` and `BACKUP_TAGS_DELETE_TAGS_LOCAL/_ORIGIN` follow the same names._
+> - [ ] 2\. base + delete
+>   - _`backup_tags: {base: …, delete: {local, origin}}`. The env vars would still be `…_REPO` and `…_DELETE_TAGS_*`, so the names would not match._
+> - [ ] 3\. _Type something._
+>
+> </details>
+>
+
+❯ Drop `--bak-url` in favor of `--bak-repo`.
+
