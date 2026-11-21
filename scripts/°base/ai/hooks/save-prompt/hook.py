@@ -124,6 +124,8 @@ SKIP_PROMPTS = {
             ),
         },
     ),
+    # cleaning up unpushed history, without a preceding squash instruction
+    "unpushed", "clean unpushed",
     # bumping the AI to continue
     "continue", "go on", "bump",
     # loop
