@@ -8,7 +8,7 @@ model_reasoning_effort = "medium"
 [mcp_servers."bugsink"]
 enabled = true
 command = "npx"
-args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "@rexlmanu/bugsink-mcp@0.2.0"]
+args = ["-y", "envmcp", "--env-file", "ai/.env", "npx", "-y", "@rexlmanu/bugsink-mcp"]
 
 [mcp_servers."bugsink".tools."get_event"]
 approval_mode = "auto"

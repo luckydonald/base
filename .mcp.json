@@ -10,7 +10,7 @@
         "ai/.env",
         "npx",
         "-y",
-        "@rexlmanu/bugsink-mcp@0.2.0"
+        "@rexlmanu/bugsink-mcp"
       ]
     },
     "chrome-devtools": {
