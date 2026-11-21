@@ -177,7 +177,7 @@ def process(repo: Path, names: list[str], cfg: BackupTags, dry: bool) -> None:
     empty_ok = has_empty(repo, cfg.repo, dry)
     base = url_path(origin_url(repo), repo)
     if not names:
-        names = git(repo, "tag", "--list", "bak/*").stdout.split()
+        names = git(repo, "tag", "--list", "bak/*", "bak-*").stdout.split()
     # end if
     for name in names:
         kind = ref_kind(repo, name)
@@ -189,12 +189,13 @@ def process(repo: Path, names: list[str], cfg: BackupTags, dry: bool) -> None:
         prefix = f"bak/{SEP}/{base}/{SEP}/{kind}"
         # a missing empty object simply means "not an ancestor", so no fetch is needed here
         on_empty = git(repo, "merge-base", "--is-ancestor", EMPTY, sha, check=False).returncode == 0
-        main_ref = f"{prefix}/{'on-empty' if on_empty else 'no-empty'}/{SEP}/{name}"
+        clean_name = f'bak/{name[4:]}' if name.startswith('bak-') else name
+        main_ref = f"{prefix}/{'on-empty' if on_empty else 'no-empty'}/{SEP}/{clean_name}"
         jobs: list[tuple[str, str, bool]] = [(main_ref, sha, True)]  # (ref, sha, required)
         if not on_empty and empty_ok:
             rebased = "(would be rebased)" if dry else rebase_on_empty(repo, sha)
             if rebased:
-                jobs.append((f"{prefix}/-rebased-/{SEP}/{name}", rebased, False))
+                jobs.append((f"{prefix}/-rebased-/{SEP}/{clean_name}", rebased, False))
             # end if
         # end if
         ok = True
