@@ -41,7 +41,7 @@ It is derived from the fedora script, with these changes:
   The backup repo is shared across repos, so namespacing is needed to avoid collisions.
 - **Keep** `-C REPO` and the positional `names`, which default to all local `bak/*` tags.
   Add `--delete-local/--no-delete-local` and `--delete-origin/--no-delete-origin` CLI overrides on top of the env layer.
-  Drop `--bak-url` in favour of `--repo`.
+  Drop `--bak-url` in favour of `--bak-repo`, which overrides `backup_tags.repo` above the env layer.
 - Settings loading goes in its own module, `scripts/°base/git/°bak_lib/settings.py` (no `_` prefix per the code-style guide, and the `°` namespace matches `°split_lib`), with `load_backup_tags(root: Path, env: Mapping[str, str]) -> BackupTags` returning a typed dataclass.
   The git root comes from `git rev-parse --show-toplevel`, as in `°settings_lib/paths.py`.
 

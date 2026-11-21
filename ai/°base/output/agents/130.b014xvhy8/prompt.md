@@ -1,0 +1,1 @@
+Background command "Stub has_empty, run new and full tests, dry-run" completed (exit code 0)

@@ -329,3 +329,5 @@ Closed (no CalDAV equivalent):
 - [x] in the `/todo-loop` skill, mention to set the todo to in progress when being in a git worktree, so other agents can skip it. — `todo:1382d491-4c32-401f-8f81-d3d57fbaafc8` _(done)_
   > - While at it, make sure that that state is written to `todos.md` in the sync script.
 - [x] When calculating the number for the new plan, take into account all (other) worktrees. — `todo:d5dd94eb-49ac-4a74-bf4d-39114bf055e7` _(done)_
+- [ ] Cherrypick from ../DockerTgBot — `todo:2cbbc4d3-db79-45fc-95f7-9de21c8c830c`
+  > - 7944e22493a65946fd68dba5fef960fa821eba93

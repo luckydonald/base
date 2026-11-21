@@ -1,0 +1,1 @@
+Background command "Rerun full suite, record exit status" completed (exit code 0)

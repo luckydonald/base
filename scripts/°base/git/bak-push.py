@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Push local `bak/*` tags to the `backup_tags.repo` of the layered settings (see `ai/settings/README.md`)."""
+from __future__ import annotations
+
+import importlib
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+main = importlib.import_module("°bak_lib.cli").main
+
+if __name__ == "__main__":
+    raise SystemExit(main())
