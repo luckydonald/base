@@ -436,7 +436,7 @@
         "tools": [
           ".env"
         ],
-        "cmd": ["npx", "-y", "bugsink-mcp"]
+        "cmd": ["npx", "-y", "@rexlmanu/bugsink-mcp@0.2.0"]
       },
       "chrome-devtools": {
         "enabled": false,
