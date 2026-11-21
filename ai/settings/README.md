@@ -27,6 +27,15 @@ Downloader settings:
 Recommended values for `download_link.ide` are executable names that accept a file path as their final argument,
 such as `pycharm`, `rustrover`, `codium`, or `code`.
 
+Backup tag settings (`scripts/bak_push.py`):
+
+- `backup_tags.repo`: the repo the `bak/*` tags are pushed to
+- `backup_tags.delete_tags.local` / `.origin`: delete the pushed tags locally / on `origin` afterwards (both default to `false`)
+
+They are read from `settings.json`, then the optional committed `settings.repo.json`, then `settings.local.json`, then the env vars `BACKUP_TAGS_REPO`, `BACKUP_TAGS_DELETE_TAGS_LOCAL` and `BACKUP_TAGS_DELETE_TAGS_ORIGIN`.
+Each layer only overrides the keys it sets.
+A tag is deleted on `origin` only if origin has it at the same commit and origin is not the backup repo itself (compared without `user@` and `.git`).
+
 `settings.local.json` is the ignored machine-local overlay for per-machine overrides. Keep shared defaults in
 `settings.json` and machine-specific preferences in `settings.local.json`.
 

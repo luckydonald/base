@@ -45,6 +45,29 @@
         }
       },
       "additionalProperties": true
+    },
+    "backup_tags": {
+      "type": "object",
+      "description": "Where `scripts/bak_push.py` pushes `bak/*` tags, and whether it deletes them afterwards.",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "delete_tags": {
+          "type": "object",
+          "properties": {
+            "local": {
+              "type": "boolean"
+            },
+            "origin": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true,

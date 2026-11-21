@@ -464,5 +464,12 @@
   },
   "download_link": {
     "ide": "pycharm"
+  },
+  "backup_tags": {
+    "repo": "https://luckydonald@github.com/luckydonald/bak.git",
+    "delete_tags": {
+      "local": false,
+      "origin": false
+    }
   }
 }
